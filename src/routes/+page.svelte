@@ -7,19 +7,32 @@
   let nextScreen: HTMLElement;
   let reelCards: HTMLElement[] = [];
   let nextLetters: HTMLElement[] = [];
+  let introLetters: HTMLElement[] = []; // ← nuovo
+
+  const introMessage = 'Tutti abbiamo visto i video virali sulla cucina olimpica...';
+  const introCharacters = introMessage.split('').map((letter, index) => ({
+    letter,
+    isSpace: letter === ' ',
+    isAccent:
+      index >= introMessage.indexOf('cucina') &&
+      index < introMessage.indexOf('cucina') + 'cucina'.length
+  }));
+
   const nextMessage = 'Incontra Le persone che hanno reso tutto questo possibile.';
   const nextCharacters = nextMessage.split('').map((letter, index) => ({
-  letter,
-  isSpace: letter === ' ', 
-  isAccent: index >= nextMessage.indexOf('persone') && index < nextMessage.indexOf('persone') + 'persone'.length
-}));
+    letter,
+    isSpace: letter === ' ',
+    isAccent:
+      index >= nextMessage.indexOf('persone') &&
+      index < nextMessage.indexOf('persone') + 'persone'.length
+  }));
 
   const reels = [
-    { src: '/videos/tiramisu.mp4', poster: '', bg: '#f0f0f0', fromX: -8, fromY: 4, toX: -34, toY: -18, rotate: -8 },
-    { src: '/videos/1.mp4', poster: '', bg: '#2a4484', fromX: 7, fromY: -3, toX: 30, toY: 16, rotate: 7 },
-    { src: '/videos/2.mp4', poster: '', bg: '#fdc567', fromX: -4, fromY: -8, toX: -18, toY: 28, rotate: 10 },
-    { src: '/videos/3.mp4', poster: '', bg: '#101318', fromX: 9, fromY: 8, toX: 36, toY: -24, rotate: -11 },
-    { src: '/videos/4.mp4', poster: '', bg: '#5f6fa8', fromX: -10, fromY: -2, toX: -40, toY: 6, rotate: -5 }
+    { src: '/videos/tiramisu.mp4', poster: '', bg: '#f0f0f0', fromX: -8,  fromY:  4, toX: -34, toY: -18, rotate: -8  },
+    { src: '/videos/1.mp4',        poster: '', bg: '#2a4484', fromX:  7,  fromY: -3, toX:  30, toY:  16, rotate:  7  },
+    { src: '/videos/2.mp4',        poster: '', bg: '#fdc567', fromX: -4,  fromY: -8, toX: -18, toY:  28, rotate:  10 },
+    { src: '/videos/3.mp4',        poster: '', bg: '#101318', fromX:  9,  fromY:  8, toX:  36, toY: -24, rotate: -11 },
+    { src: '/videos/4.mp4',        poster: '', bg: '#5f6fa8', fromX: -10, fromY: -2, toX: -40, toY:   6, rotate:  -5 }
   ];
 
   const clamp = (value: number, min = 0, max = 1) => Math.min(Math.max(value, min), max);
@@ -53,7 +66,6 @@
         event.preventDefault();
         updateFlow(0.08);
       }
-
       if (event.key === 'ArrowUp' || event.key === 'PageUp') {
         event.preventDefault();
         updateFlow(-0.08);
@@ -62,11 +74,11 @@
 
     applyReelStyles();
     applyPageStyles();
-    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('wheel',   handleWheel,   { passive: false });
     window.addEventListener('keydown', handleKeydown);
 
     return () => {
-      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('wheel',   handleWheel);
       window.removeEventListener('keydown', handleKeydown);
     };
   });
@@ -91,7 +103,6 @@
 
   function reelStyle(index: number): string {
     const { z, scale, opacity, x, y, rotate } = getReelPresentation(index);
-
     return [
       `--x: ${x.toFixed(2)}vw`,
       `--y: ${y.toFixed(2)}vh`,
@@ -106,13 +117,12 @@
   function applyReelStyles() {
     reelCards.forEach((card, index) => {
       if (!card) return;
-
       const { z, scale, opacity, x, y, rotate } = getReelPresentation(index);
-      card.style.setProperty('--x', `${x.toFixed(2)}vw`);
-      card.style.setProperty('--y', `${y.toFixed(2)}vh`);
-      card.style.setProperty('--z', `${z.toFixed(1)}px`);
-      card.style.setProperty('--scale', scale.toFixed(3));
-      card.style.setProperty('--rotate', `${rotate.toFixed(2)}deg`);
+      card.style.setProperty('--x',       `${x.toFixed(2)}vw`);
+      card.style.setProperty('--y',       `${y.toFixed(2)}vh`);
+      card.style.setProperty('--z',       `${z.toFixed(1)}px`);
+      card.style.setProperty('--scale',   scale.toFixed(3));
+      card.style.setProperty('--rotate',  `${rotate.toFixed(2)}deg`);
       card.style.setProperty('--opacity', opacity.toFixed(3));
     });
   }
@@ -120,24 +130,29 @@
   function applyPageStyles() {
     const easedPage = ease(pageProgress);
 
-    if (homeScreen) {
-      homeScreen.style.setProperty('--page-y', `${(-100 * easedPage).toFixed(2)}svh`);
-    }
+    if (homeScreen) homeScreen.style.setProperty('--page-y', `${(-100 * easedPage).toFixed(2)}svh`);
+    if (nextScreen) nextScreen.style.setProperty('--page-y', `${(100 - 100 * easedPage).toFixed(2)}svh`);
 
-    if (nextScreen) {
-      nextScreen.style.setProperty('--page-y', `${(100 - 100 * easedPage).toFixed(2)}svh`);
-    }
+    // ── Intro: dissolve mentre pageProgress sale ── // ← nuovo
+    introLetters.forEach((letter, index) => {
+      if (!letter) return;
+      const stagger    = 0.5 / Math.max(introLetters.length - 1, 1);
+      const local      = clamp((pageProgress - index * stagger) / 0.08);
+      const letterEase = ease(local);
+      letter.style.setProperty('--letter-opacity', (1 - letterEase).toFixed(3));
+      letter.style.setProperty('--letter-y',       `${(letterEase * -12).toFixed(1)}px`);
+    });
 
+    // ── Next: rivela mentre pageProgress sale ──
     nextLetters.forEach((letter, index) => {
       if (!letter) return;
-
       const revealStart = 0.12;
-      const revealEnd = 0.92;
-      const stagger = (revealEnd - revealStart) / Math.max(nextLetters.length - 1, 1);
-      const local = clamp((pageProgress - revealStart - index * stagger) / 0.07);
-      const letterEase = ease(local);
+      const revealEnd   = 0.92;
+      const stagger     = (revealEnd - revealStart) / Math.max(nextLetters.length - 1, 1);
+      const local       = clamp((pageProgress - revealStart - index * stagger) / 0.07);
+      const letterEase  = ease(local);
       letter.style.setProperty('--letter-opacity', letterEase.toFixed(3));
-      letter.style.setProperty('--letter-y', `${((1 - letterEase) * 12).toFixed(1)}px`);
+      letter.style.setProperty('--letter-y',       `${((1 - letterEase) * 12).toFixed(1)}px`);
     });
   }
 </script>
@@ -172,10 +187,19 @@
   </header>
 
   <section class="intro" aria-labelledby="intro-title">
-    <h1 id="intro-title">
-      <span>Tutti abbiamo visto</span>
-      <span>i video virali sulla</span>
-      <span><em>cucina</em> olimpica...</span>
+    <!-- h1 ora itera lettera per lettera come nextMessage -->
+    <h1 id="intro-title" aria-label={introMessage}>
+      {#each introCharacters as character, index}
+        {#if character.isSpace}
+          <span class="space" aria-hidden="true">&nbsp;</span>
+        {:else}
+          <span
+            bind:this={introLetters[index]}
+            class:accent-letter={character.isAccent}
+            aria-hidden="true"
+          >{character.letter}</span>
+        {/if}
+      {/each}
     </h1>
   </section>
 
@@ -209,19 +233,18 @@
 
 </main>
 
+
 <section bind:this={nextScreen} class="next-screen" aria-labelledby="next-message">
   <p id="next-message" class="next-message" aria-label={nextMessage}>
     {#each nextCharacters as character, index}
       {#if character.isSpace}
-    <span class="space" aria-hidden="true">&nbsp;</span>
-    {:else}
-      <span
-        bind:this={nextLetters[index]}
-        class:accent-letter={character.isAccent}
-        aria-hidden="true"
-      >
-        {character.letter}
-      </span>
+        <span class="space" aria-hidden="true">&nbsp;</span>
+      {:else}
+        <span
+          bind:this={nextLetters[index]}
+          class:accent-letter={character.isAccent}
+          aria-hidden="true"
+        >{character.letter}</span>
       {/if}
     {/each}
   </p>
@@ -332,10 +355,32 @@
     font-size: 32px;
     font-style: normal;
     font-weight: 400;
-    line-height: normal;
+    line-height: 1.5;
     text-align: center;
   }
-  h1 span { display: block; }
+
+  /* Intro: lettere partono visibili (default 1) e si dissolvono */
+  h1 span {
+    display: inline-block;
+    opacity: var(--letter-opacity, 1);
+    transform: translateY(var(--letter-y, 0px));
+    transition: opacity 140ms linear, transform 140ms ease-out;
+    will-change: opacity, transform;
+  }
+
+  /* Spazio intro: sempre visibile, non animato */
+  h1 .space {
+    opacity: 1;
+    transform: none;
+    transition: none;
+    width: 0.28em;
+  }
+
+  .accent-letter {
+    color: var(--accent-500, #FE4C00);
+    font-style: italic;
+    font-weight: 700;
+  }
 
   em { color: var(--accent-500); font-style: italic; font-weight: 700; }
 
@@ -357,9 +402,7 @@
     opacity: var(--opacity);
     transform: translate(-50%, -50%) translate3d(var(--x), var(--y), var(--z)) rotate(var(--rotate)) scale(var(--scale));
     transform-style: preserve-3d;
-    transition:
-      opacity 120ms linear,
-      transform 120ms linear;
+    transition: opacity 120ms linear, transform 120ms linear;
     will-change: transform, opacity;
   }
 
@@ -395,37 +438,36 @@
     will-change: transform;
   }
 
+  /* Next: lettere partono invisibili (default 0) e si rivelano */
   .next-message span {
     display: inline-block;
     opacity: var(--letter-opacity, 0);
     transform: translateY(var(--letter-y, 12px));
-    transition:
-      opacity 140ms linear,
-      transform 140ms ease-out;
+    transition: opacity 140ms linear, transform 140ms ease-out;
     will-change: opacity, transform;
   }
 
   .next-message .accent-letter {
-    color: var(--Accent-500, var(--accent-500, #FE4C00));
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 32px;
+    color: var(--accent-500, #FE4C00);
     font-style: italic;
     font-weight: 700;
-    line-height: normal;
   }
 
   .next-message .space {
-  display: inline-block;
-  width: 0.28em; /* larghezza spazio JetBrains Mono */
-}
+    display: inline-block;
+    opacity: 1;
+    transform: none;
+    transition: none;
+    width: 0.28em;
+  }
 
   @media (max-width: 700px) {
-    .top-bar   { height: 88px; padding: 28px 24px; }
-    .logo      { font-size: 34px; }
-    .intro     { padding: 88px 24px 72px; }
+    .top-bar      { height: 88px; padding: 28px 24px; }
+    .logo         { font-size: 34px; }
+    .intro        { padding: 88px 24px 72px; }
     h1,
     .next-message { font-size: 24px; }
-    .reel-card { width: min(34vw, 132px); }
-    .next-screen { padding: 88px 24px 72px; }
+    .reel-card    { width: min(34vw, 132px); }
+    .next-screen  { padding: 88px 24px 72px; }
   }
 </style>
