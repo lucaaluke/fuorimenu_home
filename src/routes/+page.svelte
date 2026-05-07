@@ -9,9 +9,10 @@
   let nextLetters: HTMLElement[] = [];
   const nextMessage = 'Incontra Le persone che hanno reso tutto questo possibile.';
   const nextCharacters = nextMessage.split('').map((letter, index) => ({
-    letter,
-    isAccent: index >= nextMessage.indexOf('persone') && index < nextMessage.indexOf('persone') + 'persone'.length
-  }));
+  letter,
+  isSpace: letter === ' ', 
+  isAccent: index >= nextMessage.indexOf('persone') && index < nextMessage.indexOf('persone') + 'persone'.length
+}));
 
   const reels = [
     { src: '/videos/tiramisu.mp4', poster: '', bg: '#f0f0f0', fromX: -8, fromY: 4, toX: -34, toY: -18, rotate: -8 },
@@ -133,7 +134,7 @@
       const revealStart = 0.12;
       const revealEnd = 0.92;
       const stagger = (revealEnd - revealStart) / Math.max(nextLetters.length - 1, 1);
-      const local = clamp((pageProgress - revealStart - index * stagger) / 0.16);
+      const local = clamp((pageProgress - revealStart - index * stagger) / 0.07);
       const letterEase = ease(local);
       letter.style.setProperty('--letter-opacity', letterEase.toFixed(3));
       letter.style.setProperty('--letter-y', `${((1 - letterEase) * 12).toFixed(1)}px`);
@@ -211,6 +212,9 @@
 <section bind:this={nextScreen} class="next-screen" aria-labelledby="next-message">
   <p id="next-message" class="next-message" aria-label={nextMessage}>
     {#each nextCharacters as character, index}
+      {#if character.isSpace}
+    <span class="space" aria-hidden="true">&nbsp;</span>
+    {:else}
       <span
         bind:this={nextLetters[index]}
         class:accent-letter={character.isAccent}
@@ -218,6 +222,7 @@
       >
         {character.letter}
       </span>
+      {/if}
     {/each}
   </p>
 </section>
@@ -408,6 +413,11 @@
     font-weight: 700;
     line-height: normal;
   }
+
+  .next-message .space {
+  display: inline-block;
+  width: 0.28em; /* larghezza spazio JetBrains Mono */
+}
 
   @media (max-width: 700px) {
     .top-bar   { height: 88px; padding: 28px 24px; }
