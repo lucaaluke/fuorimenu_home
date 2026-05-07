@@ -5,10 +5,11 @@
   let reelCards: HTMLElement[] = [];
 
   const reels = [
-    { src: '', poster: '', bg: '#fe4c00' },
-    { src: '', poster: '', bg: '#2a4484' },
-    { src: '', poster: '', bg: '#fdc567' },
-    { src: '', poster: '', bg: '#101318' }
+    { src: '', poster: '', bg: '#fe4c00', fromX: -8, fromY: 4, toX: -34, toY: -18, rotate: -8 },
+    { src: '', poster: '', bg: '#2a4484', fromX: 7, fromY: -3, toX: 30, toY: 16, rotate: 7 },
+    { src: '', poster: '', bg: '#fdc567', fromX: -4, fromY: -8, toX: -18, toY: 28, rotate: 10 },
+    { src: '', poster: '', bg: '#101318', fromX: 9, fromY: 8, toX: 36, toY: -24, rotate: -11 },
+    { src: '', poster: '', bg: '#5f6fa8', fromX: -10, fromY: -2, toX: -40, toY: 6, rotate: -5 }
   ];
 
   const clamp = (value: number, min = 0, max = 1) => Math.min(Math.max(value, min), max);
@@ -48,8 +49,9 @@
   });
 
   function getReelPresentation(index: number) {
-    const start    = index * 0.2 + 0.04;
-    const duration = 0.38;
+    const reel     = reels[index];
+    const start    = index * 0.105 + 0.04;
+    const duration = 0.48;
     const local    = clamp((reelProgress - start) / duration);
     const eased    = ease(local);
     const fadeIn   = clamp(local / 0.18);
@@ -57,19 +59,23 @@
     const opacity  = fadeIn * fadeOut;
     const z        = -980 + eased * 1850;
     const scale    = 0.28 + eased * 4.2;
-    const blur     = (1 - fadeIn) * 1.2 + clamp((local - 0.86) / 0.14) * 9;
+    const x        = reel.fromX + (reel.toX - reel.fromX) * eased;
+    const y        = reel.fromY + (reel.toY - reel.fromY) * eased;
+    const rotate   = reel.rotate * (0.35 + eased * 0.65);
 
-    return { z, scale, opacity, blur };
+    return { z, scale, opacity, x, y, rotate };
   }
 
   function reelStyle(index: number): string {
-    const { z, scale, opacity, blur } = getReelPresentation(index);
+    const { z, scale, opacity, x, y, rotate } = getReelPresentation(index);
 
     return [
+      `--x: ${x.toFixed(2)}vw`,
+      `--y: ${y.toFixed(2)}vh`,
       `--z: ${z.toFixed(1)}px`,
       `--scale: ${scale.toFixed(3)}`,
+      `--rotate: ${rotate.toFixed(2)}deg`,
       `--opacity: ${opacity.toFixed(3)}`,
-      `--blur: ${blur.toFixed(2)}px`,
       `z-index: ${index + 1}`
     ].join('; ');
   }
@@ -78,11 +84,13 @@
     reelCards.forEach((card, index) => {
       if (!card) return;
 
-      const { z, scale, opacity, blur } = getReelPresentation(index);
+      const { z, scale, opacity, x, y, rotate } = getReelPresentation(index);
+      card.style.setProperty('--x', `${x.toFixed(2)}vw`);
+      card.style.setProperty('--y', `${y.toFixed(2)}vh`);
       card.style.setProperty('--z', `${z.toFixed(1)}px`);
       card.style.setProperty('--scale', scale.toFixed(3));
+      card.style.setProperty('--rotate', `${rotate.toFixed(2)}deg`);
       card.style.setProperty('--opacity', opacity.toFixed(3));
-      card.style.setProperty('--blur', `${blur.toFixed(2)}px`);
     });
   }
 </script>
@@ -274,14 +282,12 @@
     width: clamp(112px, 13vw, 168px);
     aspect-ratio: 9 / 16;
     opacity: var(--opacity);
-    filter: blur(var(--blur));
-    transform: translate(-50%, -50%) translateZ(var(--z)) scale(var(--scale));
+    transform: translate(-50%, -50%) translate3d(var(--x), var(--y), var(--z)) rotate(var(--rotate)) scale(var(--scale));
     transform-style: preserve-3d;
     transition:
       opacity 120ms linear,
-      filter 120ms linear,
       transform 120ms linear;
-    will-change: transform, opacity, filter;
+    will-change: transform, opacity;
   }
 
   .reel-frame {
