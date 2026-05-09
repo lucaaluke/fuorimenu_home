@@ -295,7 +295,6 @@
     if (rolesScreen) {
       rolesScreen.style.opacity = rolesEase.toFixed(3);
       rolesScreen.style.pointerEvents = rolesProgress > 0.08 ? 'auto' : 'none';
-      rolesScreen.style.setProperty('--browser-y', `${((1 - rolesEase) * -112).toFixed(1)}px`);
     }
     roleCards.forEach((card, index) => {
       if (!card) return;
@@ -474,33 +473,9 @@
 </section>
 
 <section bind:this={rolesScreen} class="roles-screen" aria-label="Aree Fuorimenu">
-  <div class="browser-chrome" aria-hidden="true">
-    <div class="browser-tabs">
-      <div class="browser-dots">
-        <span></span><span></span><span></span>
-      </div>
-      <div class="browser-tab">
-        <span class="browser-favicon"></span>
-        <span>Web Design DDC</span>
-        <span class="browser-close">×</span>
-      </div>
-    </div>
-    <div class="browser-url-row">
-      <div class="browser-nav">
-        <span>‹</span><span>›</span><span>↻</span><span>⌂</span>
-      </div>
-      <div class="browser-url">webdesign.ddc</div>
-    </div>
-    <div class="browser-bookmarks">
-      <span>News</span>
-      <span>Design</span>
-      <span>Benchmark</span>
-    </div>
-  </div>
-
   <header class="roles-top-bar" aria-label="Navigazione principale">
     <a class="logo" href="/" aria-label="Fuorimenu home">FM</a>
-    <div class="roles-top-icons">
+    <div class="top-bar-icons">
       <button class="icon-button" type="button" aria-label="Audio">
         <svg class="volume-icon" viewBox="0 0 28 28" aria-hidden="true">
           <path d="M4 11.5h5l6-5v15l-6-5H4z" />
@@ -740,6 +715,88 @@
     will-change: opacity, transform;
   }
 
+  .roles-screen {
+    position: fixed; z-index: 35; inset: 0;
+    overflow: hidden;
+    background: var(--background-50);
+    opacity: 0; pointer-events: none;
+    will-change: opacity;
+  }
+
+  .roles-top-bar {
+    position: absolute; z-index: 5; top: 0; left: 0;
+    box-sizing: border-box;
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; height: 102px;
+    padding: var(--unit-40) var(--unit-80);
+    color: var(--brand-500);
+  }
+
+  .role-grid {
+    position: absolute; z-index: 2;
+    top: 146px; left: 80px; right: 80px; bottom: -18px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .role-card {
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+    border: 3px solid var(--brand-500, #2a4484);
+    border-radius: 32px 32px 0 0;
+    background: var(--brand-500, #2a4484);
+    opacity: var(--role-card-opacity, 0);
+    transform: translateY(var(--role-card-y, 38vh));
+    transition: opacity 120ms linear, transform 120ms ease-out;
+    will-change: opacity, transform;
+  }
+
+  .role-card img {
+    position: absolute;
+    top: -18%; left: 50%;
+    width: 136%; height: 128%;
+    object-fit: cover;
+    transform: translateX(-50%);
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .role-card-overlay {
+    position: absolute; inset: -3px -3px auto;
+    height: calc(100% - 34px);
+    border-radius: 32px 32px 0 0;
+    background: rgb(42 68 132 / 0.6);
+  }
+
+  .role-card-copy {
+    position: absolute;
+    top: 111px; left: 0; right: 0;
+    display: grid; justify-items: center;
+    color: var(--background-50, #f8f3e9);
+    text-align: center;
+  }
+
+  .role-card-copy h2 {
+    margin: 0;
+    font-family: 'DynaPuff', system-ui, sans-serif;
+    font-size: clamp(42px, 4vw, 60px);
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: 0;
+    font-variation-settings: "wdth" 100;
+  }
+
+  .role-card-copy p {
+    margin: -8px 0 0;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: 0;
+  }
+
   @media (max-width: 700px) {
     .top-bar      { height: 88px; padding: 28px 24px; }
     .logo         { font-size: 34px; }
@@ -750,5 +807,17 @@
     .brand-word   { font-size: clamp(48px, 14vw, 96px); }
     .floating-raviolo { width: clamp(86px, 28vw, 124px); }
     .floating-pizza { width: clamp(92px, 30vw, 132px); }
+    .roles-top-bar { height: 88px; padding: 28px 24px; }
+    .role-grid {
+      top: 104px; left: 24px; right: 24px; bottom: 0;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    .role-card { min-height: 260px; border-radius: 24px; }
+    .role-card img { top: -24%; width: 116%; height: 150%; }
+    .role-card-overlay { height: 100%; border-radius: 24px; }
+    .role-card-copy { top: 42px; }
+    .role-card-copy h2 { font-size: clamp(38px, 12vw, 52px); }
+    .role-card-copy p { font-size: 13px; }
   }
 </style>
