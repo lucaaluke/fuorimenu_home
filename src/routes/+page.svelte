@@ -79,7 +79,11 @@
 
   const roleItems = [
     { title: 'ufficio', description: 'descrizione testo' },
-    { title: 'cucina', description: 'descrizione testo' },
+    {
+      title: 'cucina',
+      description: 'descrizione testo',
+      dialogue: 'Sono Stefano Paganini il mio ruolo ... seguimi nella mensa per saperne di più'
+    },
     { title: 'servizio', description: 'descrizione testo' }
   ];
 
@@ -491,13 +495,26 @@
 
   <div class="role-grid">
     {#each roleItems as item, index}
-      <article bind:this={roleCards[index]} class="role-card">
-        <img src="/images/figma-kitchen-scene.png" alt="" draggable="false" />
+      <article
+        bind:this={roleCards[index]}
+        class="role-card"
+        class:is-cucina={item.title === 'cucina'}
+      >
+        <img class="role-card-bg" src="/images/figma-kitchen-scene.png" alt="" draggable="false" />
         <div class="role-card-overlay"></div>
         <div class="role-card-copy">
           <h2>{item.title}</h2>
           <p>{item.description}</p>
         </div>
+        {#if item.dialogue}
+          <div class="role-dialogue">
+            <p>
+              Sono <strong>Stefano Paganini</strong> il mio ruolo ... seguimi nella cucina per
+              saperne di più
+            </p>
+          </div>
+          <img class="role-person" src="/images/stefano-paganini.png" alt="Stefano Paganini" draggable="false" />
+        {/if}
       </article>
     {/each}
   </div>
@@ -734,7 +751,7 @@
 
   .role-grid {
     position: absolute; z-index: 2;
-    top: 146px; left: 80px; right: 80px; bottom: -18px;
+    top: 102px; left: 80px; right: 80px; bottom: -18px;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
@@ -753,21 +770,23 @@
     will-change: opacity, transform;
   }
 
-  .role-card img {
+  .role-card-bg {
     position: absolute;
     top: -18%; left: 50%;
-    width: 136%; height: 128%;
+    width: 136%; height: 140%;
     object-fit: cover;
     transform: translateX(-50%);
+    transition: filter 260ms ease, transform 260ms ease;
     user-select: none;
     pointer-events: none;
   }
 
   .role-card-overlay {
-    position: absolute; inset: -3px -3px auto;
-    height: calc(100% - 34px);
+    position: absolute; inset: -3px;
+    height: auto;
     border-radius: 32px 32px 0 0;
     background: rgb(42 68 132 / 0.6);
+    transition: background 260ms ease;
   }
 
   .role-card-copy {
@@ -776,6 +795,7 @@
     display: grid; justify-items: center;
     color: var(--background-50, #f8f3e9);
     text-align: center;
+    transition: transform 260ms ease;
   }
 
   .role-card-copy h2 {
@@ -795,6 +815,82 @@
     font-weight: 500;
     line-height: 1.5;
     letter-spacing: 0;
+    transition: opacity 180ms ease;
+  }
+
+  .role-dialogue {
+    position: absolute; z-index: 3;
+    top: 132px; left: 28px;
+    width: 210px;
+    box-sizing: border-box;
+    padding: 16px;
+    border-radius: 24px;
+    background: var(--brand-500, #2a4484);
+    color: var(--background-50, #f8f3e9);
+    opacity: 0;
+    transform: translateX(-130%);
+    transition: opacity 260ms ease, transform 320ms ease;
+    will-change: transform, opacity;
+  }
+
+  .role-dialogue p {
+    margin: 0;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0;
+  }
+
+  .role-dialogue strong {
+    font-weight: 800;
+    font-style: italic;
+  }
+
+  .role-person {
+    position: absolute; z-index: 4;
+    right: -112px; bottom: -110px;
+    width: min(109%, 474px);
+    height: auto;
+    opacity: 0;
+    transform: translateX(42%);
+    transition: opacity 280ms ease, transform 360ms ease;
+    user-select: none;
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+
+  .role-card.is-cucina:hover .role-card-bg,
+  .role-card.is-cucina:focus-visible .role-card-bg {
+    filter: blur(2.5px);
+    transform: translateX(-50%) scale(1.02);
+  }
+
+  .role-card.is-cucina:hover .role-card-overlay,
+  .role-card.is-cucina:focus-visible .role-card-overlay {
+    background: rgb(42 68 132 / 0.8);
+  }
+
+  .role-card.is-cucina:hover .role-card-copy,
+  .role-card.is-cucina:focus-visible .role-card-copy {
+    transform: translateY(-102px);
+  }
+
+  .role-card.is-cucina:hover .role-card-copy p,
+  .role-card.is-cucina:focus-visible .role-card-copy p {
+    opacity: 0;
+  }
+
+  .role-card.is-cucina:hover .role-dialogue,
+  .role-card.is-cucina:focus-visible .role-dialogue {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .role-card.is-cucina:hover .role-person,
+  .role-card.is-cucina:focus-visible .role-person {
+    opacity: 1;
+    transform: translateX(0);
   }
 
   @media (max-width: 700px) {
@@ -809,15 +905,30 @@
     .floating-pizza { width: clamp(92px, 30vw, 132px); }
     .roles-top-bar { height: 88px; padding: 28px 24px; }
     .role-grid {
-      top: 104px; left: 24px; right: 24px; bottom: 0;
+      top: 88px; left: 24px; right: 24px; bottom: 0;
       grid-template-columns: 1fr;
       gap: 14px;
     }
     .role-card { min-height: 260px; border-radius: 24px; }
-    .role-card img { top: -24%; width: 116%; height: 150%; }
+    .role-card-bg { top: -24%; width: 116%; height: 150%; }
     .role-card-overlay { height: 100%; border-radius: 24px; }
     .role-card-copy { top: 42px; }
     .role-card-copy h2 { font-size: clamp(38px, 12vw, 52px); }
     .role-card-copy p { font-size: 13px; }
+    .role-card.is-cucina:hover .role-card-copy,
+    .role-card.is-cucina:focus-visible .role-card-copy {
+      transform: translateY(-28px);
+    }
+    .role-dialogue {
+      top: 78px; left: 16px;
+      width: min(58vw, 210px);
+      padding: 12px;
+      border-radius: 18px;
+    }
+    .role-dialogue p { font-size: 12px; }
+    .role-person {
+      right: -70px; bottom: 0;
+      width: min(78vw, 300px);
+    }
   }
 </style>
