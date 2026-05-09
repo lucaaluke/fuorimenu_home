@@ -7,7 +7,6 @@
   let homeScreen: HTMLElement;
   let nextScreen: HTMLElement;
   let brandScreen: HTMLElement;
-  let raviolo: HTMLElement;
   let reelCards: HTMLElement[] = [];
   let introLetters: HTMLElement[] = [];
   let nextLetters: HTMLElement[] = [];
@@ -63,18 +62,42 @@
   const brandArrivalRank: number[] = new Array(brandLetters.length);
   brandOrder.forEach((letterIndex, rank) => { brandArrivalRank[letterIndex] = rank; });
   let brandLetterEls: HTMLElement[] = [];
-  let ravioloFrame = 0;
+  let floatingFrame = 0;
+  let floatingLast = 0;
+  let floatingEls: HTMLElement[] = [];
 
-  const ravioloMotion = {
-    x: 84,
-    y: 96,
-    vx: 92,
-    vy: 74,
-    tiltX: 0,
-    tiltY: 0,
-    hover: false,
-    last: 0
+  type FloatingMotion = {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    tiltX: number;
+    tiltY: number;
+    hover: boolean;
   };
+
+  const floatingAssets: Array<{
+    src: string;
+    label: string;
+    className: string;
+    nodeId: string;
+    motion: FloatingMotion;
+  }> = [
+    {
+      src: '/images/raviolo.svg',
+      label: 'Raviolo',
+      className: 'floating-raviolo',
+      nodeId: '266:413',
+      motion: { x: 84, y: 96, vx: 92, vy: 74, tiltX: 0, tiltY: 0, hover: false }
+    },
+    {
+      src: '/images/pizza.svg',
+      label: 'Pizza',
+      className: 'floating-pizza',
+      nodeId: '2567:2664',
+      motion: { x: 220, y: 280, vx: -82, vy: 96, tiltX: 0, tiltY: 0, hover: false }
+    }
+  ];
 
   const reels = [
     { src: '/videos/tiramisu.mp4', bg: '#f0f0f0', fromX: -8,  fromY:  4, toX: -34, toY: -18, rotate: -8  },
@@ -143,56 +166,64 @@
     });
   }
 
-  function moveRaviolo(time: number) {
-    if (!raviolo || !brandScreen) {
-      ravioloFrame = requestAnimationFrame(moveRaviolo);
+  function moveFloatingAssets(time: number) {
+    if (!brandScreen) {
+      floatingFrame = requestAnimationFrame(moveFloatingAssets);
       return;
     }
 
-    const dt = Math.min((time - (ravioloMotion.last || time)) / 1000, 0.032);
-    ravioloMotion.last = time;
+    const dt = Math.min((time - (floatingLast || time)) / 1000, 0.032);
+    floatingLast = time;
 
     const bounds = brandScreen.getBoundingClientRect();
-    const width  = raviolo.offsetWidth;
-    const height = raviolo.offsetHeight;
     const pad    = Math.max(16, Math.min(bounds.width, bounds.height) * 0.035);
-    const maxX   = Math.max(pad, bounds.width - width - pad);
-    const maxY   = Math.max(pad, bounds.height - height - pad);
 
-    ravioloMotion.x += ravioloMotion.vx * dt;
-    ravioloMotion.y += ravioloMotion.vy * dt;
+    floatingAssets.forEach((asset, index) => {
+      const el = floatingEls[index];
+      if (!el) return;
 
-    if (ravioloMotion.x <= pad || ravioloMotion.x >= maxX) {
-      ravioloMotion.x  = clamp(ravioloMotion.x, pad, maxX);
-      ravioloMotion.vx = -ravioloMotion.vx;
-    }
+      const motion = asset.motion;
+      const width  = el.offsetWidth;
+      const height = el.offsetHeight;
+      const maxX   = Math.max(pad, bounds.width - width - pad);
+      const maxY   = Math.max(pad, bounds.height - height - pad);
 
-    if (ravioloMotion.y <= pad || ravioloMotion.y >= maxY) {
-      ravioloMotion.y  = clamp(ravioloMotion.y, pad, maxY);
-      ravioloMotion.vy = -ravioloMotion.vy;
-    }
+      motion.x += motion.vx * dt;
+      motion.y += motion.vy * dt;
 
-    if (!ravioloMotion.hover) {
-      ravioloMotion.tiltX *= 0.88;
-      ravioloMotion.tiltY *= 0.88;
-    }
+      if (motion.x <= pad || motion.x >= maxX) {
+        motion.x  = clamp(motion.x, pad, maxX);
+        motion.vx = -motion.vx;
+      }
 
-    raviolo.style.setProperty('--rv-x', `${ravioloMotion.x.toFixed(1)}px`);
-    raviolo.style.setProperty('--rv-y', `${ravioloMotion.y.toFixed(1)}px`);
-    raviolo.style.setProperty('--rv-tilt-x', `${ravioloMotion.tiltX.toFixed(2)}deg`);
-    raviolo.style.setProperty('--rv-tilt-y', `${ravioloMotion.tiltY.toFixed(2)}deg`);
-    raviolo.style.setProperty('--rv-float-rotate', `${((ravioloMotion.x + ravioloMotion.y) * 0.018).toFixed(2)}deg`);
+      if (motion.y <= pad || motion.y >= maxY) {
+        motion.y  = clamp(motion.y, pad, maxY);
+        motion.vy = -motion.vy;
+      }
 
-    ravioloFrame = requestAnimationFrame(moveRaviolo);
+      if (!motion.hover) {
+        motion.tiltX *= 0.88;
+        motion.tiltY *= 0.88;
+      }
+
+      el.style.setProperty('--float-x', `${motion.x.toFixed(1)}px`);
+      el.style.setProperty('--float-y', `${motion.y.toFixed(1)}px`);
+      el.style.setProperty('--float-tilt-x', `${motion.tiltX.toFixed(2)}deg`);
+      el.style.setProperty('--float-tilt-y', `${motion.tiltY.toFixed(2)}deg`);
+      el.style.setProperty('--float-rotate', `${((motion.x + motion.y) * 0.018).toFixed(2)}deg`);
+    });
+
+    floatingFrame = requestAnimationFrame(moveFloatingAssets);
   }
 
-  function tiltRaviolo(e: PointerEvent) {
-    if (!raviolo) return;
-    const rect = raviolo.getBoundingClientRect();
+  function tiltFloatingAsset(e: PointerEvent, index: number) {
+    const el = floatingEls[index];
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
     const nx   = (e.clientX - rect.left) / rect.width - 0.5;
     const ny   = (e.clientY - rect.top) / rect.height - 0.5;
-    ravioloMotion.tiltX = clamp(-ny * 22, -14, 14);
-    ravioloMotion.tiltY = clamp(nx * 22, -14, 14);
+    floatingAssets[index].motion.tiltX = clamp(-ny * 22, -14, 14);
+    floatingAssets[index].motion.tiltY = clamp(nx * 22, -14, 14);
   }
 
   // ── Unica funzione che gestisce tutto — nessun conflitto ──
@@ -276,11 +307,11 @@
 
     applyReelStyles();
     applyAllStyles();
-    ravioloFrame = requestAnimationFrame(moveRaviolo);
+    floatingFrame = requestAnimationFrame(moveFloatingAssets);
     window.addEventListener('wheel',   onWheel,   { passive: false });
     window.addEventListener('keydown', onKeydown);
     return () => {
-      cancelAnimationFrame(ravioloFrame);
+      cancelAnimationFrame(floatingFrame);
       window.removeEventListener('wheel',   onWheel);
       window.removeEventListener('keydown', onKeydown);
     };
@@ -363,18 +394,20 @@
 
 
 <section bind:this={brandScreen} class="brand-screen" aria-label="Fuorimenu">
-  <div
-    bind:this={raviolo}
-    class="floating-raviolo"
-    data-node-id="266:413"
-    role="img"
-    aria-label="Raviolo"
-    onpointerenter={() => { ravioloMotion.hover = true; }}
-    onpointermove={tiltRaviolo}
-    onpointerleave={() => { ravioloMotion.hover = false; }}
-  >
-    <img src="/images/raviolo.svg" alt="" draggable="false" />
-  </div>
+  {#each floatingAssets as asset, index}
+    <div
+      bind:this={floatingEls[index]}
+      class={`floating-vector ${asset.className}`}
+      data-node-id={asset.nodeId}
+      role="img"
+      aria-label={asset.label}
+      onpointerenter={() => { asset.motion.hover = true; }}
+      onpointermove={(event) => tiltFloatingAsset(event, index)}
+      onpointerleave={() => { asset.motion.hover = false; }}
+    >
+      <img src={asset.src} alt="" draggable="false" />
+    </div>
+  {/each}
 
   <p class="brand-word" aria-label="Fuorimenu">
     {#each brandLetters as { letter }, index}
@@ -535,29 +568,38 @@
     will-change: opacity;
   }
 
-  .floating-raviolo {
+  .floating-vector {
     position: absolute; z-index: 2; top: 0; left: 0;
-    width: clamp(96px, 15vw, 166px); aspect-ratio: 233.427 / 232.847;
     cursor: grab;
     transform:
-      translate3d(var(--rv-x, 84px), var(--rv-y, 96px), 0)
-      rotateZ(var(--rv-float-rotate, 0deg))
-      rotateX(var(--rv-tilt-x, 0deg))
-      rotateY(var(--rv-tilt-y, 0deg));
+      translate3d(var(--float-x, 84px), var(--float-y, 96px), 0)
+      rotateZ(var(--float-rotate, 0deg))
+      rotateX(var(--float-tilt-x, 0deg))
+      rotateY(var(--float-tilt-y, 0deg));
     transform-style: preserve-3d;
     transform-origin: 50% 50%;
     transition: filter 160ms ease;
     will-change: transform;
   }
 
-  .floating-raviolo:hover {
+  .floating-vector:hover {
     filter: drop-shadow(0 18px 20px rgb(42 68 132/.18));
   }
 
-  .floating-raviolo img {
+  .floating-vector img {
     display: block; width: 100%; height: 100%;
     pointer-events: none;
     user-select: none;
+  }
+
+  .floating-raviolo {
+    width: clamp(96px, 15vw, 166px);
+    aspect-ratio: 233.427 / 232.847;
+  }
+
+  .floating-pizza {
+    width: clamp(104px, 16vw, 178px);
+    aspect-ratio: 302.008 / 313.605;
   }
 
   .brand-word {
@@ -590,5 +632,6 @@
     .next-screen  { padding: 88px 24px 72px; }
     .brand-word   { font-size: clamp(48px, 14vw, 96px); }
     .floating-raviolo { width: clamp(86px, 28vw, 124px); }
+    .floating-pizza { width: clamp(92px, 30vw, 132px); }
   }
 </style>
