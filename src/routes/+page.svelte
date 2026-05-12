@@ -102,6 +102,9 @@
     label: string;
     className: string;
     nodeId: string;
+    exitX: number;
+    exitY: number;
+    wobble: { x: number; y: number; speed: number; phase: number };
     motion: FloatingMotion;
   }> = [
     {
@@ -109,6 +112,9 @@
       label: 'Raviolo',
       className: 'floating-raviolo',
       nodeId: '266:413',
+      exitX: -7,
+      exitY: -112,
+      wobble: { x: 8, y: 5, speed: 1.1, phase: 0.2 },
       motion: { x: 84, y: 96, vx: 92, vy: 74, tiltX: 0, tiltY: 0, hover: false }
     },
     {
@@ -116,7 +122,20 @@
       label: 'Pizza',
       className: 'floating-pizza',
       nodeId: '2567:2664',
+      exitX: 7,
+      exitY: -112,
+      wobble: { x: 5, y: 7, speed: 0.92, phase: 1.8 },
       motion: { x: 220, y: 280, vx: -82, vy: 96, tiltX: 0, tiltY: 0, hover: false }
+    },
+    {
+      src: '/images/fusillo.svg',
+      label: 'Fusillo',
+      className: 'floating-fusillo',
+      nodeId: '266:420',
+      exitX: -3,
+      exitY: -126,
+      wobble: { x: 12, y: 10, speed: 1.37, phase: 4.4 },
+      motion: { x: 520, y: 132, vx: -63, vy: 117, tiltX: 0, tiltY: 0, hover: false }
     }
   ];
 
@@ -217,6 +236,8 @@
       const height = el.offsetHeight;
       const maxX   = Math.max(pad, bounds.width - width - pad);
       const maxY   = Math.max(pad, bounds.height - height - pad);
+      const wobble = asset.wobble;
+      const driftTime = time / 1000 * wobble.speed + wobble.phase;
 
       motion.x += motion.vx * dt;
       motion.y += motion.vy * dt;
@@ -236,11 +257,11 @@
         motion.tiltY *= 0.88;
       }
 
-      el.style.setProperty('--float-x', `${motion.x.toFixed(1)}px`);
-      el.style.setProperty('--float-y', `${motion.y.toFixed(1)}px`);
+      el.style.setProperty('--float-x', `${(motion.x + Math.sin(driftTime) * wobble.x).toFixed(1)}px`);
+      el.style.setProperty('--float-y', `${(motion.y + Math.cos(driftTime * 0.82) * wobble.y).toFixed(1)}px`);
       el.style.setProperty('--float-tilt-x', `${motion.tiltX.toFixed(2)}deg`);
       el.style.setProperty('--float-tilt-y', `${motion.tiltY.toFixed(2)}deg`);
-      el.style.setProperty('--float-rotate', `${((motion.x + motion.y) * 0.018).toFixed(2)}deg`);
+      el.style.setProperty('--float-rotate', `${(((motion.x + motion.y) * 0.018) + Math.sin(driftTime * 0.7) * 5).toFixed(2)}deg`);
     });
 
     floatingFrame = requestAnimationFrame(moveFloatingAssets);
@@ -254,6 +275,15 @@
     const ny   = (e.clientY - rect.top) / rect.height - 0.5;
     floatingAssets[index].motion.tiltX = clamp(-ny * 22, -14, 14);
     floatingAssets[index].motion.tiltY = clamp(nx * 22, -14, 14);
+  }
+
+  function reloadHome(event: MouseEvent) {
+    event.preventDefault();
+    if (window.location.pathname === '/') {
+      window.location.reload();
+    } else {
+      window.location.assign('/');
+    }
   }
 
   // ── Unica funzione che gestisce tutto — nessun conflitto ──
@@ -283,10 +313,10 @@
     const floatingExit = ease(clamp((brandProgress - 1.08) / 0.64));
     floatingEls.forEach((el, index) => {
       if (!el) return;
-      const direction = index === 0 ? -1 : 1;
+      const asset = floatingAssets[index];
       const fadeOut = ease(clamp((floatingExit - 0.72) / 0.28));
-      const scrollY = -floatingExit * 112;
-      const scrollX = direction * floatingExit * 7;
+      const scrollX = asset.exitX * floatingExit;
+      const scrollY = asset.exitY * floatingExit;
       el.style.setProperty('--float-scroll-x', `${scrollX.toFixed(2)}vw`);
       el.style.setProperty('--float-scroll-y', `${scrollY.toFixed(2)}vh`);
       el.style.setProperty('--float-scale', (1 - floatingExit * 0.08).toFixed(3));
@@ -390,7 +420,7 @@
 
 <main bind:this={homeScreen} class="home">
   <header class="top-bar" aria-label="Navigazione principale">
-    <a class="logo" href="/" aria-label="Fuorimenu home">FM</a>
+    <a class="logo" href="/" aria-label="Fuorimenu home" onclick={reloadHome}>FM</a>
     <button class="icon-button top-bar-audio" type="button" aria-label="Audio">
       <svg class="volume-icon" viewBox="0 0 28 28" aria-hidden="true">
         <path d="M4 11.5h5l6-5v15l-6-5H4z" />
@@ -476,7 +506,7 @@
 
 <section bind:this={rolesScreen} class="roles-screen" aria-label="Aree Fuorimenu">
   <header class="roles-top-bar" aria-label="Navigazione principale">
-    <a class="logo" href="/" aria-label="Fuorimenu home">FM</a>
+    <a class="logo" href="/" aria-label="Fuorimenu home" onclick={reloadHome}>FM</a>
     <button class="icon-button top-bar-audio" type="button" aria-label="Audio">
       <svg class="volume-icon" viewBox="0 0 28 28" aria-hidden="true">
         <path d="M4 11.5h5l6-5v15l-6-5H4z" />
@@ -711,6 +741,11 @@
     aspect-ratio: 302.008 / 313.605;
   }
 
+  .floating-fusillo {
+    width: clamp(92px, 14vw, 158px);
+    aspect-ratio: 205.888 / 235.624;
+  }
+
   .brand-word {
   position: relative; z-index: 3;
   margin: 0;
@@ -754,7 +789,7 @@
 
   .role-grid {
     position: absolute; z-index: 2;
-    top: 102px; left: 80px; right: 80px; bottom: -18px;
+    top: 110px; left: 80px; right: 80px; bottom: -18px;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
@@ -775,7 +810,7 @@
 
   .role-card-bg {
     position: absolute;
-    top: -18%; left: 50%;
+    top: -20%; left: 50%;
     width: 136%; height: 140%;
     object-fit: cover;
     transform: translateX(-50%);
@@ -906,6 +941,7 @@
     .brand-word   { font-size: clamp(48px, 14vw, 96px); }
     .floating-raviolo { width: clamp(86px, 28vw, 124px); }
     .floating-pizza { width: clamp(92px, 30vw, 132px); }
+    .floating-fusillo { width: clamp(82px, 26vw, 118px); }
     .roles-top-bar { height: 88px; padding: 28px 24px; }
     .role-grid {
       top: 88px; left: 24px; right: 24px; bottom: 0;
