@@ -18,6 +18,11 @@
   let isAboutOpen = $state(false);
   let isAboutClosing = $state(false);
   let aboutCloseTimer: ReturnType<typeof setTimeout> | undefined;
+  let kitchenAudio: HTMLAudioElement | undefined;
+  let kitchenAudioFadeFrame = 0;
+  let kitchenAudioLoopFrame = 0;
+  const kitchenAudioMaxTime = 10;
+  const kitchenAudioTargetVolume = 0.42;
 
   const clamp = (v: number, min = 0, max = 1) => Math.min(Math.max(v, min), max);
   const ease  = (v: number) => v * v * (3 - 2 * v);
@@ -330,6 +335,71 @@
     }, 420);
   }
 
+  function fadeKitchenAudio(targetVolume: number, afterFade?: () => void) {
+    if (!kitchenAudio) return;
+    cancelAnimationFrame(kitchenAudioFadeFrame);
+
+    const audio = kitchenAudio;
+    const startVolume = audio.volume;
+    const startTime = performance.now();
+    const duration = 520;
+
+    const tick = (now: number) => {
+      const progress = clamp((now - startTime) / duration);
+      const eased = ease(progress);
+      audio.volume = startVolume + (targetVolume - startVolume) * eased;
+
+      if (progress < 1) {
+        kitchenAudioFadeFrame = requestAnimationFrame(tick);
+      } else {
+        audio.volume = targetVolume;
+        afterFade?.();
+      }
+    };
+
+    kitchenAudioFadeFrame = requestAnimationFrame(tick);
+  }
+
+  function keepKitchenAudioLooping() {
+    if (!kitchenAudio) return;
+    if (kitchenAudio.currentTime >= kitchenAudioMaxTime) {
+      kitchenAudio.currentTime = 0;
+    }
+    kitchenAudioLoopFrame = requestAnimationFrame(keepKitchenAudioLooping);
+  }
+
+  async function startKitchenAudio() {
+    if (!kitchenAudio || isAudioMuted) return;
+    cancelAnimationFrame(kitchenAudioLoopFrame);
+    kitchenAudio.loop = false;
+    kitchenAudio.volume = 0;
+    if (kitchenAudio.paused) {
+      kitchenAudio.currentTime = 0;
+    }
+
+    try {
+      await kitchenAudio.play();
+      kitchenAudioLoopFrame = requestAnimationFrame(keepKitchenAudioLooping);
+      fadeKitchenAudio(kitchenAudioTargetVolume);
+    } catch {
+      // Browsers may block hover audio before the first user gesture.
+    }
+  }
+
+  function stopKitchenAudio() {
+    if (!kitchenAudio) return;
+    cancelAnimationFrame(kitchenAudioLoopFrame);
+    fadeKitchenAudio(0, () => {
+      kitchenAudio?.pause();
+      if (kitchenAudio) kitchenAudio.currentTime = 0;
+    });
+  }
+
+  function toggleAudioMuted() {
+    isAudioMuted = !isAudioMuted;
+    if (isAudioMuted) stopKitchenAudio();
+  }
+
   // ── Unica funzione che gestisce tutto — nessun conflitto ──
   function applyAllStyles() {
     // 1. Home scorre via
@@ -445,6 +515,8 @@
     window.addEventListener('keydown', onKeydown);
     return () => {
       cancelAnimationFrame(floatingFrame);
+      cancelAnimationFrame(kitchenAudioFadeFrame);
+      cancelAnimationFrame(kitchenAudioLoopFrame);
       window.removeEventListener('wheel',   onWheel);
       window.removeEventListener('keydown', onKeydown);
     };
@@ -470,7 +542,7 @@
       type="button"
       aria-label={isAudioMuted ? 'Audio disattivato' : 'Audio attivo'}
       aria-pressed={isAudioMuted}
-      onclick={() => { isAudioMuted = !isAudioMuted; }}
+      onclick={toggleAudioMuted}
     >
       <svg class="volume-icon" viewBox="0 0 28 28" aria-hidden="true">
         <path d="M4 11.5h5l6-5v15l-6-5H4z" />
@@ -571,7 +643,7 @@
       type="button"
       aria-label={isAudioMuted ? 'Audio disattivato' : 'Audio attivo'}
       aria-pressed={isAudioMuted}
-      onclick={() => { isAudioMuted = !isAudioMuted; }}
+      onclick={toggleAudioMuted}
     >
       <svg class="volume-icon" viewBox="0 0 28 28" aria-hidden="true">
         <path d="M4 11.5h5l6-5v15l-6-5H4z" />
@@ -602,6 +674,8 @@
         class:is-cucina={item.title === 'cucina'}
         class:is-servizio={item.title === 'servizio'}
         class:has-dialogue={Boolean(item.dialogue)}
+        onpointerenter={() => { if (item.title === 'cucina') startKitchenAudio(); }}
+        onpointerleave={() => { if (item.title === 'cucina') stopKitchenAudio(); }}
       >
         <img class="role-card-bg" src="/images/figma-kitchen-scene.png" alt="" draggable="false" />
         <div class="role-card-overlay"></div>
@@ -624,6 +698,13 @@
   </div>
 </section>
 
+<audio
+  bind:this={kitchenAudio}
+  src="/images/Kitchen Ambience Sound Effect.mp3"
+  preload="auto"
+  aria-hidden="true"
+></audio>
+
 {#if isAboutOpen}
   <section
     class="about-screen"
@@ -638,7 +719,7 @@
         type="button"
         aria-label={isAudioMuted ? 'Audio disattivato' : 'Audio attivo'}
         aria-pressed={isAudioMuted}
-        onclick={() => { isAudioMuted = !isAudioMuted; }}
+        onclick={toggleAudioMuted}
       >
         <svg class="volume-icon" viewBox="0 0 28 28" aria-hidden="true">
           <path d="M4 11.5h5l6-5v15l-6-5H4z" />
