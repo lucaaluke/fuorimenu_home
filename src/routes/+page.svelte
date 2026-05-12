@@ -95,6 +95,7 @@
     tiltX: number;
     tiltY: number;
     hover: boolean;
+    hoverProgress: number;
   };
 
   const floatingAssets: Array<{
@@ -115,7 +116,7 @@
       exitX: -7,
       exitY: -112,
       wobble: { x: 8, y: 5, speed: 1.1, phase: 0.2 },
-      motion: { x: 84, y: 96, vx: 92, vy: 74, tiltX: 0, tiltY: 0, hover: false }
+      motion: { x: 84, y: 96, vx: 92, vy: 74, tiltX: 0, tiltY: 0, hover: false, hoverProgress: 0 }
     },
     {
       src: '/images/pizza.svg',
@@ -125,7 +126,7 @@
       exitX: 7,
       exitY: -112,
       wobble: { x: 5, y: 7, speed: 0.92, phase: 1.8 },
-      motion: { x: 220, y: 280, vx: -82, vy: 96, tiltX: 0, tiltY: 0, hover: false }
+      motion: { x: 220, y: 280, vx: -82, vy: 96, tiltX: 0, tiltY: 0, hover: false, hoverProgress: 0 }
     },
     {
       src: '/images/fusillo.svg',
@@ -135,7 +136,7 @@
       exitX: -3,
       exitY: -126,
       wobble: { x: 12, y: 10, speed: 1.37, phase: 4.4 },
-      motion: { x: 520, y: 132, vx: -63, vy: 117, tiltX: 0, tiltY: 0, hover: false }
+      motion: { x: 520, y: 132, vx: -63, vy: 117, tiltX: 0, tiltY: 0, hover: false, hoverProgress: 0 }
     }
   ];
 
@@ -238,7 +239,13 @@
       const maxY   = Math.max(pad, bounds.height - height - pad);
       const wobble = asset.wobble;
       const driftTime = time / 1000 * wobble.speed + wobble.phase;
-      const hoverBoost = motion.hover ? 1.75 : 1;
+      const hoverTarget = motion.hover ? 1 : 0;
+      const hoverStep = dt / (motion.hover ? 0.2 : 0.28);
+      motion.hoverProgress = clamp(
+        motion.hoverProgress + (hoverTarget - motion.hoverProgress) * hoverStep * 4
+      );
+      const hoverEase = ease(motion.hoverProgress);
+      const hoverBoost = 1 + hoverEase * 0.75;
 
       motion.x += motion.vx * dt * hoverBoost;
       motion.y += motion.vy * dt * hoverBoost;
@@ -263,9 +270,9 @@
       el.style.setProperty('--float-tilt-x', `${motion.tiltX.toFixed(2)}deg`);
       el.style.setProperty('--float-tilt-y', `${motion.tiltY.toFixed(2)}deg`);
       el.style.setProperty('--float-rotate', `${(((motion.x + motion.y) * 0.018) + Math.sin(driftTime * 0.7) * 5).toFixed(2)}deg`);
-      el.style.setProperty('--float-hover-z', motion.hover ? '42px' : '0px');
-      el.style.setProperty('--float-hover-scale', motion.hover ? '1.08' : '1');
-      el.style.setProperty('--float-shadow-alpha', motion.hover ? '0.3' : '0');
+      el.style.setProperty('--float-hover-z', `${(hoverEase * 28).toFixed(1)}px`);
+      el.style.setProperty('--float-hover-scale', (1 + hoverEase * 0.035).toFixed(3));
+      el.style.setProperty('--float-shadow-alpha', (hoverEase * 0.28).toFixed(3));
     });
 
     floatingFrame = requestAnimationFrame(moveFloatingAssets);
