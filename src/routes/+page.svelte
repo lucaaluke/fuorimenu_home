@@ -238,9 +238,10 @@
       const maxY   = Math.max(pad, bounds.height - height - pad);
       const wobble = asset.wobble;
       const driftTime = time / 1000 * wobble.speed + wobble.phase;
+      const hoverBoost = motion.hover ? 1.75 : 1;
 
-      motion.x += motion.vx * dt;
-      motion.y += motion.vy * dt;
+      motion.x += motion.vx * dt * hoverBoost;
+      motion.y += motion.vy * dt * hoverBoost;
 
       if (motion.x <= pad || motion.x >= maxX) {
         motion.x  = clamp(motion.x, pad, maxX);
@@ -262,6 +263,9 @@
       el.style.setProperty('--float-tilt-x', `${motion.tiltX.toFixed(2)}deg`);
       el.style.setProperty('--float-tilt-y', `${motion.tiltY.toFixed(2)}deg`);
       el.style.setProperty('--float-rotate', `${(((motion.x + motion.y) * 0.018) + Math.sin(driftTime * 0.7) * 5).toFixed(2)}deg`);
+      el.style.setProperty('--float-hover-z', motion.hover ? '42px' : '0px');
+      el.style.setProperty('--float-hover-scale', motion.hover ? '1.08' : '1');
+      el.style.setProperty('--float-shadow-alpha', motion.hover ? '0.3' : '0');
     });
 
     floatingFrame = requestAnimationFrame(moveFloatingAssets);
@@ -709,20 +713,21 @@
     cursor: grab;
     opacity: var(--float-opacity, 1);
     transform:
-      translate3d(var(--float-x, 84px), var(--float-y, 96px), 0)
+      translate3d(var(--float-x, 84px), var(--float-y, 96px), var(--float-hover-z, 0px))
       translate3d(var(--float-scroll-x, 0vw), var(--float-scroll-y, 0vh), 0)
       rotateZ(var(--float-rotate, 0deg))
       rotateX(var(--float-tilt-x, 0deg))
       rotateY(var(--float-tilt-y, 0deg))
-      scale(var(--float-scale, 1));
+      scale(calc(var(--float-scale, 1) * var(--float-hover-scale, 1)));
     transform-style: preserve-3d;
     transform-origin: 50% 50%;
+    filter: drop-shadow(0 18px 22px rgb(42 68 132 / var(--float-shadow-alpha, 0)));
     transition: filter 160ms ease, opacity 100ms linear;
     will-change: transform, opacity;
   }
 
   .floating-vector:hover {
-    filter: drop-shadow(0 18px 20px rgb(42 68 132/.18));
+    cursor: grabbing;
   }
 
   .floating-vector img {
