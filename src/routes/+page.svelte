@@ -21,8 +21,20 @@
   let kitchenAudio: HTMLAudioElement | undefined;
   let kitchenAudioFadeFrame = 0;
   let kitchenAudioLoopFrame = 0;
+  let officeAudio: HTMLAudioElement | undefined;
+  let officeAudioFadeFrame = 0;
+  let officeAudioLoopFrame = 0;
+  let restaurantAudio: HTMLAudioElement | undefined;
+  let restaurantAudioFadeFrame = 0;
+  let restaurantAudioLoopFrame = 0;
+  let audioUnlocked = false;
   const kitchenAudioMaxTime = 10;
   const kitchenAudioTargetVolume = 0.42;
+  const officeAudioStartTime = 10;
+  const officeAudioMaxTime = 20;
+  const officeAudioTargetVolume = 0.95;
+  const restaurantAudioMaxTime = 9.7;
+  const restaurantAudioTargetVolume = 0.5;
 
   const clamp = (v: number, min = 0, max = 1) => Math.min(Math.max(v, min), max);
   const ease  = (v: number) => v * v * (3 - 2 * v);
@@ -370,9 +382,10 @@
 
   async function startKitchenAudio() {
     if (!kitchenAudio || isAudioMuted) return;
+    cancelAnimationFrame(kitchenAudioFadeFrame);
     cancelAnimationFrame(kitchenAudioLoopFrame);
     kitchenAudio.loop = false;
-    kitchenAudio.volume = 0;
+    if (kitchenAudio.volume === 0 || kitchenAudio.paused) kitchenAudio.volume = 0;
     if (kitchenAudio.paused) {
       kitchenAudio.currentTime = 0;
     }
@@ -395,9 +408,157 @@
     });
   }
 
+  function fadeOfficeAudio(targetVolume: number, afterFade?: () => void) {
+    if (!officeAudio) return;
+    cancelAnimationFrame(officeAudioFadeFrame);
+
+    const audio = officeAudio;
+    const startVolume = audio.volume;
+    const startTime = performance.now();
+    const duration = 520;
+
+    const tick = (now: number) => {
+      const progress = clamp((now - startTime) / duration);
+      const eased = ease(progress);
+      audio.volume = startVolume + (targetVolume - startVolume) * eased;
+
+      if (progress < 1) {
+        officeAudioFadeFrame = requestAnimationFrame(tick);
+      } else {
+        audio.volume = targetVolume;
+        afterFade?.();
+      }
+    };
+
+    officeAudioFadeFrame = requestAnimationFrame(tick);
+  }
+
+  function keepOfficeAudioLooping() {
+    if (!officeAudio) return;
+    if (officeAudio.currentTime >= officeAudioMaxTime) {
+      officeAudio.currentTime = officeAudioStartTime;
+    }
+    officeAudioLoopFrame = requestAnimationFrame(keepOfficeAudioLooping);
+  }
+
+  async function startOfficeAudio() {
+    if (!officeAudio || isAudioMuted) return;
+    cancelAnimationFrame(officeAudioFadeFrame);
+    cancelAnimationFrame(officeAudioLoopFrame);
+    officeAudio.loop = false;
+    if (officeAudio.volume === 0 || officeAudio.paused) officeAudio.volume = 0;
+    if (officeAudio.paused) {
+      officeAudio.currentTime = officeAudioStartTime;
+    }
+
+    try {
+      await officeAudio.play();
+      officeAudioLoopFrame = requestAnimationFrame(keepOfficeAudioLooping);
+      fadeOfficeAudio(officeAudioTargetVolume);
+    } catch {
+      // Browsers may block hover audio before the first user gesture.
+    }
+  }
+
+  function stopOfficeAudio() {
+    if (!officeAudio) return;
+    cancelAnimationFrame(officeAudioLoopFrame);
+    fadeOfficeAudio(0, () => {
+      officeAudio?.pause();
+      if (officeAudio) officeAudio.currentTime = officeAudioStartTime;
+    });
+  }
+
+  function fadeRestaurantAudio(targetVolume: number, afterFade?: () => void) {
+    if (!restaurantAudio) return;
+    cancelAnimationFrame(restaurantAudioFadeFrame);
+
+    const audio = restaurantAudio;
+    const startVolume = audio.volume;
+    const startTime = performance.now();
+    const duration = 520;
+
+    const tick = (now: number) => {
+      const progress = clamp((now - startTime) / duration);
+      const eased = ease(progress);
+      audio.volume = startVolume + (targetVolume - startVolume) * eased;
+
+      if (progress < 1) {
+        restaurantAudioFadeFrame = requestAnimationFrame(tick);
+      } else {
+        audio.volume = targetVolume;
+        afterFade?.();
+      }
+    };
+
+    restaurantAudioFadeFrame = requestAnimationFrame(tick);
+  }
+
+  function keepRestaurantAudioLooping() {
+    if (!restaurantAudio) return;
+    if (restaurantAudio.currentTime >= restaurantAudioMaxTime) {
+      restaurantAudio.currentTime = 0;
+    }
+    restaurantAudioLoopFrame = requestAnimationFrame(keepRestaurantAudioLooping);
+  }
+
+  async function startRestaurantAudio() {
+    if (!restaurantAudio || isAudioMuted) return;
+    cancelAnimationFrame(restaurantAudioFadeFrame);
+    cancelAnimationFrame(restaurantAudioLoopFrame);
+    restaurantAudio.loop = false;
+    if (restaurantAudio.volume === 0 || restaurantAudio.paused) restaurantAudio.volume = 0;
+    if (restaurantAudio.paused) {
+      restaurantAudio.currentTime = 0;
+    }
+
+    try {
+      await restaurantAudio.play();
+      restaurantAudioLoopFrame = requestAnimationFrame(keepRestaurantAudioLooping);
+      fadeRestaurantAudio(restaurantAudioTargetVolume);
+    } catch {
+      // Browsers may block hover audio before the first user gesture.
+    }
+  }
+
+  function stopRestaurantAudio() {
+    if (!restaurantAudio) return;
+    cancelAnimationFrame(restaurantAudioLoopFrame);
+    fadeRestaurantAudio(0, () => {
+      restaurantAudio?.pause();
+      if (restaurantAudio) restaurantAudio.currentTime = 0;
+    });
+  }
+
   function toggleAudioMuted() {
     isAudioMuted = !isAudioMuted;
-    if (isAudioMuted) stopKitchenAudio();
+    if (isAudioMuted) {
+      stopKitchenAudio();
+      stopOfficeAudio();
+      stopRestaurantAudio();
+    }
+  }
+
+  async function unlockAmbientAudio() {
+    if (audioUnlocked) return;
+    const audios = [kitchenAudio, officeAudio, restaurantAudio].filter(Boolean) as HTMLAudioElement[];
+    if (!audios.length) return;
+
+    try {
+      await Promise.all(
+        audios.map(async (audio) => {
+          const previousVolume = audio.volume;
+          audio.volume = 0;
+          await audio.play();
+          audio.pause();
+          audio.currentTime = 0;
+          audio.volume = previousVolume;
+        })
+      );
+      audioUnlocked = true;
+    } catch {
+      audioUnlocked = false;
+    }
   }
 
   // ── Unica funzione che gestisce tutto — nessun conflitto ──
@@ -501,6 +662,7 @@
 
     const onWheel   = (e: WheelEvent)    => { e.preventDefault(); updateFlow(e.deltaY / 1500); };
     const onKeydown = (e: KeyboardEvent) => {
+      unlockAmbientAudio();
       const map: Record<string, number> = {
         ArrowDown: 0.08, PageDown: 0.08, ' ': 0.08,
         ArrowUp: -0.08,  PageUp:  -0.08
@@ -513,12 +675,18 @@
     floatingFrame = requestAnimationFrame(moveFloatingAssets);
     window.addEventListener('wheel',   onWheel,   { passive: false });
     window.addEventListener('keydown', onKeydown);
+    window.addEventListener('pointerdown', unlockAmbientAudio, { passive: true });
     return () => {
       cancelAnimationFrame(floatingFrame);
       cancelAnimationFrame(kitchenAudioFadeFrame);
       cancelAnimationFrame(kitchenAudioLoopFrame);
+      cancelAnimationFrame(officeAudioFadeFrame);
+      cancelAnimationFrame(officeAudioLoopFrame);
+      cancelAnimationFrame(restaurantAudioFadeFrame);
+      cancelAnimationFrame(restaurantAudioLoopFrame);
       window.removeEventListener('wheel',   onWheel);
       window.removeEventListener('keydown', onKeydown);
+      window.removeEventListener('pointerdown', unlockAmbientAudio);
     };
   });
 </script>
@@ -674,8 +842,16 @@
         class:is-cucina={item.title === 'cucina'}
         class:is-servizio={item.title === 'servizio'}
         class:has-dialogue={Boolean(item.dialogue)}
-        onpointerenter={() => { if (item.title === 'cucina') startKitchenAudio(); }}
-        onpointerleave={() => { if (item.title === 'cucina') stopKitchenAudio(); }}
+        onpointerenter={() => {
+          if (item.title === 'cucina') startKitchenAudio();
+          if (item.title === 'ufficio') startOfficeAudio();
+          if (item.title === 'servizio') startRestaurantAudio();
+        }}
+        onpointerleave={() => {
+          if (item.title === 'cucina') stopKitchenAudio();
+          if (item.title === 'ufficio') stopOfficeAudio();
+          if (item.title === 'servizio') stopRestaurantAudio();
+        }}
       >
         <img class="role-card-bg" src="/images/figma-kitchen-scene.png" alt="" draggable="false" />
         <div class="role-card-overlay"></div>
@@ -700,7 +876,21 @@
 
 <audio
   bind:this={kitchenAudio}
-  src="/images/Kitchen Ambience Sound Effect.mp3"
+  src="/sound/kitchen.mp3"
+  preload="auto"
+  aria-hidden="true"
+></audio>
+
+<audio
+  bind:this={officeAudio}
+  src="/sound/office.mp3"
+  preload="auto"
+  aria-hidden="true"
+></audio>
+
+<audio
+  bind:this={restaurantAudio}
+  src="/sound/restaurant.mp3"
   preload="auto"
   aria-hidden="true"
 ></audio>
