@@ -134,7 +134,7 @@
       title: 'cucina',
       description: 'descrizione testo',
       speaker: 'Stefano Paganini',
-      dialogue: 'il mio ruolo ... seguimi nella cucina olimpica per saperne di più',
+      dialogue: 'il mio ruolo ... seguimi nella cucina per saperne di più',
       personSrc: '/images/stefano-paganini-new.png'
     },
     {
@@ -1522,10 +1522,14 @@
     height: var(--card-action-size);
     padding: var(--spacing-0);
     color: var(--color-text-primary);
+    font-family: var(--font-display);
+    font-variant-ligatures: common-ligatures discretionary-ligatures contextual;
+    font-feature-settings: "liga" 1, "dlig" 1, "calt" 1, "kern" 1;
     background: var(--color-surface-panna);
     border: var(--card-action-border-width) solid var(--color-border-primary);
     border-radius: var(--card-action-radius);
     cursor: pointer;
+    overflow: hidden;
     opacity: 0;
     pointer-events: none;
     transform:
@@ -1537,19 +1541,34 @@
     transform-origin: 50% 50%;
     transition:
       color 160ms ease,
-      background 160ms ease,
+      border-color 180ms ease,
       opacity 220ms ease,
       transform 520ms cubic-bezier(0.2, 1.3, 0.32, 1);
     will-change: opacity, transform;
   }
 
+  .role-action::before {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    content: '';
+    background: var(--brand-500);
+    transform: scaleY(0);
+    transform-origin: bottom;
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
   .role-action-icon {
+    position: relative;
+    z-index: 1;
     display: block;
     font-family: var(--font-display);
     font-size: var(--spacing-6);
     font-weight: 700;
     font-variation-settings: "wdth" 100;
-    line-height: 1;
+    font-style: normal;
+    line-height: normal;
+    transform: translateY(-1px);
   }
 
   .role-card:hover .role-action,
@@ -1568,8 +1587,13 @@
   .role-action:hover,
   .role-action:focus-visible {
     color: var(--color-text-inverse);
-    background: var(--color-interactive-hover);
+    border-color: var(--color-text-inverse);
     outline: none;
+  }
+
+  .role-action:hover::before,
+  .role-action:focus-visible::before {
+    transform: scaleY(1);
   }
 
   .role-card.has-dialogue:hover .role-card-bg,
