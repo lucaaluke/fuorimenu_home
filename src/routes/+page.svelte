@@ -97,7 +97,7 @@
   }
 
   const introMessage    = 'Tutti abbiamo visto i video virali sulla cucina olimpica...';
-  const nextMessage     = 'Incontra Le persone che hanno reso tutto questo possibile.';
+  const nextMessage     = 'Incontra le persone che hanno reso tutto questo possibile.';
   const brandWord       = 'FuoriMenù';
   const brandSubtitle   = 'Dentro le cucine di Milano Cortina 2026';
   const introCharacters = parseMessage(introMessage, 'cucina');
@@ -205,11 +205,11 @@
   ];
 
   const reels = [
-    { src: '/videos/tiramisu.mp4', bg: '#f0f0f0', fromX: -8,  fromY:  4, toX: -34, toY: -18, rotate: -8  },
-    { src: '/videos/1.mp4',        bg: '#2a4484', fromX:  7,  fromY: -3, toX:  30, toY:  16, rotate:  7  },
-    { src: '/videos/2.mp4',        bg: '#fdc567', fromX: -4,  fromY: -8, toX: -18, toY:  28, rotate:  10 },
-    { src: '/videos/3.mp4',        bg: '#101318', fromX:  9,  fromY:  8, toX:  36, toY: -24, rotate: -11 },
-    { src: '/videos/4.mp4',        bg: '#5f6fa8', fromX: -10, fromY: -2, toX: -40, toY:   6, rotate:  -5 }
+    { src: '/videos/tiramisu.mp4', bg: 'var(--reel-placeholder-neutral)', fromX: -8,  fromY:  4, toX: -34, toY: -18, rotate: -8  },
+    { src: '/videos/1.mp4',        bg: 'var(--color-text-primary)', fromX:  7,  fromY: -3, toX:  30, toY:  16, rotate:  7  },
+    { src: '/videos/2.mp4',        bg: 'var(--reel-placeholder-gold)', fromX: -4,  fromY: -8, toX: -18, toY:  28, rotate:  10 },
+    { src: '/videos/3.mp4',        bg: 'var(--color-surface-dark)', fromX:  9,  fromY:  8, toX:  36, toY: -24, rotate: -11 },
+    { src: '/videos/4.mp4',        bg: 'var(--reel-placeholder-lavender)', fromX: -10, fromY: -2, toX: -40, toY:   6, rotate:  -5 }
   ];
 
   function applyLetterStyles(
@@ -357,6 +357,38 @@
     const ny   = (e.clientY - rect.top) / rect.height - 0.5;
     floatingAssets[index].motion.tiltX = clamp(-ny * 22, -14, 14);
     floatingAssets[index].motion.tiltY = clamp(nx * 22, -14, 14);
+  }
+
+  function tiltRoleCard(e: PointerEvent, index: number) {
+    const card = roleCards[index];
+    if (!card) return;
+
+    const rect = card.getBoundingClientRect();
+    const nx = (e.clientX - rect.left) / rect.width - 0.5;
+    const ny = (e.clientY - rect.top) / rect.height - 0.5;
+    card.style.setProperty('--role-tilt-x', `${clamp(-ny * 11, -7, 7).toFixed(2)}deg`);
+    card.style.setProperty('--role-tilt-y', `${clamp(nx * 13, -8, 8).toFixed(2)}deg`);
+    card.style.setProperty('--role-bg-x', `${(nx * -8.1).toFixed(1)}px`);
+    card.style.setProperty('--role-bg-y', `${(ny * -4.9).toFixed(1)}px`);
+    card.style.setProperty('--role-copy-x', `${(nx * 2.7).toFixed(1)}px`);
+    card.style.setProperty('--role-dialogue-x', `${(nx * 3.2).toFixed(1)}px`);
+    card.style.setProperty('--role-dialogue-y', `${(ny * 1.7).toFixed(1)}px`);
+    card.style.setProperty('--role-person-x', `${(nx * 6.3).toFixed(1)}px`);
+    card.style.setProperty('--role-person-y', `${(ny * 2.8).toFixed(1)}px`);
+  }
+
+  function resetRoleCard(index: number) {
+    const card = roleCards[index];
+    if (!card) return;
+    card.style.setProperty('--role-tilt-x', '0deg');
+    card.style.setProperty('--role-tilt-y', '0deg');
+    card.style.setProperty('--role-bg-x', '0px');
+    card.style.setProperty('--role-bg-y', '0px');
+    card.style.setProperty('--role-copy-x', '0px');
+    card.style.setProperty('--role-dialogue-x', '0px');
+    card.style.setProperty('--role-dialogue-y', '0px');
+    card.style.setProperty('--role-person-x', '0px');
+    card.style.setProperty('--role-person-y', '0px');
   }
 
   function reloadHome(event: MouseEvent) {
@@ -790,7 +822,11 @@
         class:is-servizio={item.title === 'servizio'}
         class:has-dialogue={Boolean(item.dialogue)}
         onpointerenter={() => startRoleAudio(item.title)}
-        onpointerleave={() => stopRoleAudio(item.title)}
+        onpointermove={(event) => tiltRoleCard(event, index)}
+        onpointerleave={() => {
+          stopRoleAudio(item.title);
+          resetRoleCard(index);
+        }}
       >
         <img class="role-card-bg" src="/images/figma-kitchen-scene.png" alt="" draggable="false" />
         <div class="role-card-overlay"></div>
@@ -885,7 +921,7 @@
   :global(html), :global(body) {
     width: 100%; height: 100%;
     margin: 0; overflow: hidden;
-    background: var(--background-50);
+    background: var(--color-surface-page);
     overscroll-behavior: none;
   }
   :global(button), :global(a) { font: inherit; }
@@ -893,15 +929,15 @@
   .home {
     position: fixed; inset: 0;
     width: 100%; height: 100svh; overflow: hidden;
-    background: var(--background-50); color: var(--brand-500);
+    background: var(--color-surface-page); color: var(--color-text-primary);
     transform: translateY(var(--page-y, 0));
     transition: transform 160ms ease-out;
     will-change: transform;
   }
 
   .logo {
-    width: 51px; color: var(--brand-500);
-    font-family: 'DynaPuff', system-ui, sans-serif;
+    width: 51px; color: var(--color-interactive-primary);
+    font-family: var(--font-display);
     font-size: var(--unit-40); line-height: 1; text-decoration: none;
     transition: color 160ms ease;
   }
@@ -910,23 +946,23 @@
   .top-bar-menu { justify-self: end; }
 
   .roles-top-bar a {
-    color: var(--brand-500);
-    font-family: 'DynaPuff', system-ui, sans-serif;
+    color: var(--color-interactive-primary);
+    font-family: var(--font-display);
     font-weight: 400; text-decoration: none;
   }
 
   .icon-button {
-    display: grid; width: 40px; height: 40px; place-items: center;
-    padding: 0; color: var(--brand-500);
+    display: grid; width: var(--button-icon-size); height: var(--button-icon-size); place-items: center;
+    padding: 0; color: var(--color-interactive-primary);
     background: transparent; border: 0; cursor: pointer;
     transition: color 160ms ease, opacity 0.2s ease;
   }
   .logo:hover,
   .logo:focus-visible,
   .icon-button:hover,
-  .icon-button:focus-visible { color: var(--accent-500, #FE4C00); }
+  .icon-button:focus-visible { color: var(--color-interactive-hover); }
   .icon-button:hover         { opacity: 1; }
-  .icon-button:focus-visible { outline: 2px solid var(--accent-500); outline-offset: 4px; }
+  .icon-button:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: var(--unit-4); }
 
   .volume-icon {
     width: 28px; height: 28px; fill: none; stroke: currentColor;
@@ -939,7 +975,7 @@
 
   .menu-icon, .menu-icon::before, .menu-icon::after {
     display: block; width: 18px; height: 2px;
-    background: currentColor; border-radius: 999px;
+    background: currentColor; border-radius: var(--radius-full);
   }
   .menu-icon          { position: relative; }
   .menu-icon::before,
@@ -953,7 +989,7 @@
     width: 24px;
     height: 2.4px;
     background: currentColor;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
   }
 
   .close-icon {
@@ -973,8 +1009,8 @@
     z-index: 80;
     inset: 0;
     overflow: hidden;
-    background: var(--brand-500, #2a4484);
-    color: var(--background-50, #f8f3e9);
+    background: var(--color-text-primary);
+    color: var(--color-text-inverse);
     animation: about-curtain-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
     transform-origin: right center;
     will-change: clip-path, transform;
@@ -994,14 +1030,14 @@
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     width: 100%;
-    height: 102px;
-    padding: var(--unit-40) var(--unit-80);
+    height: var(--layout-topbar-height);
+    padding: var(--layout-topbar-padding);
   }
 
   .about-logo,
   .about-audio,
   .about-close {
-    color: var(--background-50, #f8f3e9);
+    color: var(--color-text-inverse);
   }
 
   .about-logo:hover,
@@ -1010,7 +1046,7 @@
   .about-audio:focus-visible,
   .about-close:hover,
   .about-close:focus-visible {
-    color: var(--accent-500, #fe4c00);
+    color: var(--color-interactive-hover);
   }
 
   .about-audio {
@@ -1024,13 +1060,13 @@
   .about-copy {
     position: absolute;
     top: 132px;
-    left: 80px;
+    left: var(--layout-page-gutter);
     box-sizing: border-box;
-    width: min(779px, calc(100vw - 160px));
+    width: min(779px, calc(100vw - var(--spacing-13)));
     max-height: calc(100svh - 250px);
     overflow: hidden;
-    color: var(--background-50, #f8f3e9);
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    color: var(--color-text-inverse);
+    font-family: var(--font-text);
     font-size: clamp(18px, 1.45vw, 21px);
     font-weight: 400;
     line-height: 1.42;
@@ -1042,8 +1078,8 @@
 
   .polimi-logo {
     position: absolute;
-    left: 80px;
-    bottom: 48px;
+    left: var(--layout-page-gutter);
+    bottom: var(--spacing-8);
     width: min(250px, 36vw);
     height: auto;
     user-select: none;
@@ -1088,7 +1124,7 @@
     position: absolute; z-index: 5; inset: 0;
     display: grid; place-items: center;
     box-sizing: border-box;
-    padding: var(--unit-40);
+    padding: var(--spacing-7);
     pointer-events: none;
     opacity: var(--mount-opacity, 0);
     transition: opacity 80ms linear;
@@ -1110,8 +1146,8 @@
   }
 
   h1, .next-message {
-    width: min(434px, 100%); margin: 0; color: #2A4385;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    width: min(434px, 100%); margin: 0; color: var(--color-text-primary);
+    font-family: var(--font-text);
     font-size: 32px; font-weight: 400; line-height: 1.5; text-align: center;
   }
 
@@ -1125,7 +1161,7 @@
   h1 .word { white-space: nowrap; }
   h1 .space { opacity: 1; transform: none; transition: none; width: 0.28em; }
 
-  .accent-letter { color: var(--accent-500, #FE4C00); font-style: italic; font-weight: 700; }
+  .accent-letter { color: var(--color-interactive-hover); font-style: italic; font-weight: 700; }
 
   .reel-layer {
     position: absolute; z-index: 15; inset: 0;
@@ -1145,9 +1181,9 @@
 
   .reel-frame {
     position: relative; width: 100%; height: 100%;
-    overflow: hidden; border: 3px solid #101318; border-radius: 18px;
-    box-shadow: 0 36px 80px rgb(42 68 132/.22), 0 10px 26px rgb(16 19 24/.28);
-    box-sizing: border-box; background: #101318;
+    overflow: hidden; border: var(--card-border-width) solid var(--color-border-dark); border-radius: var(--radius-m);
+    box-shadow: 0 36px 80px rgb(var(--shadow-brand-rgb) / .22), 0 10px 26px rgb(var(--shadow-dark-rgb) / .28);
+    box-sizing: border-box; background: var(--color-surface-dark);
   }
 
   .reel-video, .reel-placeholder {
@@ -1158,8 +1194,8 @@
   .next-screen {
     position: fixed; z-index: 20; inset: 0;
     display: grid; place-items: center; box-sizing: border-box;
-    padding: var(--unit-40);
-    background: var(--background-50);
+    padding: var(--spacing-7);
+    background: var(--color-surface-page);
     opacity: 0; pointer-events: none;
     will-change: opacity;
   }
@@ -1171,7 +1207,7 @@
     transition: opacity 140ms linear, transform 140ms ease-out;
     will-change: opacity, transform;
   }
-  .next-message .accent-letter { color: var(--accent-500, #FE4C00); font-style: italic; font-weight: 700; }
+  .next-message .accent-letter { color: var(--color-interactive-hover); font-style: italic; font-weight: 700; }
   .next-message .space { display: inline-block; opacity: 1; transform: none; transition: none; width: 0.28em; }
 
   /* Parte invisibile, sopra next-screen, solo opacity gestita da JS */
@@ -1179,7 +1215,7 @@
     position: fixed; z-index: 25; inset: 0;
     display: grid; place-items: center;
     overflow: hidden;
-    background: var(--background-50);
+    background: var(--color-surface-page);
     perspective: 900px; perspective-origin: 50% 50%;
     opacity: 0; pointer-events: none;
     will-change: opacity;
@@ -1198,7 +1234,7 @@
       scale(calc(var(--float-scale, 1) * var(--float-hover-scale, 1)));
     transform-style: preserve-3d;
     transform-origin: 50% 50%;
-    filter: drop-shadow(0 18px 22px rgb(42 68 132 / var(--float-shadow-alpha, 0)));
+    filter: drop-shadow(0 18px 22px rgb(var(--shadow-brand-rgb) / var(--float-shadow-alpha, 0)));
     transition: filter 160ms ease, opacity 100ms linear;
     will-change: transform, opacity;
   }
@@ -1233,7 +1269,7 @@
     z-index: 3;
     display: grid;
     justify-items: center;
-    gap: 18px;
+    gap: 30px;
     transform-style: preserve-3d;
   }
 
@@ -1241,12 +1277,12 @@
     margin: 0;
     display: flex;
     align-items: baseline;
-    font-family: 'DynaPuff', system-ui, sans-serif;
-    font-size: clamp(72px, 12vw, 144px);
+    font-family: var(--font-display);
+    font-size: clamp(72px, 12vw, 160px);
     font-weight: 700;
     font-variation-settings: "wdth" 100;
     line-height: 1;
-    color: var(--brand-500, #2A4385);
+    color: var(--color-text-primary);
     transform-style: preserve-3d;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -1278,8 +1314,8 @@
   .brand-subtitle {
     max-width: calc(100vw - 48px);
     margin: 0;
-    color: var(--brand-500, #2A4385);
-    font-family: 'DynaPuff', system-ui, sans-serif;
+    color: var(--color-text-primary);
+    font-family: var(--font-display);
     font-size: 32px;
     font-weight: 400;
     line-height: 1.2;
@@ -1293,7 +1329,7 @@
   .roles-screen {
     position: fixed; z-index: 35; inset: 0;
     overflow: hidden;
-    background: var(--background-50);
+    background: var(--color-surface-page);
     opacity: 0; pointer-events: none;
     will-change: opacity;
   }
@@ -1302,30 +1338,52 @@
     position: absolute; z-index: 5; top: 0; left: 0;
     box-sizing: border-box;
     display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-    width: 100%; height: 102px;
-    padding: var(--unit-40) var(--unit-80);
-    color: var(--brand-500);
+    width: 100%; height: var(--layout-topbar-height);
+    padding: var(--layout-topbar-padding);
+    color: var(--color-text-primary);
   }
 
   .role-grid {
     position: absolute; z-index: 2;
-    top: 110px; left: 80px; right: 80px; bottom: -18px;
+    top: 130px; left: var(--layout-page-gutter); right: var(--layout-page-gutter);
+    height: min(620px, calc(100svh - 190px));
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(3, minmax(0, 384px));
+    justify-content: space-between;
+    column-gap: 42px;
+    perspective: 1100px;
+    perspective-origin: 50% 45%;
   }
 
   .role-card {
     position: relative;
     overflow: hidden;
     min-height: 0;
-    border: 3px solid var(--brand-500, #2a4484);
-    border-radius: 32px 32px 0 0;
-    background: var(--brand-500, #2a4484);
+    border: var(--card-border-width) solid var(--color-border-primary);
+    border-radius: var(--card-radius);
+    background: var(--color-text-primary);
     opacity: var(--role-card-opacity, 0);
-    transform: translateY(var(--role-card-y, 38vh));
-    transition: opacity 120ms linear, transform 120ms ease-out;
+    transform:
+      translateY(var(--role-card-y, 38vh))
+      translateZ(var(--role-hover-z, 0px))
+      rotateX(var(--role-tilt-x, 0deg))
+      rotateY(var(--role-tilt-y, 0deg))
+      scale(var(--role-hover-scale, 1));
+    transform-style: preserve-3d;
+    transform-origin: 50% 50%;
+    box-shadow: 0 20px 46px rgb(var(--shadow-brand-rgb) / var(--role-shadow-alpha, 0));
+    transition:
+      opacity 120ms linear,
+      transform 180ms ease-out,
+      box-shadow 180ms ease;
     will-change: opacity, transform;
+  }
+
+  .role-card:hover,
+  .role-card:focus-visible {
+    --role-hover-z: 24px;
+    --role-hover-scale: 1.018;
+    --role-shadow-alpha: 0.24;
   }
   
 
@@ -1334,7 +1392,11 @@
     top: -20%; left: 50%;
     width: 136%; height: 140%;
     object-fit: cover;
-    transform: translateX(-50%);
+    transform:
+      translateX(calc(-50% + var(--role-bg-x, 0px)))
+      translateY(var(--role-bg-y, 0px))
+      translateZ(-24px)
+      scale(1.04);
     transition: filter 260ms ease, transform 260ms ease;
     user-select: none;
     pointer-events: none;
@@ -1343,24 +1405,26 @@
   .role-card-overlay {
     position: absolute; inset: -3px;
     height: auto;
-    border-radius: 32px 32px 0 0;
-    background: rgb(42 68 132 / 0.6);
+    border-radius: var(--card-radius);
+    background: var(--color-overlay-brand);
     transition: background 260ms ease;
+    transform: translateZ(2px);
   }
 
   .role-card-copy {
     position: absolute;
-    top: 111px; left: 0; right: 0;
+    top: 88px; left: 0; right: 0;
     display: grid; justify-items: center;
-    color: var(--background-50, #f8f3e9);
+    color: var(--color-text-inverse);
     text-align: center;
+    transform: translateZ(34px);
     transition: transform 260ms ease;
   }
 
   .role-card-copy h2 {
     margin: 0;
-    font-family: 'DynaPuff', system-ui, sans-serif;
-    font-size: clamp(42px, 4vw, 60px);
+    font-family: var(--font-display);
+    font-size: clamp(34px, 3.45vw, 50px);
     font-weight: 500;
     line-height: 1.5;
     letter-spacing: 0;
@@ -1369,8 +1433,8 @@
 
   .role-card-copy p {
     margin: -8px 0 0;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 16px;
+    font-family: var(--font-text);
+    font-size: 14px;
     font-weight: 500;
     line-height: 1.5;
     letter-spacing: 0;
@@ -1379,23 +1443,23 @@
 
   .role-dialogue {
     position: absolute; z-index: 3;
-    top: 132px; left: 28px;
-    width: 210px;
+    top: 112px; left: var(--spacing-5);
+    width: 184px;
     box-sizing: border-box;
-    padding: 16px;
-    border-radius: 24px;
-    background: var(--brand-500, #2a4484);
-    color: var(--background-50, #f8f3e9);
+    padding: 14px;
+    border-radius: var(--dialogue-radius);
+    background: var(--color-text-primary);
+    color: var(--color-text-inverse);
     opacity: 0;
-    transform: translateX(-130%);
+    transform: translateX(-130%) translateZ(48px);
     transition: opacity 260ms ease, transform 320ms ease;
     will-change: transform, opacity;
   }
 
   .role-dialogue p {
     margin: 0;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 16px;
+    font-family: var(--font-text);
+    font-size: 13px;
     font-weight: 600;
     line-height: 1.3;
     letter-spacing: 0;
@@ -1408,11 +1472,15 @@
 
   .role-person {
     position: absolute; z-index: 4;
-    right: 15px; bottom: -240px;
+    right: 8px; bottom: -168px;
     width: auto;
-    height: min(150%, 750px);
+    height: min(126%, 600px);
     opacity: 0;
-    transform: translateX(42%);
+    transform:
+      translateX(42%)
+      translateX(var(--role-person-x, 0px))
+      translateY(var(--role-person-y, 0px))
+      translateZ(62px);
     transition: opacity 280ms ease, transform 360ms ease;
     user-select: none;
     pointer-events: none;
@@ -1420,43 +1488,50 @@
   }
 
   .role-card.is-servizio .role-person {
-    right: var(--servizio-person-right, -5px);
-    bottom: var(--servizio-person-bottom, -240px);
-    height: var(--servizio-person-height, min(150%, 750px));
+    right: var(--servizio-person-right, -10px);
+    bottom: var(--servizio-person-bottom, -168px);
+    height: var(--servizio-person-height, min(126%, 600px));
   }
 
   .role-card.is-ufficio .role-person {
-    right: var(--ufficio-person-right, -15px);
-    bottom: var(--ufficio-person-bottom, -240px);
-    height: var(--ufficio-person-height, min(150%, 750px));
+    right: var(--ufficio-person-right, -24px);
+    bottom: var(--ufficio-person-bottom, -168px);
+    height: var(--ufficio-person-height, min(124%, 590px));
   }
 
   .role-card.is-ufficio .role-dialogue {
-    left: 23px;
-    width: 184px;
+    left: 20px;
+    width: 164px;
   }
 
   .role-card.has-dialogue:hover .role-card-bg,
   .role-card.has-dialogue:focus-visible .role-card-bg {
     filter: blur(2.5px);
-    transform: translateX(-50%) scale(1.02);
+    transform:
+      translateX(calc(-50% + var(--role-bg-x, 0px)))
+      translateY(var(--role-bg-y, 0px))
+      translateZ(-24px)
+      scale(1.08);
   }
 
   .role-card.is-cucina:hover .role-card-overlay,
   .role-card.is-cucina:focus-visible .role-card-overlay {
-    background: rgb(42 67 133 / 0.8);
+    background: var(--color-overlay-cucina-strong);
   }
 
   .role-card.is-ufficio:hover .role-card-overlay,
   .role-card.is-ufficio:focus-visible .role-card-overlay,
   .role-card.is-servizio:hover .role-card-overlay,
   .role-card.is-servizio:focus-visible .role-card-overlay {
-    background: rgb(42 68 132 / 0.8);
+    background: var(--color-overlay-brand-strong);
   }
 
   .role-card.has-dialogue:hover .role-card-copy,
   .role-card.has-dialogue:focus-visible .role-card-copy {
-    transform: translateY(-102px);
+    transform:
+      translateY(-78px)
+      translateX(var(--role-copy-x, 0px))
+      translateZ(58px);
   }
 
   .role-card.has-dialogue:hover .role-card-copy p,
@@ -1467,85 +1542,95 @@
   .role-card.has-dialogue:hover .role-dialogue,
   .role-card.has-dialogue:focus-visible .role-dialogue {
     opacity: 1;
-    transform: translateX(0);
+    transform:
+      translateX(var(--role-dialogue-x, 0px))
+      translateY(var(--role-dialogue-y, 0px))
+      translateZ(66px);
   }
 
   .role-card.has-dialogue:hover .role-person,
   .role-card.has-dialogue:focus-visible .role-person {
     opacity: 1;
-    transform: translateX(0);
+    transform:
+      translateX(var(--role-person-x, 0px))
+      translateY(var(--role-person-y, 0px))
+      translateZ(72px);
   }
 
   @media (max-width: 700px) {
-    .about-top-bar { height: 88px; padding: 28px 24px; }
+    .about-top-bar { height: var(--layout-topbar-height-mobile); padding: var(--layout-topbar-padding-mobile); }
     .logo         { font-size: 34px; }
     .close-icon,
     .close-icon::before { width: 22px; }
     .about-copy {
       top: 132px;
-      left: 24px;
-      width: calc(100vw - 48px);
+      left: var(--layout-page-gutter-mobile);
+      width: calc(100vw - var(--spacing-8));
       max-height: calc(100svh - 220px);
       font-size: 13px;
       line-height: 1.35;
     }
     .about-copy p { margin-bottom: 0.95em; }
     .polimi-logo {
-      left: 24px;
-      bottom: 24px;
+      left: var(--layout-page-gutter-mobile);
+      bottom: var(--spacing-5);
       width: min(180px, 48vw);
     }
-    .intro        { padding: 24px; }
+    .intro        { padding: var(--layout-page-gutter-mobile); }
     h1, .next-message { font-size: 24px; }
     .reel-card    { width: min(34vw, 132px); }
-    .next-screen  { padding: 24px; }
+    .next-screen  { padding: var(--layout-page-gutter-mobile); }
     .brand-word   { font-size: clamp(48px, 14vw, 96px); }
     .brand-lockup { gap: 12px; }
     .brand-subtitle { font-size: 24px; }
     .floating-raviolo { width: clamp(86px, 28vw, 124px); }
     .floating-pizza { width: clamp(92px, 30vw, 132px); }
     .floating-fusillo { width: clamp(82px, 26vw, 118px); }
-    .roles-top-bar { height: 88px; padding: 28px 24px; }
+    .roles-top-bar { height: var(--layout-topbar-height-mobile); padding: var(--layout-topbar-padding-mobile); }
     .role-grid {
-      top: 88px; left: 24px; right: 24px; bottom: 0;
+      top: 104px; left: var(--layout-page-gutter-mobile);
+      width: calc(100vw - var(--spacing-8));
+      height: calc(100svh - 132px);
       grid-template-columns: 1fr;
-      gap: 14px;
+      gap: 18px;
+      justify-content: stretch;
+      transform: none;
     }
-    .role-card { min-height: 260px; border-radius: 24px; }
+    .role-card { min-height: 260px; border-radius: var(--card-radius-mobile); }
     .role-card-bg { top: -24%; width: 116%; height: 150%; }
-    .role-card-overlay { height: 100%; border-radius: 24px; }
-    .role-card-copy { top: 42px; }
-    .role-card-copy h2 { font-size: clamp(38px, 12vw, 52px); }
-    .role-card-copy p { font-size: 13px; }
+    .role-card-overlay { height: 100%; border-radius: var(--card-radius-mobile); }
+    .role-card-copy { top: 36px; }
+    .role-card-copy h2 { font-size: clamp(32px, 10vw, 44px); }
+    .role-card-copy p { font-size: 12px; }
     .role-card.has-dialogue:hover .role-card-copy,
     .role-card.has-dialogue:focus-visible .role-card-copy {
-      transform: translateY(-28px);
+      transform: translateY(-22px) translateZ(58px);
     }
     .role-dialogue {
-      top: 78px; left: 16px;
-      width: min(58vw, 210px);
-      padding: 12px;
-      border-radius: 18px;
+      top: 74px; left: 14px;
+      width: min(54vw, 176px);
+      padding: 10px;
+      border-radius: var(--dialogue-radius-mobile);
     }
     .role-card.is-ufficio .role-dialogue {
-      left: 16px;
-      width: min(58vw, 184px);
+      left: 14px;
+      width: min(54vw, 160px);
     }
-    .role-dialogue p { font-size: 12px; }
+    .role-dialogue p { font-size: 11px; }
     .role-person {
-      right: -18px; bottom: -8px;
+      right: -16px; bottom: -6px;
       width: auto;
-      height: min(92%, 300px);
+      height: min(82%, 260px);
     }
     .role-card.is-servizio .role-person {
       right: var(--servizio-person-mobile-right, -18px);
-      bottom: var(--servizio-person-mobile-bottom, -8px);
-      height: var(--servizio-person-mobile-height, min(92%, 300px));
+      bottom: var(--servizio-person-mobile-bottom, -6px);
+      height: var(--servizio-person-mobile-height, min(82%, 260px));
     }
     .role-card.is-ufficio .role-person {
-      right: var(--ufficio-person-mobile-right, -18px);
-      bottom: var(--ufficio-person-mobile-bottom, -8px);
-      height: var(--ufficio-person-mobile-height, min(92%, 300px));
+      right: var(--ufficio-person-mobile-right, -20px);
+      bottom: var(--ufficio-person-mobile-bottom, -6px);
+      height: var(--ufficio-person-mobile-height, min(80%, 250px));
     }
   }
 </style>

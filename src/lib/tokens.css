@@ -1,19 +1,122 @@
 :root {
-	/* Figma variables from ui_cucina, node 261:182 */
-	--brand-500: #2a4484;
-	--accent-500: #fe4c00;
-	--background-50: #f8f3e9;
-	--unit-24: 24px;
-	--unit-32: 32px;
-	--unit-40: 40px;
-	--unit-80: 80px;
+  /* Typography */
+  --font-display: "DynaPuff", system-ui, sans-serif;
+  --font-text: "JetBrains Mono", ui-monospace, monospace;
 
-	/* Original Figma token names, kept for direct mapping when useful. */
-	--brand\/500: var(--brand-500);
-	--accent\/500: var(--accent-500);
-	--background\/50: var(--background-50);
-	--unit\/24: var(--unit-24);
-	--unit\/32: var(--unit-32);
-	--unit\/40: var(--unit-40);
-	--unit\/80: var(--unit-80);
+  /* Primitive units */
+  --unit-0: 0px;
+  --unit-4: 4px;
+  --unit-8: 8px;
+  --unit-12: 12px;
+  --unit-16: 16px;
+  --unit-24: 24px;
+  --unit-32: 32px;
+  --unit-40: 40px;
+  --unit-48: 48px;
+  --unit-56: 56px;
+  --unit-64: 64px;
+  --unit-72: 72px;
+  --unit-80: 80px;
+  --unit-160: 160px;
+  --unit-999: 999px;
+
+  /* Spacing scale */
+  --spacing-0: var(--unit-0);
+  --spacing-1: var(--unit-4);
+  --spacing-2: var(--unit-8);
+  --spacing-3: var(--unit-12);
+  --spacing-4: var(--unit-16);
+  --spacing-5: var(--unit-24);
+  --spacing-6: var(--unit-32);
+  --spacing-7: var(--unit-40);
+  --spacing-8: var(--unit-48);
+  --spacing-9: var(--unit-56);
+  --spacing-10: var(--unit-64);
+  --spacing-11: var(--unit-72);
+  --spacing-12: var(--unit-80);
+  --spacing-13: var(--unit-160);
+
+  /* Radius scale */
+  --radius-none: var(--unit-0);
+  --radius-xs: var(--unit-4);
+  --radius-s: var(--unit-8);
+  --radius-m: var(--unit-16);
+  --radius-l: var(--unit-24);
+  --radius-xl: var(--unit-32);
+  --radius-xxl: var(--unit-64);
+  --radius-full: var(--unit-999);
+
+  /* Brand palette */
+  --brand-100: #b2bccc;
+  --brand-200: #b1c7f2;
+  --brand-300: #7f9eda;
+  --brand-400: #5973b5;
+  --brand-500: #2a4484;
+  --brand-600: #1e3472;
+  --brand-700: #142560;
+  --brand-800: #0d194d;
+  --brand-900: #081040;
+
+  /* Accent palette */
+  --accent-100: #d2c0a8;
+  --accent-200: #fecb98;
+  --accent-300: #fea865;
+  --accent-400: #fe8640;
+  --accent-500: #fe4c00;
+  --accent-600: #da3200;
+  --accent-700: #b61f01;
+  --accent-800: #930d00;
+  --accent-900: #7a0200;
+
+  /* Background palette */
+  --background-50: #f8f3e9;
+  --background-100: #fbf5e3;
+  --background-200: #f9f0d9;
+  --background-300: #f0ddb4;
+  --background-400: #d6b885;
+  --background-500: #ad8a5a;
+  --background-600: #76542d;
+  --background-700: #654320;
+  --background-800: #553216;
+  --background-900: #46230d;
+
+  /* Site color aliases */
+  --color-surface-page: var(--background-50);
+  --color-surface-raised: var(--background-100);
+  --color-surface-muted: var(--background-200);
+  --color-surface-dark: #101318;
+  --color-text-primary: var(--brand-500);
+  --color-text-strong: var(--brand-700);
+  --color-text-inverse: var(--background-50);
+  --color-border-primary: var(--brand-500);
+  --color-border-dark: var(--color-surface-dark);
+  --color-interactive-primary: var(--brand-500);
+  --color-interactive-hover: var(--accent-500);
+  --color-focus-ring: var(--accent-500);
+  --color-overlay-brand: rgb(42 68 132 / 0.6);
+  --color-overlay-brand-strong: rgb(42 68 132 / 0.8);
+  --color-overlay-cucina-strong: rgb(42 67 133 / 0.8);
+  --shadow-brand-rgb: 42 68 132;
+  --shadow-dark-rgb: 16 19 24;
+
+  /* Site layout aliases */
+  --layout-page-gutter: var(--spacing-12);
+  --layout-page-gutter-mobile: var(--spacing-5);
+  --layout-topbar-height: calc(var(--unit-80) + var(--unit-24));
+  --layout-topbar-height-mobile: calc(var(--unit-64) + var(--unit-24));
+  --layout-topbar-padding: var(--spacing-7) var(--layout-page-gutter);
+  --layout-topbar-padding-mobile: calc(var(--unit-24) + var(--unit-4)) var(--layout-page-gutter-mobile);
+
+  /* Site component aliases */
+  --button-icon-size: var(--unit-40);
+  --card-radius: var(--radius-xl);
+  --card-radius-mobile: var(--radius-l);
+  --card-border-width: var(--unit-4);
+  --dialogue-radius: var(--radius-m);
+  --dialogue-radius-mobile: var(--radius-m);
+
+  /* Media placeholder colors */
+  --reel-placeholder-neutral: #f0f0f0;
+  --reel-placeholder-gold: #fdc567;
+  --reel-placeholder-lavender: #5f6fa8;
 }
