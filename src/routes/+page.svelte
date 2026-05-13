@@ -1473,9 +1473,9 @@
 
   .role-person {
     position: absolute; z-index: 4;
-    right: 8px; bottom: -168px;
+    right: 20px; bottom: -168px;
     width: auto;
-    height: min(126%, 600px);
+    height: min(132%, 628px);
     opacity: 0;
     transform:
       translateX(42%)
@@ -1489,15 +1489,21 @@
   }
 
   .role-card.is-servizio .role-person {
-    right: var(--servizio-person-right, -10px);
+    right: var(--servizio-person-right, 2px);
     bottom: var(--servizio-person-bottom, -168px);
-    height: var(--servizio-person-height, min(126%, 600px));
+    height: var(--servizio-person-height, min(125%, 620px));
+  }
+
+  .role-card.is-cucina .role-person {
+    right: var(--cucina-person-right, 20px);
+    bottom: var(--cucina-person-bottom, -195px);
+    height: var(--cucina-person-height, min(132%, 628px));
   }
 
   .role-card.is-ufficio .role-person {
-    right: var(--ufficio-person-right, -10px);
+    right: var(--ufficio-person-right, 2px);
     bottom: var(--ufficio-person-bottom, -168px);
-    height: var(--ufficio-person-height, min(124%, 590px));
+    height: var(--ufficio-person-height, min(130%, 618px));
   }
 
   .role-card.is-ufficio .role-dialogue {
@@ -1619,19 +1625,24 @@
     }
     .role-dialogue p { font-size: 11px; }
     .role-person {
-      right: -16px; bottom: -6px;
+      right: -4px; bottom: -6px;
       width: auto;
-      height: min(82%, 260px);
+      height: min(86%, 274px);
     }
     .role-card.is-servizio .role-person {
-      right: var(--servizio-person-mobile-right, -18px);
+      right: var(--servizio-person-mobile-right, -6px);
       bottom: var(--servizio-person-mobile-bottom, -6px);
-      height: var(--servizio-person-mobile-height, min(82%, 260px));
+      height: var(--servizio-person-mobile-height, min(86%, 274px));
+    }
+    .role-card.is-cucina .role-person {
+      right: var(--cucina-person-mobile-right, -4px);
+      bottom: var(--cucina-person-mobile-bottom, -6px);
+      height: var(--cucina-person-mobile-height, min(86%, 274px));
     }
     .role-card.is-ufficio .role-person {
-      right: var(--ufficio-person-mobile-right, -20px);
+      right: var(--ufficio-person-mobile-right, -8px);
       bottom: var(--ufficio-person-mobile-bottom, -6px);
-      height: var(--ufficio-person-mobile-height, min(80%, 250px));
+      height: var(--ufficio-person-mobile-height, min(84%, 264px));
     }
   }
 </style>
