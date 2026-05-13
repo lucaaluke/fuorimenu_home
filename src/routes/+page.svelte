@@ -151,6 +151,7 @@
     vy: number;
     tiltX: number;
     tiltY: number;
+    spinAngle: number;
     hover: boolean;
     hoverProgress: number;
   };
@@ -163,6 +164,7 @@
     exitX: number;
     exitY: number;
     wobble: { x: number; y: number; speed: number; phase: number };
+    spin: { speed: number; phase: number };
     motion: FloatingMotion;
   }> = [
     {
@@ -173,7 +175,8 @@
       exitX: -7,
       exitY: -112,
       wobble: { x: 8, y: 5, speed: 1.1, phase: 0.2 },
-      motion: { x: 84, y: 96, vx: 92, vy: 74, tiltX: 0, tiltY: 0, hover: false, hoverProgress: 0 }
+      spin: { speed: 18, phase: -8 },
+      motion: { x: 84, y: 96, vx: 92, vy: 74, tiltX: 0, tiltY: 0, spinAngle: 0, hover: false, hoverProgress: 0 }
     },
     {
       src: '/images/pizza.svg',
@@ -183,7 +186,8 @@
       exitX: 7,
       exitY: -112,
       wobble: { x: 5, y: 7, speed: 0.92, phase: 1.8 },
-      motion: { x: 220, y: 280, vx: -82, vy: 96, tiltX: 0, tiltY: 0, hover: false, hoverProgress: 0 }
+      spin: { speed: -14, phase: 12 },
+      motion: { x: 220, y: 280, vx: -82, vy: 96, tiltX: 0, tiltY: 0, spinAngle: 0, hover: false, hoverProgress: 0 }
     },
     {
       src: '/images/fusillo.svg',
@@ -193,7 +197,8 @@
       exitX: -3,
       exitY: -126,
       wobble: { x: 12, y: 10, speed: 1.37, phase: 4.4 },
-      motion: { x: 520, y: 132, vx: -63, vy: 117, tiltX: 0, tiltY: 0, hover: false, hoverProgress: 0 }
+      spin: { speed: 22, phase: 4 },
+      motion: { x: 520, y: 132, vx: -63, vy: 117, tiltX: 0, tiltY: 0, spinAngle: 0, hover: false, hoverProgress: 0 }
     }
   ];
 
@@ -295,6 +300,7 @@
       const maxX   = Math.max(pad, bounds.width - width - pad);
       const maxY   = Math.max(pad, bounds.height - height - pad);
       const wobble = asset.wobble;
+      const spin = asset.spin;
       const driftTime = time / 1000 * wobble.speed + wobble.phase;
       const hoverTarget = motion.hover ? 1 : 0;
       const hoverStep = dt / (motion.hover ? 0.2 : 0.28);
@@ -306,6 +312,7 @@
 
       motion.x += motion.vx * dt * hoverBoost;
       motion.y += motion.vy * dt * hoverBoost;
+      motion.spinAngle = (motion.spinAngle + spin.speed * dt * (1 + hoverEase * 0.7)) % 360;
 
       if (motion.x <= pad || motion.x >= maxX) {
         motion.x  = clamp(motion.x, pad, maxX);
@@ -326,7 +333,10 @@
       el.style.setProperty('--float-y', `${(motion.y + Math.cos(driftTime * 0.82) * wobble.y).toFixed(1)}px`);
       el.style.setProperty('--float-tilt-x', `${motion.tiltX.toFixed(2)}deg`);
       el.style.setProperty('--float-tilt-y', `${motion.tiltY.toFixed(2)}deg`);
-      el.style.setProperty('--float-rotate', `${(((motion.x + motion.y) * 0.018) + Math.sin(driftTime * 0.7) * 5).toFixed(2)}deg`);
+      el.style.setProperty(
+        '--float-rotate',
+        `${(spin.phase + motion.spinAngle + Math.sin(driftTime * 0.7) * 5).toFixed(2)}deg`
+      );
       el.style.setProperty('--float-hover-z', `${(hoverEase * 28).toFixed(1)}px`);
       el.style.setProperty('--float-hover-scale', (1 + hoverEase * 0.035).toFixed(3));
       el.style.setProperty('--float-shadow-alpha', (hoverEase * 0.28).toFixed(3));
@@ -551,9 +561,12 @@
     // 6. Lettere brand
     applyBrandLetters();
 
-    const subtitleProgress = ease(clamp((brandProgress - 0.72) / 0.3));
-    brandSubtitleEl?.style.setProperty('--brand-subtitle-opacity', subtitleProgress.toFixed(3));
-    brandSubtitleEl?.style.setProperty('--brand-subtitle-y', `${((1 - subtitleProgress) * 14).toFixed(1)}px`);
+    const subtitleIn = ease(clamp((brandProgress - 0.7) / 0.22));
+    const subtitleOut = ease(clamp((brandProgress - 2.04) / 0.18));
+    const subtitleOpacity = subtitleIn * (1 - subtitleOut);
+    const subtitleY = (1 - subtitleIn) * 14 - subtitleOut * 16;
+    brandSubtitleEl?.style.setProperty('--brand-subtitle-opacity', subtitleOpacity.toFixed(3));
+    brandSubtitleEl?.style.setProperty('--brand-subtitle-y', `${subtitleY.toFixed(1)}px`);
   }
 
   onMount(() => {
@@ -634,35 +647,6 @@
 
 
 <main bind:this={homeScreen} class="home">
-  <header class="top-bar" aria-label="Navigazione principale">
-    <a class="logo" href="/" aria-label="Fuorimenu home" onclick={reloadHome}>FM</a>
-    <button
-      class="icon-button top-bar-audio"
-      type="button"
-      aria-label={isAudioMuted ? 'Audio disattivato' : 'Audio attivo'}
-      aria-pressed={isAudioMuted}
-      onclick={toggleAudioMuted}
-    >
-      <svg class="volume-icon" viewBox="0 0 28 28" aria-hidden="true">
-        <path d="M4 11.5h5l6-5v15l-6-5H4z" />
-        <path d="M18.5 10a6 6 0 0 1 0 8" />
-        <path d="M21 7.5a9.5 9.5 0 0 1 0 13" />
-        {#if isAudioMuted}
-          <path class="volume-slash" d="M5.5 4.5 23.5 23.5" />
-        {/if}
-      </svg>
-    </button>
-    <button
-      class="icon-button top-bar-menu"
-      type="button"
-      aria-label="Apri sezione about"
-      aria-expanded={isAboutOpen}
-      onclick={openAbout}
-    >
-      <span class="menu-icon" aria-hidden="true"></span>
-    </button>
-  </header>
-
   <section class="intro" aria-labelledby="intro-title" bind:this={introEl}>
     <h1 id="intro-title" aria-label={introMessage}>
       {#each introWords as group (group.index)}
@@ -886,14 +870,6 @@
     will-change: transform;
   }
 
-  .top-bar {
-    position: absolute; z-index: 30; top: 0; left: 0;
-    box-sizing: border-box;
-    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-    width: 100%; height: 102px;
-    padding: var(--unit-40) var(--unit-80);
-  }
-
   .logo {
     width: 51px; color: var(--brand-500);
     font-family: 'DynaPuff', system-ui, sans-serif;
@@ -904,7 +880,7 @@
   .top-bar-audio { justify-self: center; }
   .top-bar-menu { justify-self: end; }
 
-  .top-bar a, .roles-top-bar a {
+  .roles-top-bar a {
     color: var(--brand-500);
     font-family: 'DynaPuff', system-ui, sans-serif;
     font-weight: 400; text-decoration: none;
@@ -1083,7 +1059,7 @@
     position: absolute; z-index: 5; inset: 0;
     display: grid; place-items: center;
     box-sizing: border-box;
-    padding: 102px var(--unit-40) var(--unit-80);
+    padding: var(--unit-40);
     pointer-events: none;
     opacity: var(--mount-opacity, 0);
     transition: opacity 80ms linear;
@@ -1139,7 +1115,7 @@
   .next-screen {
     position: fixed; z-index: 20; inset: 0;
     display: grid; place-items: center; box-sizing: border-box;
-    padding: 102px var(--unit-40) var(--unit-80);
+    padding: var(--unit-40);
     background: var(--background-50);
     opacity: 0; pointer-events: none;
     will-change: opacity;
@@ -1444,7 +1420,6 @@
   }
 
   @media (max-width: 700px) {
-    .top-bar      { height: 88px; padding: 28px 24px; }
     .about-top-bar { height: 88px; padding: 28px 24px; }
     .logo         { font-size: 34px; }
     .close-icon,
@@ -1463,10 +1438,10 @@
       bottom: 24px;
       width: min(180px, 48vw);
     }
-    .intro        { padding: 88px 24px 72px; }
+    .intro        { padding: 24px; }
     h1, .next-message { font-size: 24px; }
     .reel-card    { width: min(34vw, 132px); }
-    .next-screen  { padding: 88px 24px 72px; }
+    .next-screen  { padding: 24px; }
     .brand-word   { font-size: clamp(48px, 14vw, 96px); }
     .brand-lockup { gap: 12px; }
     .brand-subtitle { font-size: 24px; }
