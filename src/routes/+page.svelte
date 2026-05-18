@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { gsap } from 'gsap';
   import { onMount } from 'svelte';
 
   let reelProgress = 0;
@@ -22,7 +23,7 @@
   let aboutCloseTimer: ReturnType<typeof setTimeout> | undefined;
   let mountFadeTimer: ReturnType<typeof setTimeout> | undefined;
   let mountFadeFrame = 0;
-  let flowFrame = 0;
+  let flowTween: gsap.core.Tween | undefined;
   let audioFadeFrames: Partial<Record<AudioRole, number>> = {};
   let audioLoopFrames: Partial<Record<AudioRole, number>> = {};
   let audioUnlocked = false;
@@ -123,8 +124,12 @@
   let floatingLast = 0;
   let floatingEls: HTMLElement[] = [];
   const rolesRevealStart = 2;
-  const rolesRevealDuration = 0.78;
+  const rolesRevealDuration = 0.58;
+  const rolesScreenFadeEnd = 0.52;
+  const roleCardStagger = 0.07;
+  const roleCardRevealDuration = 0.24;
   const brandScrollMax = rolesRevealStart + rolesRevealDuration;
+  const flowTotalMax = 2 + brandScrollMax;
 
   const roleItems: RoleItem[] = [
     {
@@ -578,14 +583,14 @@
     });
 
     const rolesProgress = clamp((brandProgress - rolesRevealStart) / rolesRevealDuration);
-    const rolesEase = ease(rolesProgress);
+    const rolesEase = ease(clamp(rolesProgress / rolesScreenFadeEnd));
     if (rolesScreen) {
       rolesScreen.style.opacity = rolesEase.toFixed(3);
       rolesScreen.style.pointerEvents = rolesProgress > 0.08 ? 'auto' : 'none';
     }
     roleCards.forEach((card, index) => {
       if (!card) return;
-      const cardProgress = clamp((rolesProgress - index * 0.13) / 0.44);
+      const cardProgress = clamp((rolesProgress - index * roleCardStagger) / roleCardRevealDuration);
       const cardEase = ease(cardProgress);
       card.style.setProperty('--role-card-y', `${((1 - cardEase) * 38).toFixed(1)}vh`);
       card.style.setProperty('--role-card-opacity', cardEase.toFixed(3));
@@ -619,10 +624,12 @@
   }
 
   onMount(() => {
-    let queuedFlowDelta = 0;
-    const maxWheelStep = 0.1;
-    const maxQueuedFlow = 0.42;
-    const maxFrameStep = 0.022;
+    const flowState = { value: 0 };
+    let targetFlowValue = 0;
+    const maxWheelStep = 0.055;
+    const maxTargetLead = 0.34;
+    const reelScrollSlowdown = 0.42;
+    const reelMaxTargetLead = 0.16;
 
     mountFadeTimer = setTimeout(() => {
       const mountStart    = performance.now();
@@ -639,43 +646,34 @@
       mountFadeFrame = requestAnimationFrame(tickMount);
     }, 400);
 
-    const updateFlow = (delta: number) => {
-      if (delta > 0) {
-        const reelStep = Math.min(delta, 1 - reelProgress);
-        reelProgress  += reelStep;
-        const rem1     = delta - reelStep;
-        const pageStep = Math.min(rem1, 1 - pageProgress);
-        pageProgress  += pageStep;
-        brandProgress  = clamp(brandProgress + rem1 - pageStep, 0, brandScrollMax);
-      } else {
-        const abs       = Math.abs(delta);
-        const brandStep = Math.min(abs, brandProgress);
-        brandProgress  -= brandStep;
-        const rem1      = abs - brandStep;
-        const pageStep  = Math.min(rem1, pageProgress);
-        pageProgress   -= pageStep;
-        reelProgress    = clamp(reelProgress - (rem1 - pageStep));
-      }
+    const applyFlowTotal = (value: number) => {
+      const flowValue = clamp(value, 0, flowTotalMax);
+      reelProgress = clamp(flowValue);
+      pageProgress = clamp(flowValue - 1);
+      brandProgress = clamp(flowValue - 2, 0, brandScrollMax);
       applyReelStyles();
       applyAllStyles();
     };
 
-    const playQueuedFlow = () => {
-      const step = clamp(Math.abs(queuedFlowDelta), 0, maxFrameStep) * Math.sign(queuedFlowDelta);
-      queuedFlowDelta -= step;
-      updateFlow(step);
-
-      if (Math.abs(queuedFlowDelta) > 0.001) {
-        flowFrame = requestAnimationFrame(playQueuedFlow);
-      } else {
-        queuedFlowDelta = 0;
-        flowFrame = 0;
-      }
+    const tweenFlowTo = (value: number, duration = 1.18) => {
+      targetFlowValue = clamp(value, 0, flowTotalMax);
+      flowTween = gsap.to(flowState, {
+        value: targetFlowValue,
+        duration,
+        ease: 'power3.out',
+        overwrite: true,
+        onUpdate: () => applyFlowTotal(flowState.value)
+      });
     };
 
     const queueFlow = (delta: number) => {
-      queuedFlowDelta = clamp(queuedFlowDelta + delta, -maxQueuedFlow, maxQueuedFlow);
-      if (!flowFrame) flowFrame = requestAnimationFrame(playQueuedFlow);
+      const isAdvancingThroughReels = delta > 0 && flowState.value < 1;
+      const effectiveDelta = isAdvancingThroughReels ? delta * reelScrollSlowdown : delta;
+      const targetLead = isAdvancingThroughReels ? reelMaxTargetLead : maxTargetLead;
+      const unclampedTarget = targetFlowValue + effectiveDelta;
+      const minTarget = flowState.value - targetLead;
+      const maxTarget = flowState.value + targetLead;
+      tweenFlowTo(clamp(unclampedTarget, minTarget, maxTarget), isAdvancingThroughReels ? 1.32 : 1.18);
     };
 
     const normalizeWheelDelta = (e: WheelEvent) => {
@@ -684,7 +682,7 @@
         : e.deltaMode === WheelEvent.DOM_DELTA_PAGE
           ? window.innerHeight
           : 1;
-      const rawStep = (e.deltaY * unit) / 1500;
+      const rawStep = (e.deltaY * unit) / 2400;
       return clamp(rawStep, -maxWheelStep, maxWheelStep);
     };
 
@@ -692,8 +690,8 @@
     const onKeydown = (e: KeyboardEvent) => {
       unlockAmbientAudio();
       const map: Record<string, number> = {
-        ArrowDown: 0.1, PageDown: 0.1, ' ': 0.1,
-        ArrowUp: -0.1,  PageUp:  -0.1
+        ArrowDown: 0.065, PageDown: 0.065, ' ': 0.065,
+        ArrowUp: -0.065,  PageUp:  -0.065
       };
       if (e.key in map) { e.preventDefault(); queueFlow(map[e.key]); }
     };
@@ -706,7 +704,7 @@
     window.addEventListener('pointerdown', unlockAmbientAudio, { passive: true });
     return () => {
       cancelAnimationFrame(floatingFrame);
-      cancelAnimationFrame(flowFrame);
+      flowTween?.kill();
       if (mountFadeTimer) clearTimeout(mountFadeTimer);
       if (aboutCloseTimer) clearTimeout(aboutCloseTimer);
       cancelAnimationFrame(mountFadeFrame);
