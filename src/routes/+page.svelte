@@ -19,8 +19,9 @@
   let audioGateButtonEl = $state<HTMLElement>();
   let isAudioGateVisible = $state(true);
   let isAudioGateOpening = $state(false);
+  let activeAudioGateChoice = $state<'on' | 'off' | undefined>();
   let introRevealTween: gsap.core.Tween | undefined;
-  let isAudioMuted = $state(false);
+  let isAudioMuted = $state(true);
   let audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
   let isBrandWordSharp = $state(false);
   let isAboutOpen = $state(false);
@@ -64,14 +65,14 @@
       src: '/sound/office.mp3',
       startTime: 0.5,
       maxTime: 0,
-      targetVolume: 0.42,
+      targetVolume: 0.62,
       fadeInDuration: 0.05
     },
     cucina: {
       src: '/sound/kitchen.mp3',
       startTime: 0,
       maxTime: 0,
-      targetVolume: 0.22,
+      targetVolume: 0.42,
       fadeInDuration: 0.12
     },
     servizio: {
@@ -79,7 +80,7 @@
       startTime: 0,
       maxTime: 0,
       targetVolume: 1,
-      outputGain: 4,
+      outputGain: 0.92,
       fadeIn: false
     }
   };
@@ -740,14 +741,15 @@
     }
   }
 
-  async function openAudioGate() {
+  async function openAudioGate(nextMuted = isAudioMuted, choice: 'on' | 'off') {
     if (isAudioGateOpening) return;
-    isAudioMuted = false;
+    isAudioMuted = nextMuted;
+    activeAudioGateChoice = choice;
     isAudioGateOpening = true;
-    await unlockAmbientAudio();
+    if (!nextMuted) await unlockAmbientAudio();
+    window.setTimeout(revealIntroLetters, 760);
     window.setTimeout(() => {
       isAudioGateVisible = false;
-      revealIntroLetters();
     }, 1280);
   }
 
@@ -977,23 +979,42 @@
     class:is-opening={isAudioGateOpening}
     class="audio-gate"
     aria-labelledby="audio-gate-copy"
-    data-node-id="3238:1404"
+    data-node-id="3266:3591"
   >
     <div class="audio-gate-content">
-      <span class="audio-gate-reveal" aria-hidden="true"></span>
-      <button
-        bind:this={audioGateButtonEl}
-        class="audio-gate-button"
-        type="button"
-        aria-label="Attiva l'audio e apri il sito"
-        onpointermove={tiltAudioGateButton}
-        onpointerleave={resetAudioGateButton}
-        onclick={openAudioGate}
-      >
-        <svg class="play-icon" viewBox="0 0 28 28" aria-hidden="true">
-          <path d="M10 7.5v13l11-6.5z" />
-        </svg>
-      </button>
+      <div class="audio-gate-controls">
+        <div class="audio-gate-button-wrap" class:is-active={activeAudioGateChoice === 'on'}>
+          <span class="audio-gate-reveal" aria-hidden="true"></span>
+          <button
+            bind:this={audioGateButtonEl}
+            class="audio-gate-button"
+            type="button"
+            aria-label="Entra con audio attivo"
+            onpointermove={tiltAudioGateButton}
+            onpointerleave={resetAudioGateButton}
+            onclick={() => openAudioGate(false, 'on')}
+          >
+            <svg class="volume-icon" viewBox="0 0 28 28" aria-hidden="true">
+              <path d="M4 11.5h5l6-5v15l-6-5H4z" />
+              <path d="M18.5 10a6 6 0 0 1 0 8" />
+              <path d="M21 7.5a9.5 9.5 0 0 1 0 13" />
+            </svg>
+          </button>
+        </div>
+        <div class="audio-gate-button-wrap" class:is-active={activeAudioGateChoice === 'off'}>
+          <span class="audio-gate-reveal" aria-hidden="true"></span>
+          <button
+            class="audio-gate-button"
+            type="button"
+            aria-label="Entra con audio disattivato"
+            onclick={() => openAudioGate(true, 'off')}
+          >
+            <svg class="volume-icon" viewBox="0 0 25.5111 19.1" aria-hidden="true">
+              <path d="M17.7312 6.24441L24.3424 12.8556M17.7312 12.8556L24.3424 6.24442M7.57376 13.5316L9.5316 15.9544C10.5522 17.2174 11.0625 17.8489 11.5096 17.9177C11.8966 17.9772 12.2878 17.8389 12.5514 17.5494C12.8559 17.2149 12.8559 16.403 12.8559 14.7791V4.32085C12.8559 2.697 12.8559 1.88508 12.5514 1.55061C12.2878 1.26107 11.8966 1.12279 11.5096 1.1823C11.0625 1.25105 10.5522 1.88255 9.5316 3.14557L7.57377 5.56839C7.36758 5.82354 7.26449 5.95112 7.13693 6.04292C7.02392 6.12425 6.89729 6.18473 6.763 6.22151C6.61142 6.26303 6.4474 6.26303 6.11936 6.26303H4.45592C3.57215 6.26303 3.13027 6.26303 2.77316 6.381C2.07039 6.61317 1.5191 7.16445 1.28694 7.86722C1.16896 8.22433 1.16896 8.66622 1.16896 9.54999C1.16896 10.4338 1.16896 10.8756 1.28694 11.2327C1.5191 11.9355 2.07039 12.4868 2.77316 12.719C3.13027 12.8369 3.57215 12.8369 4.45592 12.8369H6.11936C6.4474 12.8369 6.61142 12.8369 6.763 12.8785C6.89729 12.9152 7.02392 12.9757 7.13693 13.0571C7.26449 13.1489 7.36758 13.2764 7.57376 13.5316Z" />
+            </svg>
+          </button>
+        </div>
+      </div>
       <p id="audio-gate-copy" aria-label={audioGateMessage}>
         {#each audioGateCharacters as { letter, isSpace, index } (index)}
           {#if index === 32}
@@ -1018,6 +1039,9 @@
           {#if group.type === 'space'}
             <span class="space" aria-hidden="true">&nbsp;</span>
           {:else}
+            {#if group.index === 14 || group.index === 35}
+              <br aria-hidden="true" />
+            {/if}
             <span class="word" aria-hidden="true">
               {#each group.characters as { letter, isAccent, index } (index)}
                 <span bind:this={introLetters[index]} class:accent-letter={isAccent}
@@ -1066,6 +1090,9 @@
 <section bind:this={nextScreen} class="next-screen" aria-labelledby="next-message">
   <p id="next-message" class="next-message" aria-label={nextMessage}>
     {#each nextCharacters as { letter, isSpace, isAccent }, index}
+      {#if index === 20 || index === 41}
+        <br aria-hidden="true" />
+      {/if}
       {#if isSpace}
         <span class="space" aria-hidden="true">&nbsp;</span>
       {:else}
@@ -1267,24 +1294,50 @@
     left: 50%;
     display: grid;
     justify-items: center;
-    gap: var(--spacing-5);
+    gap: 0;
     width: min(100%, 1512px);
     transform: translate(-50%, -50%);
+  }
+
+  .audio-gate-controls {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-6);
+    perspective: 900px;
+    perspective-origin: 50% 50%;
+  }
+
+  .audio-gate-button-wrap {
+    position: relative;
+    z-index: 1;
+    width: var(--gate-size);
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
   }
 
   .audio-gate-reveal {
     position: absolute;
     z-index: 1;
-    top: 0;
-    left: calc(50% - var(--gate-size) / 2);
-    width: var(--gate-size);
-    aspect-ratio: 1;
+    inset: -1px;
     border-radius: 50%;
     background: var(--color-surface-page);
-    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.82);
     transform-origin: center;
-    transition: transform 1200ms cubic-bezier(0.84, 0, 0.16, 1);
-    will-change: transform;
+    transition:
+      opacity 180ms ease,
+      transform 220ms ease;
+    will-change: opacity, transform;
+  }
+
+  .audio-gate-button-wrap:hover .audio-gate-reveal,
+  .audio-gate-button-wrap:focus-within .audio-gate-reveal {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
   }
 
   .audio-gate-button {
@@ -1297,9 +1350,11 @@
     padding: 0;
     border: 0;
     border-radius: 50%;
-    color: var(--color-text-primary);
+    color: var(--color-text-inverse);
     background: transparent;
     cursor: pointer;
+    outline: 2px solid var(--color-text-inverse);
+    outline-offset: -2px;
     box-shadow: none;
     transform:
       translateZ(var(--gate-hover-z, 0px))
@@ -1314,6 +1369,12 @@
     will-change: transform, opacity;
   }
 
+  .audio-gate-button .volume-icon {
+    width: 28px;
+    height: 28px;
+    stroke-width: 1.8;
+  }
+
   .audio-gate-button:hover,
   .audio-gate-button:focus-visible {
     --gate-hover-z: 24px;
@@ -1323,8 +1384,10 @@
   }
 
   .audio-gate-button:focus-visible {
-    outline: 2px solid var(--color-focus-ring);
-    outline-offset: var(--unit-4);
+    outline-color: var(--color-text-inverse);
+    box-shadow:
+      0 0 0 var(--unit-4) rgb(248 243 233 / 0.24),
+      0 20px 46px rgb(var(--shadow-dark-rgb) / 0.24);
   }
 
   .audio-gate.is-opening .audio-gate-button {
@@ -1334,14 +1397,18 @@
     box-shadow: none;
   }
 
-  .audio-gate.is-opening .audio-gate-reveal {
+  .audio-gate.is-opening .audio-gate-button-wrap.is-active .audio-gate-reveal {
+    opacity: 1;
+    transition:
+      opacity 120ms ease,
+      transform 1200ms cubic-bezier(0.84, 0, 0.16, 1);
     transform: translate3d(0, 0, 0) scale(48);
   }
 
   .audio-gate-content p {
     position: relative;
     z-index: 2;
-    margin: 0;
+    margin: var(--spacing-6) 0 0;
     color: var(--color-text-inverse);
     font-family: var(--font-text);
     font-size: 16px;
@@ -1389,7 +1456,7 @@
   }
 
   .logo {
-    width: 51px; color: var(--color-interactive-primary);
+    width: 51px; color: var(--color-content-primary);
     font-family: var(--font-display);
     font-size: var(--unit-40); line-height: 1; text-decoration: none;
     transition: color 160ms ease;
@@ -1420,12 +1487,6 @@
   .volume-icon {
     width: 28px; height: 28px; fill: none; stroke: currentColor;
     stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.2;
-  }
-
-  .play-icon {
-    width: 30px;
-    height: 30px;
-    fill: currentColor;
   }
 
   .volume-slash {
@@ -1586,6 +1647,10 @@
     font-size: 32px; font-weight: 400; line-height: 1.5; text-align: center;
   }
 
+  h1 {
+    width: min(520px, 100%);
+  }
+
   h1 span {
     display: inline-block;
     opacity: var(--letter-opacity, 1);
@@ -1641,11 +1706,13 @@
 
   .next-message span {
     display: inline-block;
+    font-size: 32px;
     opacity: var(--letter-opacity, 0);
     transform: translateY(var(--letter-y, 12px));
     transition: opacity 140ms linear, transform 140ms ease-out;
     will-change: opacity, transform;
   }
+  .next-message { font-size: 0; }
   .next-message .accent-letter { color: var(--color-interactive-hover); font-style: italic; font-weight: 700; }
   .next-message .space { display: inline-block; opacity: 1; transform: none; transition: none; width: 0.28em; }
 
@@ -2038,9 +2105,11 @@
     }
     .audio-gate-content p {
       max-width: 280px;
+      margin-top: var(--spacing-4);
       white-space: normal;
-      font-size: 13px;
+      font-size: 16px;
     }
+    .audio-gate-controls { gap: var(--spacing-5); }
     .about-top-bar { height: var(--layout-topbar-height-mobile); padding: var(--layout-topbar-padding-mobile); }
     .logo         { font-size: 34px; }
     .close-icon,
@@ -2062,6 +2131,7 @@
     .intro        { padding: var(--layout-page-gutter-mobile); }
     .intro-audio  { top: calc(var(--unit-24) + var(--unit-4)); }
     h1, .next-message { font-size: 24px; }
+    .next-message span { font-size: 24px; }
     .reel-card    { width: min(34vw, 132px); }
     .next-screen  { padding: var(--layout-page-gutter-mobile); }
     .brand-word   { font-size: clamp(48px, 14vw, 96px); }
