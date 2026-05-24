@@ -174,10 +174,15 @@
   const rolesRevealStart = 2;
   const rolesRevealDuration = 0.58;
   const rolesScreenFadeEnd = 0.52;
-  const roleCardStagger = 0.07;
-  const roleCardRevealDuration = 0.24;
+  const roleCardStagger = 0.055;
+  const roleCardRevealDuration = 0.2;
   const brandScrollMax = rolesRevealStart + rolesRevealDuration;
   const flowTotalMax = 2 + brandScrollMax;
+  const copyScrollStart = 1;
+  const copyScrollEnd = 2;
+  const brandCopyScrollEnd = 3.18;
+  const rolesScrollStart = 2 + rolesRevealStart;
+  const rolesScrollVisible = rolesScrollStart + rolesRevealDuration;
   const introLetterOut: LetterStyleOptions = { start: 0.2, end: 0.5, windowSize: 0.08, invert: true, dy: 12 };
   const nextLetterIn: LetterStyleOptions = { start: 0.45, end: 0.92, windowSize: 0.07, invert: false, dy: 12 };
   const aboutClosedVars = { clipPath: 'inset(0 0 0 100%)', xPercent: 6 };
@@ -217,17 +222,16 @@
     '--role-person-y': '0px'
   };
   const brandLetterMotion = {
-    sharpStart: 0.96,
-    sharpEnd: 1.86,
-    arrivalSpread: 0.6,
-    arrivalDuration: 0.18,
-    arrivalDepth: 600,
-    introScale: 3.5,
-    opacityRamp: 0.25,
+    arrivalSpread: 0.62,
+    arrivalDuration: 0.22,
+    arrivalDepth: 420,
+    introScale: 1.9,
+    opacityDelay: 0.42,
+    opacityRamp: 0.3,
     burstStart: 1.9,
-    burstDuration: 0.66,
+    burstDuration: 0.86,
     burstSpread: 0.5,
-    burstStaggerDuration: 0.14,
+    burstStaggerDuration: 0.18,
     burstScale: 1.35
   };
   const reelMotion = {
@@ -277,7 +281,7 @@
     personY: 2.8
   };
   const floatingExitMotion = {
-    start: 1.08,
+    start: 1.42,
     duration: 0.64,
     fadeStart: 0.72,
     fadeDuration: 0.28,
@@ -432,14 +436,14 @@
   }
 
   function applyBrandLetters() {
-    isBrandWordSharp = brandProgress > brandLetterMotion.sharpStart && brandProgress < brandLetterMotion.sharpEnd;
+    if (isBrandWordSharp) isBrandWordSharp = false;
 
     const n = brandLetterEls.length;
     brandLetterEls.forEach((el, i) => {
       if (!el) return;
       const rank    = brandArrivalRank[i];
       const stagger = brandLetterMotion.arrivalSpread / Math.max(n - 1, 1);
-      const local   = clamp((clamp(brandProgress) - rank * stagger) / brandLetterMotion.arrivalDuration);
+      const local   = clamp((brandProgress - rank * stagger) / brandLetterMotion.arrivalDuration);
       const e       = ease(local);
       const burstRank = brandBurstRank[i];
       const burstStagger = brandLetterMotion.burstSpread / Math.max(n - 1, 1);
@@ -447,10 +451,11 @@
       const burstLocal = clamp((burstProgress - burstRank * burstStagger) / brandLetterMotion.burstStaggerDuration);
       const burst = ease(burstLocal);
       const burstMotion = brandBurstMotion[i];
+      const opacityIn = clamp((local - brandLetterMotion.opacityDelay) / brandLetterMotion.opacityRamp);
       setCssVars(el, {
         '--bl-z': px((1 - e) * brandLetterMotion.arrivalDepth),
         '--bl-scale': fixed(1 + (1 - e) * brandLetterMotion.introScale + burst * brandLetterMotion.burstScale),
-        '--bl-opacity': fixed(clamp(local / brandLetterMotion.opacityRamp) * (1 - burst)),
+        '--bl-opacity': fixed(opacityIn * (1 - burst)),
         '--bl-x': px(burstMotion.x * burst),
         '--bl-y': px(burstMotion.y * burst),
         '--bl-rotate': deg(burstMotion.rotate * burst, 1)
@@ -865,6 +870,7 @@
   onMount(() => {
     const flowState = { value: 0 };
     let targetFlowValue = 0;
+    let isAutoScrolling = false;
     randomizeBrandLetters();
 
     mountFadeDelay = gsap.delayedCall(mountFadeMotion.delay, () => {
@@ -887,6 +893,7 @@
 
     const tweenFlowTo = (value: number, duration = flowMotion.duration) => {
       targetFlowValue = clamp(value, 0, flowTotalMax);
+      isAutoScrolling = false;
       flowTween = gsap.to(flowState, {
         value: targetFlowValue,
         duration,
@@ -896,7 +903,53 @@
       });
     };
 
+    const autoFlowTo = (value: number, duration: number) => {
+      targetFlowValue = clamp(value, 0, flowTotalMax);
+      isAutoScrolling = true;
+      flowTween = gsap.to(flowState, {
+        value: targetFlowValue,
+        duration,
+        ease: 'power1.inOut',
+        overwrite: true,
+        onUpdate: () => applyFlowTotal(flowState.value),
+        onComplete: () => {
+          isAutoScrolling = false;
+        },
+        onInterrupt: () => {
+          isAutoScrolling = false;
+        }
+      });
+    };
+
     const queueFlow = (delta: number) => {
+      if (isAutoScrolling) return;
+
+      const isCopyForwardStep = delta > 0 && flowState.value >= copyScrollStart && flowState.value < copyScrollEnd;
+      const isCopyBackStep = delta < 0 && flowState.value > copyScrollStart && flowState.value <= copyScrollEnd;
+      if (isCopyForwardStep || isCopyBackStep) {
+        autoFlowTo(isCopyForwardStep ? copyScrollEnd : copyScrollStart, 2.2);
+        return;
+      }
+
+      const isBrandForwardStep = delta > 0 && flowState.value >= copyScrollEnd && flowState.value < brandCopyScrollEnd;
+      const isBrandBackStep = delta < 0 && flowState.value > copyScrollEnd && flowState.value <= brandCopyScrollEnd;
+      if (isBrandForwardStep || isBrandBackStep) {
+        autoFlowTo(isBrandForwardStep ? brandCopyScrollEnd : copyScrollEnd, 2.35);
+        return;
+      }
+
+      const isRolesForwardStep = delta > 0 && flowState.value >= brandCopyScrollEnd && flowState.value < rolesScrollVisible;
+      const isRolesBackStep = delta < 0 && flowState.value > brandCopyScrollEnd && flowState.value <= flowTotalMax;
+      if (isRolesForwardStep) {
+        autoFlowTo(rolesScrollVisible, 1.25);
+        return;
+      }
+
+      if (isRolesBackStep) {
+        autoFlowTo(brandCopyScrollEnd, 1.05);
+        return;
+      }
+
       const isAdvancingThroughReels = delta > 0 && flowState.value < 1;
       const effectiveDelta = isAdvancingThroughReels ? delta * flowMotion.reelScrollSlowdown : delta;
       const targetLead = isAdvancingThroughReels ? flowMotion.reelMaxTargetLead : flowMotion.maxTargetLead;
@@ -1751,18 +1804,25 @@
     display: grid;
     justify-items: center;
     gap: 30px;
+    width: min(1240px, calc(100vw - 24px));
+    padding-block: clamp(18px, 4vh, 64px);
+    overflow: visible;
     transform-style: preserve-3d;
   }
 
   .brand-word {
     margin: 0;
     display: flex;
-    align-items: baseline;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    overflow: visible;
+    padding: 0.12em 0.1em 0.16em;
     font-family: var(--font-display);
     font-size: clamp(72px, 12vw, 160px);
     font-weight: 700;
     font-variation-settings: "wdth" 100;
-    line-height: 1;
+    line-height: 1.18;
     color: var(--color-text-primary);
     transform-style: preserve-3d;
     -webkit-font-smoothing: antialiased;
@@ -1772,13 +1832,19 @@
 
   .brand-letter {
     display: inline-block;
+    overflow: visible;
+    padding: 0.08em 0.04em 0.12em;
+    margin: -0.08em -0.018em -0.12em;
+    line-height: 1.16;
     opacity: var(--bl-opacity, 0);
     transform:
-      translate3d(var(--bl-x, 0px), var(--bl-y, 0px), var(--bl-z, 600px))
+      translate3d(var(--bl-x, 0px), var(--bl-y, 0px), var(--bl-z, 420px))
       rotate(var(--bl-rotate, 0deg))
-      scale(var(--bl-scale, 4.5));
-    transition: opacity 100ms linear, transform 100ms linear;
+      scale(var(--bl-scale, 2.9));
+    transform-origin: 50% 54%;
+    transition: none;
     will-change: opacity, transform;
+    backface-visibility: hidden;
   }
 
   .brand-word.is-sharp {
@@ -1831,9 +1897,10 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 420px));
     justify-content: space-between;
+    align-items: stretch;
     column-gap: var(--spacing-5);
-    perspective: 1100px;
-    perspective-origin: 50% 45%;
+    perspective: none;
+    transform-style: flat;
   }
 
   .role-card {
@@ -1845,6 +1912,7 @@
 
     position: relative;
     overflow: hidden;
+    isolation: isolate;
     min-height: 0;
     border: var(--card-border-width) solid var(--color-border-primary);
     border-radius: var(--role-card-radius);
@@ -1853,11 +1921,10 @@
     opacity: var(--role-card-opacity, 0);
     transform:
       translateY(var(--role-card-y, 38vh))
-      translateZ(var(--role-hover-z, 0px))
       rotateX(var(--role-tilt-x, 0deg))
       rotateY(var(--role-tilt-y, 0deg))
       scale(var(--role-hover-scale, 1));
-    transform-style: preserve-3d;
+    transform-style: flat;
     transform-origin: 50% 50%;
     box-shadow: 0 20px 46px rgb(var(--shadow-brand-rgb) / var(--role-shadow-alpha, 0));
     transition:
@@ -1865,6 +1932,7 @@
       transform 180ms ease-out,
       box-shadow 180ms ease;
     will-change: opacity, transform;
+    backface-visibility: hidden;
   }
 
   .role-card::before {
@@ -1875,7 +1943,6 @@
     border-radius: calc(var(--role-card-radius) - var(--role-inner-border-inset));
     content: '';
     pointer-events: none;
-    transform: translateZ(96px);
   }
 
   .role-card::after {
@@ -1886,7 +1953,6 @@
     border-radius: var(--role-card-radius);
     content: '';
     pointer-events: none;
-    transform: translateZ(92px);
   }
 
   .role-card:hover,
@@ -1906,7 +1972,6 @@
     transform:
       translateX(var(--role-bg-x, 0px))
       translateY(var(--role-bg-y, 0px))
-      translateZ(-24px)
       scale(1.04);
     transition: opacity 220ms ease, filter 260ms ease, transform 260ms ease;
     user-select: none;
@@ -1929,8 +1994,7 @@
     color: var(--color-text-inverse);
     opacity: 1;
     transform:
-      translateY(calc(-100% - 36px))
-      translateZ(54px);
+      translateY(calc(-100% - 36px));
     transition: transform var(--role-reveal-duration) var(--role-reveal-ease);
     pointer-events: none;
   }
@@ -1963,7 +2027,7 @@
     display: grid; justify-items: center;
     color: var(--color-text-primary);
     text-align: center;
-    transform: translateY(-50%) translateZ(34px);
+    transform: translateY(-50%);
     transition: transform 260ms ease;
   }
 
@@ -1995,8 +2059,7 @@
     opacity: 0;
     transform:
       translateX(calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)))
-      translateY(calc(72px + var(--role-person-base-y, 0px) + var(--role-person-y, 0px)))
-      translateZ(72px);
+      translateY(calc(72px + var(--role-person-base-y, 0px) + var(--role-person-y, 0px)));
     transition:
       opacity var(--role-reveal-duration) var(--role-reveal-ease),
       transform var(--role-reveal-duration) var(--role-reveal-ease);
@@ -2042,7 +2105,6 @@
     transform:
       translateX(var(--role-bg-x, 0px))
       translateY(var(--role-bg-y, 0px))
-      translateZ(-24px)
       scale(1.08);
   }
 
@@ -2051,16 +2113,13 @@
     opacity: 0;
     transform:
       translateY(calc(-50% - 14px))
-      translateX(var(--role-copy-x, 0px))
-      translateZ(58px);
+      translateX(var(--role-copy-x, 0px));
   }
 
   .role-card.has-dialogue:hover .role-hover-panel,
   .role-card.has-dialogue:focus-visible .role-hover-panel {
     opacity: 1;
-    transform:
-      translateY(0)
-      translateZ(58px);
+    transform: translateY(0);
   }
 
   .role-card.has-dialogue:hover .role-person,
@@ -2068,8 +2127,7 @@
     opacity: 1;
     transform:
       translateX(calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)))
-      translateY(calc(var(--role-person-base-y, 0px) + var(--role-person-y, 0px)))
-      translateZ(72px);
+      translateY(calc(var(--role-person-base-y, 0px) + var(--role-person-y, 0px)));
   }
 
   @media (max-width: 700px) {
@@ -2109,7 +2167,7 @@
     .next-message span { font-size: 24px; }
     .reel-card    { width: min(34vw, 132px); }
     .next-screen  { padding: var(--layout-page-gutter-mobile); }
-    .brand-word   { font-size: clamp(48px, 14vw, 96px); }
+    .brand-word   { font-size: clamp(48px, 13.5vw, 92px); }
     .brand-lockup { gap: 12px; }
     .brand-subtitle { font-size: 24px; }
     .floating-raviolo { width: clamp(86px, 28vw, 124px); }
@@ -2121,7 +2179,8 @@
       width: calc(100vw - var(--spacing-8));
       height: calc(100svh - 132px);
       grid-template-columns: 1fr;
-      gap: 18px;
+      grid-template-rows: repeat(3, minmax(0, 1fr));
+      gap: 12px;
       justify-content: stretch;
       transform: none;
     }
@@ -2129,12 +2188,12 @@
       --role-card-radius: clamp(34px, 12vw, 54px);
       --role-inner-border-inset: 8px;
 
-      min-height: 260px;
+      min-height: 0;
       border-radius: var(--role-card-radius);
     }
     .role-card-copy { left: var(--spacing-4); right: var(--spacing-4); }
-    .role-card-copy h2 { font-size: clamp(34px, 12vw, 52px); }
-    .role-card-copy p { margin-top: -6px; font-size: 12px; }
+    .role-card-copy h2 { font-size: clamp(28px, 10vw, 44px); line-height: 1.08; }
+    .role-card-copy p { margin-top: 2px; font-size: 11px; line-height: 1.25; }
     .role-card-bg {
       inset: 0;
       width: 100%;
@@ -2146,8 +2205,8 @@
       right: 0;
       width: auto;
       height: auto;
-      min-height: 82px;
-      padding: var(--spacing-4);
+      min-height: 64px;
+      padding: var(--spacing-3) var(--spacing-4);
       border-radius: var(--role-card-radius) var(--role-card-radius) 0 0;
     }
     .role-hover-panel p { font-size: clamp(16px, 5.2vw, 20px); }
