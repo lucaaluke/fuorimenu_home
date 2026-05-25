@@ -12,7 +12,7 @@
   let nextScreen: HTMLElement;
   let brandScreen: HTMLElement;
   let brandSubtitleEl: HTMLElement;
-  let brandCtaEl: HTMLElement;
+  let brandScrollCueEl: HTMLElement;
   let rolesScreen: HTMLElement;
   let reelCards: HTMLElement[] = [];
   let roleCards: HTMLElement[] = [];
@@ -33,7 +33,6 @@
   let mountFadeTween: gsap.core.Tween | undefined;
   let mountFadeDelay: gsap.core.Tween | undefined;
   let flowTween: gsap.core.Tween | undefined;
-  let advanceToRoles: (() => void) | undefined;
   const audioFadeTweens: Partial<Record<AudioRole, gsap.core.Tween>> = {};
   const audioLoopFrames: Partial<Record<AudioRole, number>> = {};
   const roleAudioSources: Partial<Record<AudioRole, MediaElementAudioSourceNode>> = {};
@@ -324,14 +323,6 @@
     outDuration: 0.18,
     enterY: 14,
     exitY: -16
-  };
-  const brandCtaMotion = {
-    inStart: 0.94,
-    inDuration: 0.2,
-    outStart: rolesRevealStart - 0.12,
-    outDuration: 0.18,
-    enterY: 16,
-    exitY: -10
   };
 
   const roleItems: RoleItem[] = [
@@ -765,10 +756,6 @@
     });
   }
 
-  function exploreRoles() {
-    advanceToRoles?.();
-  }
-
   function cancelAudioFrame(store: Partial<Record<AudioRole, number>>, role: AudioRole) {
     const frame = store[role];
     if (frame) cancelAnimationFrame(frame);
@@ -967,16 +954,10 @@
       '--brand-subtitle-opacity': fixed(subtitleOpacity),
       '--brand-subtitle-y': px(subtitleY)
     });
-
-    const ctaIn = ease(clamp((brandProgress - brandCtaMotion.inStart) / brandCtaMotion.inDuration));
-    const ctaOut = ease(clamp((brandProgress - brandCtaMotion.outStart) / brandCtaMotion.outDuration));
-    const ctaOpacity = ctaIn * (1 - ctaOut);
-    const ctaY = (1 - ctaIn) * brandCtaMotion.enterY + ctaOut * brandCtaMotion.exitY;
-    setCssVars(brandCtaEl, {
-      '--brand-cta-opacity': fixed(ctaOpacity),
-      '--brand-cta-y': px(ctaY)
+    setCssVars(brandScrollCueEl, {
+      '--brand-subtitle-opacity': fixed(subtitleOpacity),
+      '--brand-subtitle-y': px(subtitleY)
     });
-    if (brandCtaEl) brandCtaEl.style.pointerEvents = ctaOpacity > 0.6 ? 'auto' : 'none';
   }
 
   onMount(() => {
@@ -1035,11 +1016,6 @@
         }
       });
     };
-    advanceToRoles = () => {
-      if (isAudioGateVisible) return;
-      autoFlowTo(rolesScrollVisible, 1.75);
-    };
-
     const queueFlow = (delta: number) => {
       if (isAutoScrolling) return;
 
@@ -1126,7 +1102,6 @@
       mountFadeTween?.kill();
       introRevealTween?.kill();
       aboutTween?.kill();
-      advanceToRoles = undefined;
       cancelAllAudioFrames();
       window.removeEventListener('wheel',   onWheel);
       window.removeEventListener('keydown', onKeydown);
@@ -1291,9 +1266,12 @@
       {/each}
     </p>
     <p bind:this={brandSubtitleEl} class="brand-subtitle">{brandSubtitle}</p>
-    <button bind:this={brandCtaEl} class="brand-cta" type="button" onclick={exploreRoles} data-node-id="3421:2622">
-      <span>Esplora</span>
-    </button>
+    <div bind:this={brandScrollCueEl} class="brand-scroll-cue" data-node-id="3448:2821" aria-label="Scorri">
+      <span data-node-id="3448:2822">Scorri</span>
+      <svg class="brand-scroll-arrow" viewBox="0 0 24 24" aria-hidden="true" data-node-id="3448:1201">
+        <path d="M12 5v12M7 12l5 5 5-5" />
+      </svg>
+    </div>
   </div>
 </section>
 
@@ -2012,7 +1990,7 @@
     color: var(--color-text-primary);
     font-family: var(--font-display);
     font-size: 32px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.2;
     text-align: center;
     opacity: var(--brand-subtitle-opacity, 0);
@@ -2021,84 +1999,45 @@
     will-change: opacity, transform;
   }
 
-  .brand-cta {
-    position: relative;
-    isolation: isolate;
-    display: grid;
-    place-items: center;
-    width: clamp(124px, 8.35vw, 136px);
-    height: clamp(48px, 3.28vw, 54px);
-    margin-top: clamp(40px, 1.7vh, 20px);
-    overflow: hidden;
-    border: 2px solid var(--color-text-primary);
-    border-radius: 999px;
-    color: var(--color-text-primary);
-    background: #faf6e7;
-    font-family: var(--font-display);
-    font-size: clamp(18px, 1.15vw, 21px);
-    font-weight: 700;
-    line-height: 1;
-    font-variation-settings: "wdth" 100;
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, pointer;
-    opacity: var(--brand-cta-opacity, 0);
-    transform: translateY(var(--brand-cta-y, 16px));
-    transition:
-      opacity 140ms linear,
-      transform 160ms ease-out,
-      color 160ms ease;
-    will-change: transform, opacity;
-  }
-
-  .brand-cta::before {
+  .brand-scroll-cue {
     position: absolute;
-    z-index: -1;
-    inset: -3px;
-    border-radius: none;
-    background: var(--color-text-primary);
-    content: '';
-    transform: translateY(106%);
-  }
-
-  .brand-cta span {
-    position: relative;
-    z-index: 1;
-    display: block;
-    transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .brand-cta:hover,
-  .brand-cta:focus-visible {
+    top: calc(100% + clamp(72px, 14vh, 150px));
+    left: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin: 0;
     color: var(--color-text-primary);
-    transform: translateY(calc(var(--brand-cta-y, 16px) - 2px));
+    font-family: var(--font-text);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: normal;
+    text-align: center;
+    white-space: nowrap;
+    opacity: var(--brand-subtitle-opacity, 0);
+    transform: translate(-50%, calc(var(--brand-subtitle-y, 14px) * 0.8));
+    transition: opacity 120ms linear, transform 140ms ease-out;
+    will-change: opacity, transform;
   }
 
-  .brand-cta:hover::before,
-  .brand-cta:focus-visible::before {
-    animation: brandCtaFill 760ms both;
+  .brand-scroll-cue span {
+    word-break: break-word;
   }
 
-  .brand-cta:hover span,
-  .brand-cta:focus-visible span {
-    transform: translateY(-1px);
-  }
-
-  .brand-cta:focus-visible {
-    outline: 2px solid var(--color-focus-ring);
-    outline-offset: var(--unit-4);
-  }
-
-  @keyframes brandCtaFill {
-    0% {
-      transform: translateY(106%);
-      animation-timing-function: cubic-bezier(0.32, 0, 0.18, 1);
-    }
-    52% {
-      transform: translateY(0%);
-      animation-timing-function: cubic-bezier(0.72, 0, 0.22, 1);
-    }
-    100% {
-      transform: translateY(-106%);
-    }
+  .brand-scroll-arrow {
+    display: block;
+    width: 40px;
+    height: 40px;
+    padding: 6px 7px;
+    box-sizing: border-box;
+    overflow: visible;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   .roles-screen {
@@ -2398,13 +2337,7 @@
     .brand-word   { font-size: clamp(40px, 10.5vw, 76px); }
     .brand-lockup { gap: 8px; }
     .brand-subtitle { font-size: 24px; }
-    .brand-cta {
-      width: 118px;
-      height: 46px;
-      margin-top: 12px;
-      border-width: 2px;
-      font-size: 18px;
-    }
+    .brand-scroll-cue { top: calc(100% + clamp(58px, 11vh, 96px)); }
     .floating-raviolo { width: clamp(86px, 28vw, 124px); }
     .floating-pizza { width: clamp(92px, 30vw, 132px); }
     .floating-fusillo { width: clamp(82px, 26vw, 118px); }
