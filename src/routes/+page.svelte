@@ -5,6 +5,7 @@
   import { onMount, tick } from 'svelte';
 
   let reelProgress = 0;
+  let reelTravelDirection = 1;
   let pageProgress = 0;
   let brandProgress = 0;
   let homeScreen: HTMLElement;
@@ -246,8 +247,17 @@
     opacityInDuration: 0.18,
     opacityOutStart: 0.76,
     opacityOutDuration: 0.24,
-    rotateStartRatio: 0.35,
-    rotateEndRatio: 0.65
+    rotateStartRatio: 0.55,
+    rotateEndRatio: 1.05,
+    dragRotate: 7,
+    dragTiltX: 7,
+    dragTiltY: 8,
+    dragZLift: 90,
+    dragScale: 0.04,
+    mediaParallaxX: 10,
+    mediaParallaxY: 7,
+    shadowX: 18,
+    shadowY: 10
   };
   const floatingMotion = {
     maxDelta: 0.032,
@@ -475,27 +485,46 @@
     const e     = ease(local);
     const opacityOutStart = reel.opacityOutStart ?? reelMotion.opacityOutStart;
     const opacityOutDuration = reel.opacityOutDuration ?? reelMotion.opacityOutDuration;
+    const fade = clamp(local / reelMotion.opacityInDuration) * (1 - clamp((local - opacityOutStart) / opacityOutDuration));
+    const pathX = reel.toX - reel.fromX;
+    const pathY = reel.toY - reel.fromY;
+    const pathLength = Math.hypot(pathX, pathY) || 1;
+    const directionX = (pathX / pathLength) * reelTravelDirection;
+    const directionY = (pathY / pathLength) * reelTravelDirection;
+    const drag = Math.sin(local * Math.PI) * fade;
     return {
-      z:       reelMotion.zStart + e * reelMotion.zRange,
-      scale:   reelMotion.scaleStart + e * reelMotion.scaleRange,
-      opacity: clamp(local / reelMotion.opacityInDuration) * (1 - clamp((local - opacityOutStart) / opacityOutDuration)),
+      z:       reelMotion.zStart + e * reelMotion.zRange + drag * reelMotion.dragZLift,
+      scale:   reelMotion.scaleStart + e * reelMotion.scaleRange + drag * reelMotion.dragScale,
+      opacity: fade,
       x:       reel.fromX + (reel.toX - reel.fromX) * e,
       y:       reel.fromY + (reel.toY - reel.fromY) * e,
-      rotate:  reel.rotate * (reelMotion.rotateStartRatio + e * reelMotion.rotateEndRatio)
+      rotate:  reel.rotate * (reelMotion.rotateStartRatio + e * reelMotion.rotateEndRatio) + directionX * reelMotion.dragRotate * drag,
+      tiltX:   -directionY * reelMotion.dragTiltX * drag,
+      tiltY:   directionX * reelMotion.dragTiltY * drag,
+      mediaX:  -directionX * reelMotion.mediaParallaxX * drag,
+      mediaY:  -directionY * reelMotion.mediaParallaxY * drag,
+      shadowX: directionX * reelMotion.shadowX * drag,
+      shadowY: 36 + Math.abs(directionY) * reelMotion.shadowY * drag
     };
   }
 
   function applyReelStyles() {
     reelCards.forEach((card, i) => {
       if (!card) return;
-      const { z, scale, opacity, x, y, rotate } = getReelPresentation(i);
+      const { z, scale, opacity, x, y, rotate, tiltX, tiltY, mediaX, mediaY, shadowX, shadowY } = getReelPresentation(i);
       setCssVars(card, {
         '--x': vw(x),
         '--y': vh(y, 2),
         '--z': px(z),
         '--scale': fixed(scale),
         '--rotate': deg(rotate),
-        '--opacity': fixed(opacity)
+        '--opacity': fixed(opacity),
+        '--reel-tilt-x': deg(tiltX),
+        '--reel-tilt-y': deg(tiltY),
+        '--reel-media-x': px(mediaX),
+        '--reel-media-y': px(mediaY),
+        '--reel-shadow-x': px(shadowX),
+        '--reel-shadow-y': px(shadowY)
       });
     });
   }
@@ -890,7 +919,10 @@
 
     const applyFlowTotal = (value: number) => {
       const flowValue = clamp(value, 0, flowTotalMax);
-      reelProgress = clamp(flowValue);
+      const nextReelProgress = clamp(flowValue);
+      const reelDelta = nextReelProgress - reelProgress;
+      if (Math.abs(reelDelta) > 0.0005) reelTravelDirection = reelDelta > 0 ? 1 : -1;
+      reelProgress = nextReelProgress;
       pageProgress = clamp(flowValue - 1);
       brandProgress = clamp(flowValue - 2, 0, brandScrollMax);
       applyReelStyles();
@@ -1297,9 +1329,13 @@
     width: 100%; height: 100%;
     margin: 0; overflow: hidden;
     background: var(--color-surface-page);
+    cursor: url('/cursors/retrogusto-cursor.svg') 2 2, auto;
     overscroll-behavior: none;
   }
-  :global(button), :global(a) { font: inherit; }
+  :global(button), :global(a) {
+    font: inherit;
+    cursor: url('/cursors/retrogusto-cursor.svg') 2 2, pointer;
+  }
 
   .audio-gate {
     position: fixed;
@@ -1308,6 +1344,7 @@
     overflow: hidden;
     background: var(--color-text-primary);
     color: var(--color-text-inverse);
+    cursor: url('/cursors/retrogusto-cursor-light.svg') 2 2, auto;
     opacity: 1;
     transition: opacity 180ms ease 720ms;
   }
@@ -1383,7 +1420,7 @@
     border-radius: 50%;
     color: var(--color-text-inverse);
     background: transparent;
-    cursor: pointer;
+    cursor: url('/cursors/retrogusto-cursor-light.svg') 2 2, pointer;
     outline: 2px solid var(--color-text-inverse);
     outline-offset: -2px;
     box-shadow: none;
@@ -1519,7 +1556,7 @@
   .icon-button {
     display: grid; width: var(--button-icon-size); height: var(--button-icon-size); place-items: center;
     padding: 0; color: var(--color-interactive-primary);
-    background: transparent; border: 0; cursor: pointer;
+    background: transparent; border: 0; cursor: url('/cursors/retrogusto-cursor.svg') 2 2, pointer;
     transition: color 160ms ease, opacity 0.2s ease;
   }
   .logo:hover,
@@ -1715,21 +1752,36 @@
     position: absolute; top: 50%; left: 50%;
     width: clamp(132px, 15vw, 196px); aspect-ratio: 9 / 16;
     opacity: var(--opacity);
-    transform: translate(-50%, -50%) translate3d(var(--x), var(--y), var(--z)) rotate(var(--rotate)) scale(var(--scale));
+    transform:
+      translate(-50%, -50%)
+      translate3d(var(--x), var(--y), var(--z))
+      rotateX(var(--reel-tilt-x, 0deg))
+      rotateY(var(--reel-tilt-y, 0deg))
+      rotate(var(--rotate))
+      scale(var(--scale));
     transform-style: preserve-3d;
+    transform-origin: 50% 52%;
     transition: opacity 120ms linear, transform 120ms linear;
     will-change: transform, opacity;
+    backface-visibility: hidden;
   }
 
   .reel-frame {
     position: relative; width: 100%; height: 100%;
     overflow: hidden; border: var(--card-border-width) solid var(--color-border-dark); border-radius: var(--radius-m);
-    box-shadow: 0 36px 80px rgb(var(--shadow-brand-rgb) / .22), 0 10px 26px rgb(var(--shadow-dark-rgb) / .28);
+    box-shadow:
+      var(--reel-shadow-x, 0px) var(--reel-shadow-y, 36px) 80px rgb(var(--shadow-brand-rgb) / .22),
+      0 10px 26px rgb(var(--shadow-dark-rgb) / .28);
     box-sizing: border-box; background: var(--color-surface-dark);
+    transform: translateZ(18px);
+    transform-style: preserve-3d;
   }
 
   .reel-video, .reel-placeholder {
     display: block; width: 100%; height: 100%; object-fit: cover;
+    transform: translate3d(var(--reel-media-x, 0px), var(--reel-media-y, 0px), 0) scale(1.08);
+    transition: transform 120ms linear;
+    will-change: transform;
   }
 
   /* Parte invisibile, nessun transform — solo opacity gestita da JS */
@@ -1767,7 +1819,7 @@
 
   .floating-vector {
     position: absolute; z-index: 2; top: 0; left: 0;
-    cursor: grab;
+    cursor: url('/cursors/retrogusto-cursor.svg') 2 2, grab;
     opacity: var(--float-opacity, 1);
     transform:
       translate3d(var(--float-x, 84px), var(--float-y, 96px), var(--float-hover-z, 0px))
@@ -1784,7 +1836,7 @@
   }
 
   .floating-vector:hover {
-    cursor: grabbing;
+    cursor: url('/cursors/retrogusto-cursor.svg') 2 2, grabbing;
   }
 
   .floating-vector img {
@@ -1927,7 +1979,7 @@
     border: var(--card-border-width) solid var(--color-border-primary);
     border-radius: var(--role-card-radius);
     background: var(--color-surface-page);
-    cursor: pointer;
+    cursor: url('/cursors/retrogusto-cursor.svg') 2 2, pointer;
     opacity: var(--role-card-opacity, 0);
     transform:
       translateY(var(--role-card-y, 38vh))
