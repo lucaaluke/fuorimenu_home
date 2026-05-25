@@ -196,19 +196,20 @@
   const audioFadeMotion = { duration: 0.52, ease: 'power2.inOut' };
   const mountFadeMotion = { delay: 0.4, duration: 2, ease: 'power2.out' };
   const flowMotion = {
-    duration: 1.18,
+    duration: 0.82,
+    reelDuration: 0.34,
     ease: 'power3.out',
-    maxWheelStep: 0.055,
+    maxWheelStep: 0.085,
     maxTargetLead: 0.34,
-    reelScrollSlowdown: 0.5,
-    reelMaxTargetLead: 0.2
+    reelScrollSlowdown: 2.1,
+    reelMaxTargetLead: 0.88
   };
   const keyFlowSteps: Record<string, number> = {
-    ArrowDown: 0.065,
-    PageDown: 0.065,
-    ' ': 0.065,
-    ArrowUp: -0.065,
-    PageUp: -0.065
+    ArrowDown: 0.1,
+    PageDown: 0.1,
+    ' ': 0.1,
+    ArrowUp: -0.1,
+    PageUp: -0.1
   };
   const roleCardResetVars: CssVars = {
     '--role-tilt-x': '0deg',
@@ -235,9 +236,9 @@
     burstScale: 1.35
   };
   const reelMotion = {
-    stagger: 0.105,
+    stagger: 0.085,
     startOffset: 0.04,
-    duration: 0.48,
+    duration: 0.35,
     zStart: -980,
     zRange: 1850,
     scaleStart: 0.28,
@@ -389,15 +390,8 @@
     { src: '/videos/3.mp4',        bg: 'var(--color-surface-dark)', fromX:  13, fromY:  8, toX:  36, toY: -24, rotate: -11, opacityOutStart: 0.58, opacityOutDuration: 0.16 },
     { src: '/videos/4.mp4',        bg: 'var(--reel-placeholder-lavender)', fromX: -10, fromY: -2, toX: -40, toY:   6, rotate:  -5 },
     { src: '/videos/5.MP4',        bg: 'var(--reel-placeholder-neutral)', fromX:  5,  fromY:  6, toX:  24, toY: -30, rotate:   9 },
-    { src: '/videos/6.MP4',        bg: 'var(--reel-placeholder-gold)', fromX: -12, fromY:  7, toX: -28, toY:  18, rotate: -12 },
-    { src: '/videos/7.MP4',        bg: 'var(--color-text-primary)', fromX:  10, fromY: -7, toX:  38, toY:   2, rotate:   5 },
     { src: '/videos/8.MP4',        bg: 'var(--color-surface-dark)', fromX: -6,  fromY: -5, toX: -36, toY: -28, rotate:   8 },
-    { src: '/videos/9.MP4',        bg: 'var(--reel-placeholder-lavender)', fromX:  12, fromY:  3, toX:  42, toY:  24, rotate: -9  },
-    { src: '/videos/10.MP4',       bg: 'var(--reel-placeholder-neutral)', fromX: -3,  fromY:  9, toX: -16, toY:  34, rotate:   6 },
-    { src: '/videos/11.MP4',       bg: 'var(--color-text-primary)', fromX:  3,  fromY: -9, toX:  16, toY: -34, rotate: -7  },
-    { src: '/videos/12.MP4',       bg: 'var(--reel-placeholder-gold)', fromX: -14, fromY:  1, toX: -44, toY: -4, rotate:  11 },
-    { src: '/videos/13.MP4',       bg: 'var(--color-surface-dark)', fromX:  14, fromY: -1, toX:  44, toY:   8, rotate: -10 },
-    { src: '/videos/14.MP4',       bg: 'var(--reel-placeholder-lavender)', fromX: -7,  fromY: -10, toX: -22, toY: -36, rotate:  -6 }
+    { src: '/videos/12.MP4',       bg: 'var(--reel-placeholder-gold)', fromX: -14, fromY:  1, toX: -44, toY: -4, rotate:  11 }
   ];
 
   function shuffleIndexes(indexes: number[]) {
@@ -962,13 +956,17 @@
         return;
       }
 
-      const isAdvancingThroughReels = delta > 0 && flowState.value < 1;
-      const effectiveDelta = isAdvancingThroughReels ? delta * flowMotion.reelScrollSlowdown : delta;
-      const targetLead = isAdvancingThroughReels ? flowMotion.reelMaxTargetLead : flowMotion.maxTargetLead;
+      const isMovingThroughReels = flowState.value < 1 || (delta < 0 && flowState.value <= copyScrollStart);
+      const effectiveDelta = isMovingThroughReels ? delta * flowMotion.reelScrollSlowdown : delta;
+      const targetLead = isMovingThroughReels ? flowMotion.reelMaxTargetLead : flowMotion.maxTargetLead;
+      targetFlowValue = flowState.value;
       const unclampedTarget = targetFlowValue + effectiveDelta;
       const minTarget = flowState.value - targetLead;
       const maxTarget = flowState.value + targetLead;
-      tweenFlowTo(clamp(unclampedTarget, minTarget, maxTarget));
+      tweenFlowTo(
+        clamp(unclampedTarget, minTarget, maxTarget),
+        isMovingThroughReels ? flowMotion.reelDuration : flowMotion.duration
+      );
     };
 
     const normalizeWheelDelta = (e: WheelEvent) => {
@@ -1715,7 +1713,7 @@
 
   .reel-card {
     position: absolute; top: 50%; left: 50%;
-    width: clamp(112px, 13vw, 168px); aspect-ratio: 9 / 16;
+    width: clamp(132px, 15vw, 196px); aspect-ratio: 9 / 16;
     opacity: var(--opacity);
     transform: translate(-50%, -50%) translate3d(var(--x), var(--y), var(--z)) rotate(var(--rotate)) scale(var(--scale));
     transform-style: preserve-3d;
@@ -2177,7 +2175,7 @@
     .persistent-top-audio { top: calc(var(--unit-24) + var(--unit-4)); }
     h1, .next-message { font-size: 24px; }
     .next-message span { font-size: 24px; }
-    .reel-card    { width: min(34vw, 132px); }
+    .reel-card    { width: min(38vw, 148px); }
     .next-screen  { padding: var(--layout-page-gutter-mobile); }
     .brand-word   { font-size: clamp(48px, 13.5vw, 92px); }
     .brand-lockup { gap: 12px; }
