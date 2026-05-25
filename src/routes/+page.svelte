@@ -247,15 +247,24 @@
     opacityInDuration: 0.18,
     opacityOutStart: 0.76,
     opacityOutDuration: 0.24,
-    rotateStartRatio: 0.55,
-    rotateEndRatio: 1.05,
-    dragRotate: 7,
+    rotateStartRatio: 0.35,
+    rotateEndRatio: 0.65,
+    spreadRadius: 1.4,
     dragTiltX: 7,
     dragTiltY: 8,
     dragZLift: 90,
     dragScale: 0.04,
     mediaParallaxX: 10,
     mediaParallaxY: 7,
+    layerParallaxX: 30,
+    layerParallaxY: 18,
+    layerSpeed: 0.18,
+    layerZ: 240,
+    layerScale: 0.075,
+    curveRadius: 8,
+    swayRadius: 4,
+    maxSpreadX: 66,
+    maxSpreadY: 52,
     shadowX: 18,
     shadowY: 10
   };
@@ -393,15 +402,37 @@
     }
   ];
 
-  const reels = [
-    { src: '/videos/tiramisu.mp4', bg: 'var(--reel-placeholder-neutral)', fromX: -8,  fromY:  4, toX: -34, toY: -18, rotate: -8  },
-    { src: '/videos/1.mp4',        bg: 'var(--color-text-primary)', fromX:  7,  fromY: -3, toX:  30, toY:  16, rotate:  7  },
-    { src: '/videos/2.mp4',        bg: 'var(--reel-placeholder-gold)', fromX: -4,  fromY: -8, toX: -18, toY:  28, rotate:  10 },
-    { src: '/videos/3.mp4',        bg: 'var(--color-surface-dark)', fromX:  13, fromY:  8, toX:  36, toY: -24, rotate: -11, opacityOutStart: 0.58, opacityOutDuration: 0.16 },
-    { src: '/videos/4.mp4',        bg: 'var(--reel-placeholder-lavender)', fromX: -10, fromY: -2, toX: -40, toY:   6, rotate:  -5 },
-    { src: '/videos/5.MP4',        bg: 'var(--reel-placeholder-neutral)', fromX:  5,  fromY:  6, toX:  24, toY: -30, rotate:   9 },
-    { src: '/videos/8.MP4',        bg: 'var(--color-surface-dark)', fromX: -6,  fromY: -5, toX: -36, toY: -28, rotate:   8 },
-    { src: '/videos/12.MP4',       bg: 'var(--reel-placeholder-gold)', fromX: -14, fromY:  1, toX: -44, toY: -4, rotate:  11 }
+  type ReelItem = {
+    src: string;
+    bg: string;
+    fromX: number;
+    fromY: number;
+    toX: number;
+    toY: number;
+    rotate: number;
+    layer: -1 | 0 | 1;
+    curve: number;
+    sway: number;
+    opacityOutStart?: number;
+    opacityOutDuration?: number;
+  };
+
+  const reels: ReelItem[] = [
+    { src: '/videos/tiramisu.mp4', bg: 'var(--reel-placeholder-neutral)', fromX: -8,  fromY:  4, toX: -34, toY: -18, rotate: -8,  layer:  0, curve:  0.8, sway: -0.3 },
+    { src: '/videos/1.mp4',        bg: 'var(--color-text-primary)',        fromX:  7,  fromY: -3, toX:  30, toY:  16, rotate:  7,  layer:  1, curve: -0.6, sway:  0.9 },
+    { src: '/videos/2.mp4',        bg: 'var(--reel-placeholder-gold)',     fromX: -4,  fromY: -8, toX: -18, toY:  28, rotate: 10,  layer:  0, curve: -1.0, sway:  0.4 },
+    { src: '/videos/3.mp4',        bg: 'var(--color-surface-dark)',        fromX: 13,  fromY:  8, toX:  36, toY: -24, rotate: -11, layer:  1, curve:  0.5, sway: -0.8, opacityOutStart: 0.58, opacityOutDuration: 0.16 },
+    { src: '/videos/4.mp4',        bg: 'var(--reel-placeholder-lavender)', fromX: -10, fromY: -2, toX: -40, toY:   6, rotate: -5,  layer: -1, curve: -0.45, sway: -1.0 },
+    { src: '/videos/5.MP4',        bg: 'var(--reel-placeholder-neutral)',  fromX:  5,  fromY:  6, toX:  24, toY: -30, rotate:  9,  layer:  0, curve:  1.0, sway:  0.25 },
+    { src: '/videos/6.MP4',        bg: 'var(--reel-placeholder-gold)',     fromX: -12, fromY:  7, toX: -28, toY:  18, rotate: -12, layer: -1, curve:  0.35, sway:  0.8 },
+    { src: '/videos/7.MP4',        bg: 'var(--color-text-primary)',        fromX: 10,  fromY: -7, toX:  38, toY:   2, rotate:  5,  layer:  1, curve: -0.85, sway: -0.45 },
+    { src: '/videos/8.MP4',        bg: 'var(--color-surface-dark)',        fromX: -6,  fromY: -5, toX: -36, toY: -28, rotate:  8,  layer:  0, curve:  0.65, sway:  1.0 },
+    { src: '/videos/9.MP4',        bg: 'var(--reel-placeholder-lavender)', fromX: 12,  fromY:  3, toX:  42, toY:  24, rotate: -9,  layer:  1, curve:  0.2, sway: -0.7 },
+    { src: '/videos/10.MP4',       bg: 'var(--reel-placeholder-neutral)',  fromX: -3,  fromY:  9, toX: -16, toY:  34, rotate:  6,  layer: -1, curve: -0.75, sway:  0.55 },
+    { src: '/videos/11.MP4',       bg: 'var(--color-text-primary)',        fromX:  3,  fromY: -9, toX:  16, toY: -34, rotate: -7,  layer:  0, curve:  0.9, sway: -0.15 },
+    { src: '/videos/12.MP4',       bg: 'var(--reel-placeholder-gold)',     fromX: -14, fromY:  1, toX: -44, toY:  -4, rotate: 11,  layer: -1, curve: -0.25, sway: -0.9 },
+    { src: '/videos/13.MP4',       bg: 'var(--color-surface-dark)',        fromX: 14,  fromY: -1, toX:  44, toY:   8, rotate: -10, layer:  1, curve: -0.55, sway:  0.35 },
+    { src: '/videos/14.MP4',       bg: 'var(--reel-placeholder-lavender)', fromX: -7,  fromY: -10, toX: -22, toY: -36, rotate: -6,  layer:  0, curve:  0.45, sway:  0.7 }
   ];
 
   function shuffleIndexes(indexes: number[]) {
@@ -482,7 +513,9 @@
     const availableStaggerWindow = Math.max(0, 1 - reelMotion.startOffset - reelMotion.duration);
     const reelStagger = Math.min(reelMotion.stagger, availableStaggerWindow / Math.max(reels.length - 1, 1));
     const local = clamp((reelProgress - index * reelStagger - reelMotion.startOffset) / reelMotion.duration);
-    const e     = ease(local);
+    const layer = reel.layer;
+    const layerLocal = clamp(local + layer * reelMotion.layerSpeed * reelTravelDirection);
+    const e     = ease(layerLocal);
     const opacityOutStart = reel.opacityOutStart ?? reelMotion.opacityOutStart;
     const opacityOutDuration = reel.opacityOutDuration ?? reelMotion.opacityOutDuration;
     const fade = clamp(local / reelMotion.opacityInDuration) * (1 - clamp((local - opacityOutStart) / opacityOutDuration));
@@ -491,14 +524,29 @@
     const pathLength = Math.hypot(pathX, pathY) || 1;
     const directionX = (pathX / pathLength) * reelTravelDirection;
     const directionY = (pathY / pathLength) * reelTravelDirection;
+    const normalX = -pathY / pathLength;
+    const normalY = pathX / pathLength;
     const drag = Math.sin(local * Math.PI) * fade;
+    const layerTravel = (e - 0.5) * layer;
+    const baseX = reel.fromX + (reel.toX - reel.fromX) * e;
+    const baseY = reel.fromY + (reel.toY - reel.fromY) * e;
+    const curveOffset = Math.sin(e * Math.PI) * reel.curve * reelMotion.curveRadius;
+    const swayOffset = Math.sin((e * Math.PI * 2) + index * 0.73) * reel.sway * reelMotion.swayRadius * fade;
+    const x = baseX * reelMotion.spreadRadius
+      + normalX * curveOffset
+      + directionX * reelMotion.layerParallaxX * layerTravel
+      + normalX * swayOffset;
+    const y = baseY * reelMotion.spreadRadius
+      + normalY * curveOffset
+      + directionY * reelMotion.layerParallaxY * layerTravel
+      + normalY * swayOffset;
     return {
-      z:       reelMotion.zStart + e * reelMotion.zRange + drag * reelMotion.dragZLift,
-      scale:   reelMotion.scaleStart + e * reelMotion.scaleRange + drag * reelMotion.dragScale,
+      z:       reelMotion.zStart + e * reelMotion.zRange + layer * reelMotion.layerZ + drag * reelMotion.dragZLift,
+      scale:   reelMotion.scaleStart + e * reelMotion.scaleRange + layer * reelMotion.layerScale + drag * reelMotion.dragScale,
       opacity: fade,
-      x:       reel.fromX + (reel.toX - reel.fromX) * e,
-      y:       reel.fromY + (reel.toY - reel.fromY) * e,
-      rotate:  reel.rotate * (reelMotion.rotateStartRatio + e * reelMotion.rotateEndRatio) + directionX * reelMotion.dragRotate * drag,
+      x:       clamp(x, -reelMotion.maxSpreadX, reelMotion.maxSpreadX),
+      y:       clamp(y, -reelMotion.maxSpreadY, reelMotion.maxSpreadY),
+      rotate:  reel.rotate * (reelMotion.rotateStartRatio + e * reelMotion.rotateEndRatio),
       tiltX:   -directionY * reelMotion.dragTiltX * drag,
       tiltY:   directionX * reelMotion.dragTiltY * drag,
       mediaX:  -directionX * reelMotion.mediaParallaxX * drag,
