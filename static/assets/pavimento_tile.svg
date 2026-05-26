@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Livello_1" data-name="Livello 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 125 128">
+  <defs>
+    <style>
+      .cls-1 {
+        mask: url(#mask);
+      }
+
+      .cls-2 {
+        fill: #fff;
+      }
+
+      .cls-3 {
+        fill: #ced0d6;
+      }
+
+      .cls-4 {
+        fill: #2a4385;
+      }
+    </style>
+    <mask id="mask" x="-1.21" y="-.13" width="127.43" height="128" maskUnits="userSpaceOnUse">
+      <g id="path-1-outside-1_3264_858" data-name="path-1-outside-1 3264 858">
+        <rect class="cls-2" x="-1.21" y="-.13" width="127.43" height="128"/>
+        <path d="M-1.21,1.87h127.43v126H-1.21V1.87Z"/>
+      </g>
+    </mask>
+  </defs>
+  <g class="cls-1">
+    <path class="cls-4" d="M-1.21,1.87v2h127.43V-.13H-1.21V1.87Z"/>
+  </g>
+  <path class="cls-3" d="M119.22,1.87h7v127.62H-1.21V1.87h120.43Z"/>
+</svg>

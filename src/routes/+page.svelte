@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import VolumeMaxIcon from '$lib/VolumeMaxIcon.svelte';
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
   import { gsap } from 'gsap';
@@ -33,6 +34,7 @@
   let mountFadeTween: gsap.core.Tween | undefined;
   let mountFadeDelay: gsap.core.Tween | undefined;
   let flowTween: gsap.core.Tween | undefined;
+  let cardEnterTween: gsap.core.Timeline | undefined;
   const audioFadeTweens: Partial<Record<AudioRole, gsap.core.Tween>> = {};
   const audioLoopFrames: Partial<Record<AudioRole, number>> = {};
   const roleAudioSources: Partial<Record<AudioRole, MediaElementAudioSourceNode>> = {};
@@ -49,6 +51,7 @@
     dialogue: string;
     hoverText: string;
     personSrc: string;
+    href?: string;
   };
 
   const roleAudio: Record<
@@ -217,11 +220,10 @@
     PageUp: -0.1
   };
   const roleCardResetVars: CssVars = {
-    '--role-tilt-x': '0deg',
-    '--role-tilt-y': '0deg',
     '--role-bg-x': '0px',
     '--role-bg-y': '0px',
     '--role-copy-x': '0px',
+    '--role-copy-y': '0px',
     '--role-dialogue-x': '0px',
     '--role-dialogue-y': '0px',
     '--role-person-x': '0px',
@@ -304,18 +306,21 @@
     hoverScale: 0.035,
     shadowAlpha: 0.28
   };
-  const roleTiltMotion = {
-    tiltX: 11,
-    tiltY: 13,
-    tiltXLimit: 7,
-    tiltYLimit: 8,
-    bgX: -8.1,
-    bgY: -4.9,
-    copyX: 2.7,
-    dialogueX: 3.2,
-    dialogueY: 1.7,
-    personX: 0,
-    personY: 2.8
+  const roleParallaxMotion = {
+    bgX: -18,
+    bgY: -12,
+    copyX: 7,
+    copyY: 4,
+    dialogueX: 2,
+    dialogueY: 1.5,
+    personX: 12,
+    personY: 7
+  };
+  const gateTiltMotion = {
+    tiltX: 12.5,
+    tiltY: 14.5,
+    tiltXLimit: 8,
+    tiltYLimit: 9
   };
   const floatingExitMotion = {
     start: 1.42,
@@ -349,7 +354,8 @@
       speaker: 'Stefano Paganini',
       dialogue: 'il mio ruolo ... seguimi nella cucina per saperne di più',
       hoverText: 'io sono stefano paganini seguimi in cucina',
-      personSrc: '/images/stefano-paganini-figma.png'
+      personSrc: '/images/stefano-paganini-figma.png',
+      href: '/phaser'
     },
     {
       title: 'servizio',
@@ -678,15 +684,14 @@
 
     const { nx, ny } = getPointerOffset(e, card);
     setCssVars(card, {
-      '--role-tilt-x': deg(clamp(-ny * roleTiltMotion.tiltX, -roleTiltMotion.tiltXLimit, roleTiltMotion.tiltXLimit)),
-      '--role-tilt-y': deg(clamp(nx * roleTiltMotion.tiltY, -roleTiltMotion.tiltYLimit, roleTiltMotion.tiltYLimit)),
-      '--role-bg-x': px(nx * roleTiltMotion.bgX),
-      '--role-bg-y': px(ny * roleTiltMotion.bgY),
-      '--role-copy-x': px(nx * roleTiltMotion.copyX),
-      '--role-dialogue-x': px(nx * roleTiltMotion.dialogueX),
-      '--role-dialogue-y': px(ny * roleTiltMotion.dialogueY),
-      '--role-person-x': px(nx * roleTiltMotion.personX),
-      '--role-person-y': px(ny * roleTiltMotion.personY)
+      '--role-bg-x': px(nx * roleParallaxMotion.bgX),
+      '--role-bg-y': px(ny * roleParallaxMotion.bgY),
+      '--role-copy-x': px(nx * roleParallaxMotion.copyX),
+      '--role-copy-y': px(ny * roleParallaxMotion.copyY),
+      '--role-dialogue-x': px(nx * roleParallaxMotion.dialogueX),
+      '--role-dialogue-y': px(ny * roleParallaxMotion.dialogueY),
+      '--role-person-x': px(nx * roleParallaxMotion.personX),
+      '--role-person-y': px(ny * roleParallaxMotion.personY)
     });
   }
 
@@ -696,12 +701,101 @@
     setCssVars(card, roleCardResetVars);
   }
 
+  function enterRoleCard(event: MouseEvent, item: RoleItem, index: number) {
+    if (!item.href || cardEnterTween) return;
+    event.preventDefault();
+
+    const card = roleCards[index];
+    if (!card) {
+      window.location.assign(item.href);
+      return;
+    }
+
+    stopAllRoleAudio();
+    resetRoleCard(index);
+
+    const rect = card.getBoundingClientRect();
+    const clone = card.cloneNode(true) as HTMLElement;
+    clone.removeAttribute('href');
+    clone.setAttribute('aria-hidden', 'true');
+    clone.classList.add('is-entering');
+    Object.assign(clone.style, {
+      position: 'fixed',
+      left: px(rect.left),
+      top: px(rect.top),
+      width: px(rect.width),
+      height: px(rect.height),
+      margin: '0',
+      zIndex: '120',
+      pointerEvents: 'none',
+      background: 'transparent',
+      transform: 'none',
+      opacity: '1'
+    });
+
+    const bg = clone.querySelector<HTMLElement>('.role-card-bg');
+    const copy = clone.querySelector<HTMLElement>('.role-card-copy');
+    const hoverPanel = clone.querySelector<HTMLElement>('.role-hover-panel');
+    const person = clone.querySelector<HTMLElement>('.role-person');
+    const pageFade = document.createElement('div');
+    pageFade.className = 'card-enter-fade';
+    Object.assign(pageFade.style, {
+      position: 'fixed',
+      zIndex: '119',
+      inset: '0',
+      background: 'var(--color-surface-page)',
+      pointerEvents: 'none',
+      opacity: '0'
+    });
+    document.body.append(pageFade, clone);
+    card.style.visibility = 'hidden';
+
+    gsap.set(pageFade, { opacity: 0 });
+    gsap.set(clone, {
+      '--role-bg-x': '0px',
+      '--role-bg-y': '0px',
+      '--role-copy-x': '0px',
+      '--role-copy-y': '0px',
+      '--role-dialogue-x': '0px',
+      '--role-dialogue-y': '0px',
+      '--role-person-x': '0px',
+      '--role-person-y': '0px'
+    });
+    gsap.set(bg, { opacity: 1, filter: 'grayscale(1) opacity(0.42)', scale: 1.04 });
+    gsap.set([copy, hoverPanel, person], { opacity: 0 });
+
+    cardEnterTween = gsap.timeline({
+      defaults: { ease: 'power3.inOut' },
+      onComplete: () => {
+        sessionStorage.setItem('kitchen-card-transition', '1');
+        void goto(item.href as string);
+      }
+    });
+
+    cardEnterTween
+      .to(pageFade, { opacity: 1, duration: 0.16, ease: 'power2.out' }, 0)
+      .set([bg, copy, hoverPanel, person], { opacity: 0 }, 0.02)
+      .to(
+        clone,
+        {
+          left: -96,
+          top: -96,
+          width: window.innerWidth + 192,
+          height: window.innerHeight + 192,
+          borderRadius: 0,
+          duration: 0.62
+        },
+        0
+      )
+      .to(clone, { boxShadow: '0 0 0 rgb(42 68 132 / 0)', duration: 0.32 }, 0);
+  }
+
   function tiltAudioGateButton(e: PointerEvent) {
     if (!audioGateButtonEl) return;
     const { nx, ny } = getPointerOffset(e, audioGateButtonEl);
     setCssVars(audioGateButtonEl, {
-      '--gate-tilt-x': deg(clamp(-ny * roleTiltMotion.tiltX, -roleTiltMotion.tiltXLimit, roleTiltMotion.tiltXLimit)),
-      '--gate-tilt-y': deg(clamp(nx * roleTiltMotion.tiltY, -roleTiltMotion.tiltYLimit, roleTiltMotion.tiltYLimit))
+      '--gate-tilt-x': deg(clamp(-ny * gateTiltMotion.tiltX, -gateTiltMotion.tiltXLimit, gateTiltMotion.tiltXLimit)),
+      '--gate-tilt-y': deg(clamp(nx * gateTiltMotion.tiltY, -gateTiltMotion.tiltYLimit, gateTiltMotion.tiltYLimit))
     });
   }
 
@@ -975,19 +1069,26 @@
   }
 
   onMount(() => {
+    const shouldOpenCards = new URLSearchParams(window.location.search).get('view') === 'cards';
     const flowState = { value: 0 };
-    let targetFlowValue = 0;
+    let targetFlowValue = shouldOpenCards ? rolesScrollVisible : 0;
     let isAutoScrolling = false;
     randomizeBrandLetters();
+    if (shouldOpenCards) {
+      isAudioGateVisible = false;
+      flowState.value = rolesScrollVisible;
+    }
 
-    mountFadeDelay = gsap.delayedCall(mountFadeMotion.delay, () => {
-      if (!introEl) return;
-      mountFadeTween = gsap.to(introEl, {
-        '--mount-opacity': 1,
-        duration: mountFadeMotion.duration,
-        ease: mountFadeMotion.ease
+    if (!shouldOpenCards) {
+      mountFadeDelay = gsap.delayedCall(mountFadeMotion.delay, () => {
+        if (!introEl) return;
+        mountFadeTween = gsap.to(introEl, {
+          '--mount-opacity': 1,
+          duration: mountFadeMotion.duration,
+          ease: mountFadeMotion.ease
+        });
       });
-    });
+    }
 
     const applyFlowTotal = (value: number) => {
       const flowValue = clamp(value, 0, flowTotalMax);
@@ -1138,12 +1239,13 @@
       if (step !== undefined) { e.preventDefault(); queueFlow(step); }
     };
 
-    applyReelStyles();
-    applyAllStyles();
-    gsap.set(introLetters, {
-      '--intro-letter-reveal': 0,
-      '--intro-reveal-y': '12px'
-    });
+    applyFlowTotal(flowState.value);
+    if (!shouldOpenCards) {
+      gsap.set(introLetters, {
+        '--intro-letter-reveal': 0,
+        '--intro-reveal-y': '12px'
+      });
+    }
     gsap.ticker.add(moveFloatingAssets);
     window.addEventListener('wheel',   onWheel,   { passive: false });
     window.addEventListener('keydown', onKeydown);
@@ -1344,33 +1446,58 @@
   </header>
 
   <div class="role-grid">
+    {#snippet roleCardBody(item: RoleItem)}
+      <img class="role-card-bg" src="/images/figma-kitchen-scene.png" alt="" draggable="false" />
+      <div class="role-hover-panel">
+        <p>{item.hoverText}</p>
+      </div>
+      <div class="role-card-copy">
+        <h2>{item.title}</h2>
+        <p>{item.description}</p>
+      </div>
+      {#if item.personSrc}
+        <img class="role-person" src={item.personSrc} alt={item.speaker} draggable="false" />
+      {/if}
+    {/snippet}
+
     {#each roleItems as item, index}
-      <article
-        bind:this={roleCards[index]}
-        class="role-card"
-        class:is-ufficio={item.title === 'ufficio'}
-        class:is-cucina={item.title === 'cucina'}
-        class:is-servizio={item.title === 'servizio'}
-        class:has-dialogue={Boolean(item.dialogue)}
-        onpointerenter={() => startRoleAudio(item.title)}
-        onpointermove={(event) => tiltRoleCard(event, index)}
-        onpointerleave={() => {
-          stopRoleAudio(item.title);
-          resetRoleCard(index);
-        }}
-      >
-        <img class="role-card-bg" src="/images/figma-kitchen-scene.png" alt="" draggable="false" />
-        <div class="role-hover-panel">
-          <p>{item.hoverText}</p>
-        </div>
-        <div class="role-card-copy">
-          <h2>{item.title}</h2>
-          <p>{item.description}</p>
-        </div>
-        {#if item.personSrc}
-          <img class="role-person" src={item.personSrc} alt={item.speaker} draggable="false" />
-        {/if}
-      </article>
+      {#if item.href}
+        <a
+          bind:this={roleCards[index]}
+          class="role-card is-linked"
+          class:is-ufficio={item.title === 'ufficio'}
+          class:is-cucina={item.title === 'cucina'}
+          class:is-servizio={item.title === 'servizio'}
+          class:has-dialogue={Boolean(item.dialogue)}
+          href={item.href}
+          onclick={(event) => enterRoleCard(event, item, index)}
+          onpointerenter={() => startRoleAudio(item.title)}
+          onpointermove={(event) => tiltRoleCard(event, index)}
+          onpointerleave={() => {
+            stopRoleAudio(item.title);
+            resetRoleCard(index);
+          }}
+        >
+          {@render roleCardBody(item)}
+        </a>
+      {:else}
+        <article
+          bind:this={roleCards[index]}
+          class="role-card"
+          class:is-ufficio={item.title === 'ufficio'}
+          class:is-cucina={item.title === 'cucina'}
+          class:is-servizio={item.title === 'servizio'}
+          class:has-dialogue={Boolean(item.dialogue)}
+          onpointerenter={() => startRoleAudio(item.title)}
+          onpointermove={(event) => tiltRoleCard(event, index)}
+          onpointerleave={() => {
+            stopRoleAudio(item.title);
+            resetRoleCard(index);
+          }}
+        >
+          {@render roleCardBody(item)}
+        </article>
+      {/if}
     {/each}
   </div>
 </section>
@@ -2119,7 +2246,6 @@
     justify-content: space-between;
     align-items: stretch;
     column-gap: var(--spacing-5);
-    perspective: none;
     transform-style: flat;
   }
 
@@ -2127,8 +2253,10 @@
     --role-card-radius: clamp(42px, 4.55vw, 65px);
     --role-inner-border-inset: 10px;
     --role-inner-border-width: 2px;
-    --role-reveal-duration: 300ms;
+    --role-reveal-duration: 270ms;
     --role-reveal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --role-dialogue-delay: 14ms;
+    --role-dialogue-opacity-gap: 100ms;
 
     position: relative;
     overflow: hidden;
@@ -2141,8 +2269,6 @@
     opacity: var(--role-card-opacity, 0);
     transform:
       translateY(var(--role-card-y, 38vh))
-      rotateX(var(--role-tilt-x, 0deg))
-      rotateY(var(--role-tilt-y, 0deg))
       scale(var(--role-hover-scale, 1));
     transform-style: flat;
     transform-origin: 50% 50%;
@@ -2177,9 +2303,37 @@
 
   .role-card:hover,
   .role-card:focus-visible {
-    --role-hover-z: 24px;
-    --role-hover-scale: 1.018;
-    --role-shadow-alpha: 0.24;
+    --role-hover-scale: 1.05;
+  }
+
+  .role-card.is-linked {
+    cursor: pointer;
+  }
+
+  :global(.card-enter-fade) {
+    position: fixed;
+    z-index: 119;
+    inset: 0;
+    background: var(--color-surface-page);
+    pointer-events: none;
+  }
+
+  :global(.role-card.is-entering) {
+    overflow: hidden;
+    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, auto;
+    will-change: left, top, width, height, border-radius, box-shadow;
+  }
+
+  :global(.role-card.is-entering::after) {
+    opacity: 0;
+  }
+
+  :global(.role-card.is-entering .role-card-bg) {
+    z-index: 1;
+  }
+
+  :global(.role-card.is-entering::before) {
+    z-index: 4;
   }
 
   .role-card-bg {
@@ -2193,29 +2347,34 @@
       translateX(var(--role-bg-x, 0px))
       translateY(var(--role-bg-y, 0px))
       scale(1.04);
-    transition: opacity 220ms ease, filter 260ms ease, transform 260ms ease;
+    transition: opacity 220ms ease, filter 260ms ease, transform 90ms linear;
     user-select: none;
     pointer-events: none;
   }
 
   .role-hover-panel {
     position: absolute; z-index: 8;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: var(--role-inner-border-inset);
+    left: var(--role-inner-border-inset);
+    right: var(--role-inner-border-inset);
     width: auto;
     height: auto;
     min-height: 128px;
     display: grid;
     place-items: center;
-    padding: var(--spacing-5) var(--spacing-6);
-    border-radius: var(--role-card-radius) var(--role-card-radius) 0 0;
+    padding: var(--spacing-4) var(--spacing-12);
+    border-radius: calc(var(--role-card-radius) - var(--role-inner-border-inset)) calc(var(--role-card-radius) - var(--role-inner-border-inset)) 0 0;
     background: var(--color-text-primary);
     color: var(--color-text-inverse);
-    opacity: 1;
+    opacity: 0;
+    visibility: hidden;
     transform:
-      translateY(calc(-100% - 36px));
-    transition: transform var(--role-reveal-duration) var(--role-reveal-ease);
+      translateX(var(--role-dialogue-x, 0px))
+      translateY(calc(-100% - 36px + var(--role-dialogue-y, 0px)));
+    transition:
+      opacity 0ms linear,
+      visibility 0s linear,
+      transform var(--role-reveal-duration) var(--role-reveal-ease);
     pointer-events: none;
   }
 
@@ -2231,10 +2390,10 @@
   }
 
   .role-hover-panel p {
-    width: min(100%, 390px);
+    width: min(100%, 340px);
     margin: 0;
     font-family: var(--font-text);
-    font-size: 24px;
+    font-size: 16px;
     font-weight: 600;
     line-height: 1.5;
     letter-spacing: 0;
@@ -2247,8 +2406,10 @@
     display: grid; justify-items: center;
     color: var(--color-text-primary);
     text-align: center;
-    transform: translateY(-50%);
-    transition: transform 260ms ease;
+    transform:
+      translateX(var(--role-copy-x, 0px))
+      translateY(calc(-50% + var(--role-copy-y, 0px)));
+    transition: transform 90ms linear, opacity 180ms ease;
   }
 
   .role-card-copy h2 {
@@ -2258,6 +2419,7 @@
     font-weight: 600;
     line-height: 1.5;
     letter-spacing: 0;
+    text-transform: uppercase;
     font-variation-settings: "wdth" 100;
   }
 
@@ -2332,14 +2494,21 @@
   .role-card.has-dialogue:focus-visible .role-card-copy {
     opacity: 0;
     transform:
-      translateY(calc(-50% - 14px))
-      translateX(var(--role-copy-x, 0px));
+      translateX(var(--role-copy-x, 0px))
+      translateY(calc(-50% - 14px + var(--role-copy-y, 0px)));
   }
 
   .role-card.has-dialogue:hover .role-hover-panel,
   .role-card.has-dialogue:focus-visible .role-hover-panel {
     opacity: 1;
-    transform: translateY(0);
+    visibility: visible;
+    transition:
+      opacity 90ms linear calc(var(--role-dialogue-delay) + var(--role-dialogue-opacity-gap)),
+      visibility 0s linear,
+      transform var(--role-reveal-duration) var(--role-reveal-ease) var(--role-dialogue-delay);
+    transform:
+      translateX(var(--role-dialogue-x, 0px))
+      translateY(var(--role-dialogue-y, 0px));
   }
 
   .role-card.has-dialogue:hover .role-person,
@@ -2421,14 +2590,14 @@
       height: 100%;
     }
     .role-hover-panel {
-      top: 0;
-      left: 0;
-      right: 0;
+      top: var(--role-inner-border-inset);
+      left: var(--role-inner-border-inset);
+      right: var(--role-inner-border-inset);
       width: auto;
       height: auto;
       min-height: 64px;
       padding: var(--spacing-3) var(--spacing-4);
-      border-radius: var(--role-card-radius) var(--role-card-radius) 0 0;
+      border-radius: calc(var(--role-card-radius) - var(--role-inner-border-inset)) calc(var(--role-card-radius) - var(--role-inner-border-inset)) 0 0;
     }
     .role-hover-panel p { font-size: clamp(16px, 5.2vw, 20px); }
     .role-hover-panel::after {
