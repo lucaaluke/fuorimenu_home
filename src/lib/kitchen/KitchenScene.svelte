@@ -217,7 +217,7 @@
 
   <div
     class="floor-layer reveal-layer"
-    style={`height: ${scenePx(floorHeight * sceneScale)}; background-size: ${scenePx(floorTileWidth * sceneScale)} ${scenePx(floorHeight * sceneScale)}; background-position-x: ${scenePx(-cameraX)}; --reveal-delay: 160ms; --reveal-duration: 1120ms;`}
+    style={`height: ${scenePx(floorHeight * sceneScale)}; background-size: ${scenePx(floorTileWidth * sceneScale)} ${scenePx(floorHeight * sceneScale)}; background-position-x: ${scenePx(-cameraX)}; --reveal-delay: 160ms; --reveal-duration: 320ms;`}
   ></div>
 
   <div
@@ -382,18 +382,13 @@
 
   .reveal-layer {
     opacity: 0;
-    -webkit-mask-image: linear-gradient(90deg, #000 0 62%, transparent 78%);
-    mask-image: linear-gradient(90deg, #000 0 62%, transparent 78%);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 260% 100%;
-    mask-size: 260% 100%;
-    -webkit-mask-position: 140% 0;
-    mask-position: 140% 0;
+    scale: 0;
+    transform-origin: 50% 50%;
+    will-change: transform, scale, opacity;
   }
 
   .kitchen-stage.is-loaded .reveal-layer {
-    animation: layerReveal var(--reveal-duration, 820ms) cubic-bezier(0.19, 1, 0.22, 1) var(--reveal-delay, 0ms) forwards;
+    animation: layerReveal var(--reveal-duration, 360ms) cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms) forwards;
   }
 
   .parallax-layer img {
@@ -413,6 +408,7 @@
     bottom: 0;
     background-image: url('/assets/pavimento_tile.svg');
     background-repeat: repeat-x;
+    transform-origin: 50% 50%;
     pointer-events: none;
   }
 
@@ -435,7 +431,8 @@
   .scene-title span {
     display: inline-block;
     opacity: 0;
-    transform: translate3d(-0.42em, 0.24em, 0) scale(0.82);
+    transform: scale(0.82);
+    transform-origin: 50% 50%;
   }
 
   .kitchen-stage.is-loaded .scene-title span {
@@ -454,11 +451,12 @@
 
   .reveal-object {
     opacity: 0;
-    transform: translate3d(-28px, 18px, 0) scale(0.96);
+    transform: scale(0.92);
+    transform-origin: 50% 50%;
   }
 
   .kitchen-stage.is-loaded .reveal-object {
-    animation: objectPopIn 440ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms) forwards;
+    animation: objectPopIn 360ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms) forwards;
   }
 
   .chef-button img {
@@ -482,8 +480,7 @@
     font-family: var(--font-text);
     text-align: left;
     opacity: 0;
-    transform: translate3d(-14px, 8px, 0);
-    transition: opacity 220ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: opacity 1ms linear 220ms;
     pointer-events: none;
   }
 
@@ -497,6 +494,12 @@
     background: var(--color-border-primary);
     clip-path: polygon(0 50%, 100% 0, 100% 100%);
     content: '';
+    opacity: 0;
+    scale: 0.72;
+    transform-origin: 100% 50%;
+    transition:
+      opacity 1ms linear 80ms,
+      scale 220ms cubic-bezier(0.22, 1, 0.36, 1) 80ms;
   }
 
   .speech-bubble-copy {
@@ -515,6 +518,9 @@
     font-weight: 400;
     line-height: 1.2;
     word-break: break-word;
+    -webkit-clip-path: inset(0 100% 0 0);
+    clip-path: inset(0 100% 0 0);
+    will-change: clip-path;
   }
 
   .speech-bubble-meta {
@@ -522,7 +528,8 @@
     z-index: 1;
     display: flex;
     align-items: center;
-    min-height: 43px;
+    min-height: 46px;
+    margin-top: -3px;
     padding: 0 clamp(18px, 1.5vw, 19px);
     border-radius: 0 0 var(--radius-s) var(--radius-s);
     background: var(--color-border-primary);
@@ -532,6 +539,9 @@
     font-weight: 700;
     line-height: 1.5;
     white-space: nowrap;
+    -webkit-clip-path: inset(0 100% 0 0);
+    clip-path: inset(0 100% 0 0);
+    will-change: clip-path;
   }
 
   .speech-bubble-meta strong {
@@ -544,7 +554,20 @@
 
   .chef-button.is-dialogue-visible .speech-bubble {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transition-delay: 0ms;
+  }
+
+  .chef-button.is-dialogue-visible .speech-bubble::before {
+    opacity: 1;
+    scale: 1;
+  }
+
+  .chef-button.is-dialogue-visible .speech-bubble-copy {
+    animation: dialogueRevealX 280ms cubic-bezier(0.16, 1, 0.3, 1) 20ms forwards;
+  }
+
+  .chef-button.is-dialogue-visible .speech-bubble-meta {
+    animation: dialogueRevealX 225ms cubic-bezier(0.16, 1, 0.3, 1) 240ms forwards;
   }
 
   .foreground-layer {
@@ -591,18 +614,29 @@
   @keyframes layerReveal {
     0% {
       opacity: 0;
-      -webkit-mask-position: 140% 0;
-      mask-position: 140% 0;
+      scale: 0;
     }
 
-    18% {
+    72% {
       opacity: 1;
+      scale: 0.985;
     }
 
     100% {
       opacity: 1;
-      -webkit-mask-position: 0 0;
-      mask-position: 0 0;
+      scale: 1;
+    }
+  }
+
+  @keyframes dialogueRevealX {
+    from {
+      -webkit-clip-path: inset(0 100% 0 0);
+      clip-path: inset(0 100% 0 0);
+    }
+
+    to {
+      -webkit-clip-path: inset(0 0 0 0);
+      clip-path: inset(0 0 0 0);
     }
   }
 
@@ -616,12 +650,12 @@
   @keyframes objectPopIn {
     0% {
       opacity: 0;
-      transform: translate3d(-28px, 18px, 0) scale(0.96);
+      transform: scale(0.92);
     }
 
     100% {
       opacity: 1;
-      transform: translate3d(0, 0, 0) scale(1);
+      transform: scale(1);
     }
   }
 
@@ -648,7 +682,8 @@
     }
 
     .speech-bubble-meta {
-      min-height: 38px;
+      min-height: 41px;
+      margin-top: -2px;
       padding: 0 14px;
       font-size: 11px;
     }
@@ -661,8 +696,7 @@
   @media (prefers-reduced-motion: reduce) {
     .reveal-layer {
       opacity: 1;
-      -webkit-mask-image: none;
-      mask-image: none;
+      scale: 1;
       animation: none;
     }
 
@@ -671,6 +705,20 @@
       opacity: 1;
       transform: none;
       animation: none;
+    }
+
+    .speech-bubble,
+    .speech-bubble::before,
+    .speech-bubble-copy,
+    .speech-bubble-meta {
+      transition: none;
+      animation: none;
+    }
+
+    .chef-button.is-dialogue-visible .speech-bubble-copy,
+    .chef-button.is-dialogue-visible .speech-bubble-meta {
+      -webkit-clip-path: inset(0 0 0 0);
+      clip-path: inset(0 0 0 0);
     }
   }
 </style>

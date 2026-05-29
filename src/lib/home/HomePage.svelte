@@ -47,6 +47,9 @@
     dialogue: string;
     hoverText: string;
     personSrc: string;
+    personNodeId?: string;
+    personFillSrc?: string;
+    personFillNodeId?: string;
     href?: string;
   };
 
@@ -332,7 +335,10 @@
       speaker: 'Stefano Paganini',
       dialogue: 'il mio ruolo ... seguimi nella cucina per saperne di più',
       hoverText: 'io sono stefano paganini seguimi in cucina',
-      personSrc: '/images/stefano-paganini-figma.png',
+      personSrc: '/images/chef-link-outline.svg',
+      personNodeId: '3695:3969',
+      personFillSrc: '/images/chef-link-filled.svg',
+      personFillNodeId: '3695:3926',
       href: '/phaser'
     },
     {
@@ -1375,7 +1381,23 @@
         <p>{item.description}</p>
       </div>
       {#if item.personSrc}
-        <img class="role-person" src={item.personSrc} alt={item.speaker} draggable="false" />
+        <img
+          class="role-person"
+          class:role-person-outline={Boolean(item.personFillSrc)}
+          src={item.personSrc}
+          alt={item.speaker}
+          data-node-id={item.personNodeId}
+          draggable="false"
+        />
+        {#if item.personFillSrc}
+          <img
+            class="role-person role-person-fill"
+            src={item.personFillSrc}
+            alt=""
+            data-node-id={item.personFillNodeId}
+            draggable="false"
+          />
+        {/if}
       {/if}
     {/snippet}
 
@@ -1388,6 +1410,7 @@
           class:is-cucina={item.title === 'cucina'}
           class:is-servizio={item.title === 'servizio'}
           class:has-dialogue={Boolean(item.dialogue)}
+          class:has-person-fill={Boolean(item.personFillSrc)}
           href={item.href}
           onclick={(event) => enterRoleCard(event, item, index)}
           onpointerenter={() => startRoleAudio(item.title)}
@@ -1407,6 +1430,7 @@
           class:is-cucina={item.title === 'cucina'}
           class:is-servizio={item.title === 'servizio'}
           class:has-dialogue={Boolean(item.dialogue)}
+          class:has-person-fill={Boolean(item.personFillSrc)}
           onpointerenter={() => startRoleAudio(item.title)}
           onpointermove={(event) => tiltRoleCard(event, index)}
           onpointerleave={() => {
@@ -2325,6 +2349,7 @@
 
   .role-card-copy {
     position: absolute;
+    z-index: 5;
     top: 50%; left: var(--spacing-5); right: var(--spacing-5);
     display: grid; justify-items: center;
     color: var(--color-text-primary);
@@ -2373,6 +2398,24 @@
     will-change: transform, opacity;
   }
 
+  .role-person-outline,
+  .role-person-fill {
+    height: var(--cucina-person-height, var(--role-person-height));
+  }
+
+  .role-card.has-person-fill .role-person-outline {
+    z-index: 5;
+    opacity: 0.16;
+    transform:
+      translateX(calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)))
+      translateY(calc(var(--role-person-base-y, 0px) + var(--role-person-y, 0px)));
+  }
+
+  .role-person-fill {
+    z-index: 4;
+    opacity: 0;
+  }
+
   .role-card.is-servizio {
     --role-person-base-x: 0px;
     --role-person-base-y: 295px;
@@ -2381,8 +2424,8 @@
 
   .role-card.is-cucina {
     --role-person-base-x: 0px;
-    --role-person-base-y: 0px;
-    --role-person-height: min(60%, 720px);
+    --role-person-base-y: 84px;
+    --role-person-height: min(76%, 860px);
   }
 
   .role-card.is-ufficio {
@@ -2440,6 +2483,16 @@
     transform:
       translateX(calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)))
       translateY(calc(var(--role-person-base-y, 0px) + var(--role-person-y, 0px)));
+  }
+
+  .role-card.has-person-fill:hover .role-person-outline,
+  .role-card.has-person-fill:focus-visible .role-person-outline {
+    opacity: 1;
+  }
+
+  .role-card.has-person-fill:hover .role-person-fill,
+  .role-card.has-person-fill:focus-visible .role-person-fill {
+    opacity: 1;
   }
 
   @media (max-width: 700px) {
