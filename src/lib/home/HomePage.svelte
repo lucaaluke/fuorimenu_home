@@ -152,16 +152,15 @@
   const audioGateCharacters = parseMessage(audioGateMessage, '');
   const introWords      = groupWords(introCharacters);
   const audioGateWords  = groupWords(audioGateCharacters);
-  const audioGateOrbitDashCount = 25;
-  const audioGateOrbitDashArc = 7.2;
+  const audioGateOrbitDotCount = 64;
   const audioGateOrbitRadius = 49;
   const audioGateCopyRevealDuration = 0.48;
   const audioGateCopyRevealStagger = 0.018;
   const audioGateCopyRevealTotal =
     audioGateCopyRevealDuration + Math.max(audioGateCharacters.length - 1, 0) * audioGateCopyRevealStagger;
-  const audioGateDashRevealDuration = 0.32;
-  const audioGateDashRevealStagger =
-    (audioGateCopyRevealTotal - audioGateDashRevealDuration) / Math.max(audioGateOrbitDashCount - 1, 1);
+  const audioGateDotRevealDuration = 0.32;
+  const audioGateDotRevealStagger =
+    (audioGateCopyRevealTotal - audioGateDotRevealDuration) / Math.max(audioGateOrbitDotCount - 1, 1);
   const audioGateUtensilRiseDuration = 0.98;
   const audioGateUtensilShakeDuration = 0.62;
   const audioGateUtensilRiseDelay = Math.max(0, audioGateCopyRevealTotal - audioGateUtensilRiseDuration);
@@ -176,17 +175,10 @@
     };
   }
 
-  function getOrbitDashPath(index: number) {
-    const centerAngle = (360 / audioGateOrbitDashCount) * index;
-    const start = getOrbitPoint(centerAngle - audioGateOrbitDashArc / 2);
-    const end = getOrbitPoint(centerAngle + audioGateOrbitDashArc / 2);
-    return `M ${fixed(start.x, 3)} ${fixed(start.y, 3)} A ${audioGateOrbitRadius} ${audioGateOrbitRadius} 0 0 1 ${fixed(end.x, 3)} ${fixed(end.y, 3)}`;
-  }
-
-  const audioGateOrbitDashes = Array.from({ length: audioGateOrbitDashCount }, (_, index) => ({
+  const audioGateOrbitDots = Array.from({ length: audioGateOrbitDotCount }, (_, index) => ({
     index,
-    path: getOrbitDashPath(index),
-    delayMs: Math.max(0, audioGateDashRevealStagger * index * 1000)
+    point: getOrbitPoint((360 / audioGateOrbitDotCount) * index),
+    delayMs: Math.max(0, audioGateDotRevealStagger * index * 1000)
   }));
 
   const brandLetters = brandWord.split('').map((letter, i) => ({ letter, i }));
@@ -1306,11 +1298,13 @@
     <div class="audio-gate-content">
       <div class="audio-gate-orbit" aria-hidden="true" data-node-id="4109:3541">
         <svg class="audio-gate-orbit-line" viewBox="0 0 100 100" focusable="false">
-          {#each audioGateOrbitDashes as dash (dash.index)}
-            <path
-              class="audio-gate-orbit-dash"
-              d={dash.path}
-              style={`--orbit-dash-index: ${dash.index}; --orbit-dash-delay: ${dash.delayMs}ms`}
+          {#each audioGateOrbitDots as dot (dot.index)}
+            <circle
+              class="audio-gate-orbit-dot"
+              cx={fixed(dot.point.x, 3)}
+              cy={fixed(dot.point.y, 3)}
+              r="0.4"
+              style={`--orbit-dot-index: ${dot.index}; --orbit-dot-delay: ${dot.delayMs}ms`}
             />
           {/each}
         </svg>
@@ -1826,17 +1820,14 @@
     animation: audioGateOrbitSpin 56s linear 1.15s infinite;
   }
 
-  .audio-gate-orbit-dash {
-    fill: none;
-    stroke: var(--color-text-inverse);
-    stroke-width: 0.32;
-    stroke-linecap: round;
+  .audio-gate-orbit-dot {
+    fill: var(--color-text-inverse);
     opacity: 0;
-    animation: audioGateDashIn 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-    animation-delay: var(--orbit-dash-delay, 0ms);
+    animation: audioGateDotIn 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: var(--orbit-dot-delay, 0ms);
   }
 
-  @keyframes audioGateDashIn {
+  @keyframes audioGateDotIn {
     to {
       opacity: 1;
     }
@@ -1853,7 +1844,7 @@
       animation: none;
     }
 
-    .audio-gate-orbit-dash {
+    .audio-gate-orbit-dot {
       animation: none;
       opacity: 1;
     }
@@ -1945,7 +1936,7 @@
     --button-lift-y: calc(var(--button-depth-y) * -1);
     --button-hover-scale: 1;
 
-    color: var(--color-surface-page);
+    color: var(--color-text-primary);
     border-color: var(--color-text-primary);
     background: var(--color-text-inverse);
     opacity: 1;
@@ -2069,7 +2060,7 @@
     --button-hover-scale: 1;
     border-color: var(--color-text-primary);
     background: var(--color-text-inverse);
-    color: #f7f3ea;
+    color: var(--color-text-primary);
     box-shadow: none;
   }
 
@@ -2115,13 +2106,13 @@
     animation-play-state: paused;
   }
 
-  .audio-gate.is-opening .audio-gate-orbit-dash {
+  .audio-gate.is-opening .audio-gate-orbit-dot {
     opacity: 1;
-    animation: audioGateDashOut 320ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
-    animation-delay: calc(var(--orbit-dash-index, 0) * 22ms);
+    animation: audioGateDotOut 320ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+    animation-delay: calc(var(--orbit-dot-index, 0) * 22ms);
   }
 
-  @keyframes audioGateDashOut {
+  @keyframes audioGateDotOut {
     to {
       opacity: 0;
     }
