@@ -1,11 +1,21 @@
-import gsap from 'gsap';
+import type { Gsap } from '$lib/scene/gsap-loader';
 
-type AnimationCue = gsap.core.Tween | gsap.core.Timeline;
-type TickerCallback = Parameters<typeof gsap.ticker.add>[0];
+type AnimationCue = ReturnType<Gsap['to']> | ReturnType<Gsap['timeline']>;
+type TickerCallback = Parameters<Gsap['ticker']['add']>[0];
 
-export function createAnimationCueManager() {
+export function createAnimationCueManager(initialGsap?: Gsap) {
+  let gsap = initialGsap;
   const cues = new Map<string, AnimationCue>();
   const tickerCallbacks = new Set<TickerCallback>();
+
+  function requireGsap() {
+    if (!gsap) throw new Error('GSAP has not been loaded yet.');
+    return gsap;
+  }
+
+  function setGsap(nextGsap: Gsap) {
+    gsap = nextGsap;
+  }
 
   function registerAnimationCue<Cue extends AnimationCue>(id: string, cue: Cue) {
     cues.get(id)?.kill();
@@ -24,18 +34,20 @@ export function createAnimationCueManager() {
   }
 
   function addTicker(callback: TickerCallback) {
-    gsap.ticker.add(callback);
+    const loadedGsap = requireGsap();
+
+    loadedGsap.ticker.add(callback);
     tickerCallbacks.add(callback);
 
     return () => {
-      gsap.ticker.remove(callback);
+      loadedGsap.ticker.remove(callback);
       tickerCallbacks.delete(callback);
     };
   }
 
   function destroy() {
     killAll();
-    tickerCallbacks.forEach((callback) => gsap.ticker.remove(callback));
+    if (gsap) tickerCallbacks.forEach((callback) => gsap!.ticker.remove(callback));
     tickerCallbacks.clear();
   }
 
@@ -45,7 +57,8 @@ export function createAnimationCueManager() {
     get: <Cue extends AnimationCue = AnimationCue>(id: string) => cues.get(id) as Cue | undefined,
     kill,
     killAll,
-    registerAnimationCue
+    registerAnimationCue,
+    setGsap
   };
 }
 

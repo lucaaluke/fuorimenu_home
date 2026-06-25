@@ -4,9 +4,9 @@
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
   import { createAnimationCueManager } from '$lib/scene/animation-cues';
   import { createAudioCueManager, type AudioCueConfig } from '$lib/scene/audio-cues';
+  import { loadGsap, type Gsap } from '$lib/scene/gsap-loader';
   import { clamp, deg, ease, fixed, px, type CssVars, vh, vw } from '$lib/scene/math';
   import { createSceneResourceScope } from '$lib/scene/resources';
-  import gsap from 'gsap';
   import { onMount, tick } from 'svelte';
 
   let reelProgress = 0;
@@ -34,8 +34,9 @@
   let isBrandWordSharp = $state(false);
   let isAboutOpen = $state(false);
   let aboutScreenEl = $state<HTMLElement>();
-  let flowTween: gsap.core.Tween | undefined;
-  let cardEnterTween: gsap.core.Timeline | undefined;
+  let gsap: Gsap;
+  let flowTween: ReturnType<Gsap['to']> | undefined;
+  let cardEnterTween: ReturnType<Gsap['timeline']> | undefined;
   const animations = createAnimationCueManager();
   const sceneResources = createSceneResourceScope();
 
@@ -1047,6 +1048,15 @@
   }
 
   onMount(() => {
+    let isDestroyed = false;
+
+    void loadGsap().then((loadedGsap) => {
+      if (isDestroyed) return;
+
+      gsap = loadedGsap;
+      animations.setGsap(gsap);
+      audioCues.setGsap(gsap);
+
     const requestedView = new URLSearchParams(window.location.search).get('view');
     const shouldOpenCards = requestedView === 'cards';
     const shouldOpenBrand = requestedView === 'brand';
@@ -1256,7 +1266,10 @@
     sceneResources.addEventListener(window, 'wheel', onWheel as EventListener, { passive: false });
     sceneResources.addEventListener(window, 'keydown', onKeydown as EventListener);
     sceneResources.addEventListener(window, 'pointerdown', onPointerDownAudioUnlock, { passive: true });
+    });
+
     return () => {
+      isDestroyed = true;
       flowTween?.kill();
       animations.destroy();
       audioCues.destroy();

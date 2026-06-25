@@ -1,11 +1,10 @@
-import gsap from 'gsap';
-import ScrollTrigger from 'gsap/ScrollTrigger';
 import {
   kitchenSceneConfig,
   type KitchenChefId,
   type KitchenSceneConfig
 } from '$lib/kitchen/kitchen-scene.config';
 import { setupSceneBridge, type SceneBridge } from '$lib/scene/bridge';
+import { loadGsapWithScrollTrigger } from '$lib/scene/gsap-loader';
 import { clamp } from '$lib/scene/math';
 import { createTriggerRegistry } from '$lib/scene/triggers';
 import {
@@ -14,8 +13,6 @@ import {
   type HorizontalSceneMetrics,
   type Viewport
 } from '$lib/scene/viewport';
-
-gsap.registerPlugin(ScrollTrigger);
 
 export type KitchenControllerState = {
   cameraX: number;
@@ -59,7 +56,8 @@ export const initialKitchenControllerState: KitchenControllerState = {
   activeChefId: undefined
 };
 
-export function mountKitchenScrollController(options: KitchenScrollControllerOptions) {
+export async function mountKitchenScrollController(options: KitchenScrollControllerOptions) {
+  const { gsap, ScrollTrigger } = await loadGsapWithScrollTrigger();
   const bridge =
     options.bridge ??
     setupSceneBridge<KitchenControllerState, KitchenControllerEvents>(

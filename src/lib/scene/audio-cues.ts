@@ -1,4 +1,4 @@
-import gsap from 'gsap';
+import type { Gsap } from '$lib/scene/gsap-loader';
 
 export type AudioCueConfig = {
   el?: HTMLAudioElement;
@@ -17,6 +17,7 @@ type AudioCueManagerOptions = {
     duration: number;
     ease: string;
   };
+  gsap?: Gsap;
 };
 
 const defaultFade = {
@@ -26,10 +27,15 @@ const defaultFade = {
 
 export function createAudioCueManager<Id extends string>(options: AudioCueManagerOptions = {}) {
   const cues = new Map<Id, AudioCueConfig>();
-  const fadeTweens = new Map<Id, gsap.core.Tween>();
+  const fadeTweens = new Map<Id, ReturnType<Gsap['to']>>();
   const loopFrames = new Map<Id, number>();
   const fadeMotion = { ...defaultFade, ...options.fade };
+  let gsap = options.gsap;
   let unlocked = false;
+
+  function setGsap(nextGsap: Gsap) {
+    gsap = nextGsap;
+  }
 
   function registerAudioCue(id: Id, config: AudioCueConfig) {
     cues.set(id, config);
@@ -75,6 +81,12 @@ export function createAudioCueManager<Id extends string>(options: AudioCueManage
 
     cancelFade(id);
     if (duration <= 0) {
+      audio.volume = targetVolume;
+      afterFade?.();
+      return;
+    }
+
+    if (!gsap) {
       audio.volume = targetVolume;
       afterFade?.();
       return;
@@ -200,6 +212,7 @@ export function createAudioCueManager<Id extends string>(options: AudioCueManage
     getCue,
     play,
     registerAudioCue,
+    setGsap,
     stop,
     stopAll,
     unlock

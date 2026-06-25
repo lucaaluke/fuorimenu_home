@@ -1,8 +1,8 @@
 <script lang="ts">
-  import gsap from 'gsap';
   import { onMount } from 'svelte';
   import { kitchenAssetVersion, kitchenAssets, kitchenSceneConfig } from './kitchen-scene.config';
   import { createSceneController } from '$lib/scene/controller';
+  import { loadGsap, type Gsap } from '$lib/scene/gsap-loader';
   import { clamp, px } from '$lib/scene/math';
   import type { InteractiveSceneAsset, SceneAsset } from '$lib/scene/scene-asset.types';
   import { getSceneAssetStyle } from '$lib/scene/scene-utils';
@@ -36,6 +36,7 @@
   let { isAudioMuted = false } = $props<{ isAudioMuted?: boolean }>();
   const { bridge } = sceneController;
   const kitchenAsset = (name: string) => `/assets/${name}?v=${kitchenAssetVersion}`;
+  let gsap: Gsap | undefined;
   const testimonialHandoffSticky = {
     maxFactor: 0.66,
     minFactor: 0.22,
@@ -622,7 +623,7 @@
   async function playFaustoSecondAudio() {
     if (isAudioMuted || dismissedTestimonialIds.fausto || !fausto2AudioEl) return;
 
-    gsap.killTweensOf(fausto2AudioEl);
+    gsap?.killTweensOf(fausto2AudioEl);
     fausto2AudioEl.pause();
     fausto2AudioEl.currentTime = faustoSecondAudioStartTime;
     fausto2AudioEl.muted = false;
@@ -760,20 +761,28 @@
     const kitchenVolume = isAudioMuted ? 0 : 0.26 * mix * voiceDuck;
 
     if (constructionAudioEl) {
-      gsap.to(constructionAudioEl, {
-        volume: constructionVolume,
-        duration: fadeDuration,
-        ease: 'power2.out',
-        overwrite: true
-      });
+      if (gsap) {
+        gsap.to(constructionAudioEl, {
+          volume: constructionVolume,
+          duration: fadeDuration,
+          ease: 'power2.out',
+          overwrite: true
+        });
+      } else {
+        constructionAudioEl.volume = constructionVolume;
+      }
     }
     if (kitchenAmbientAudioEl) {
-      gsap.to(kitchenAmbientAudioEl, {
-        volume: kitchenVolume,
-        duration: fadeDuration,
-        ease: 'power2.out',
-        overwrite: true
-      });
+      if (gsap) {
+        gsap.to(kitchenAmbientAudioEl, {
+          volume: kitchenVolume,
+          duration: fadeDuration,
+          ease: 'power2.out',
+          overwrite: true
+        });
+      } else {
+        kitchenAmbientAudioEl.volume = kitchenVolume;
+      }
     }
   }
 
@@ -903,7 +912,7 @@
 
       audioElements.forEach((audio) => {
         if (!audio) return;
-        gsap.killTweensOf(audio);
+        gsap?.killTweensOf(audio);
         audio.pause();
         audio.volume = 1;
       });
@@ -992,12 +1001,12 @@
     stopAllTestimonialAudio({ duration: 0, except: testimonial.id, resetReplay: false });
     if (testimonial.id === 'fausto') clearFaustoSecondAudioTimer();
 
-    gsap.killTweensOf(audio);
+    gsap?.killTweensOf(audio);
     state.isStopping = false;
     audio.pause();
     audio.currentTime = testimonial.audioStartTime ?? 0;
     if (testimonial.id === 'fausto' && fausto2AudioEl) {
-      gsap.killTweensOf(fausto2AudioEl);
+      gsap?.killTweensOf(fausto2AudioEl);
       fausto2AudioEl.pause();
       fausto2AudioEl.currentTime = faustoSecondAudioStartTime;
       fausto2AudioEl.volume = 1;
@@ -1037,7 +1046,7 @@
     state.isStopping = duration > 0 && !audio.paused;
     if (resetReplay) state.hasPlayed = false;
 
-    gsap.killTweensOf(audio);
+    gsap?.killTweensOf(audio);
 
     const afterStop = () => {
       audio.pause();
@@ -1049,7 +1058,7 @@
       if (testimonial.id === 'fausto') {
         clearFaustoSecondAudioTimer();
         if (fausto2AudioEl && audio !== fausto2AudioEl) {
-          gsap.killTweensOf(fausto2AudioEl);
+          gsap?.killTweensOf(fausto2AudioEl);
           fausto2AudioEl.pause();
           fausto2AudioEl.currentTime = faustoSecondAudioStartTime;
           fausto2AudioEl.volume = 1;
@@ -1061,6 +1070,11 @@
     };
 
     if (duration <= 0 || audio.paused) {
+      afterStop();
+      return;
+    }
+
+    if (!gsap) {
       afterStop();
       return;
     }
@@ -1109,15 +1123,26 @@
     }));
     resources.add(createViewportObserver(stageEl, syncViewport));
 
+    void loadGsap().then((loadedGsap) => {
+      if (destroyed) return;
+      gsap = loadedGsap;
+    });
+
     import('$lib/kitchen/kitchen-scroll-controller').then(({ mountKitchenScrollController }) => {
       if (destroyed) return;
-      kitchenController = mountKitchenScrollController({
+      mountKitchenScrollController({
         bridge,
         config: kitchenSceneConfig,
         getViewport: () => ({ width: viewportWidth, height: viewportHeight }),
         stageEl
+      }).then((controller) => {
+        if (destroyed) {
+          controller.destroy();
+          return;
+        }
+        kitchenController = controller;
+        resources.add(() => kitchenController?.destroy());
       });
-      resources.add(() => kitchenController?.destroy());
     });
 
     resources.addFrame(() => {
