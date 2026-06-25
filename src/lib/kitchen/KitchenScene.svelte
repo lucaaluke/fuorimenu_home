@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { gsap } from 'gsap';
+  import gsap from 'gsap';
   import { onMount } from 'svelte';
   import { kitchenAssetVersion, kitchenAssets, kitchenSceneConfig } from './kitchen-scene.config';
   import { createSceneController } from '$lib/scene/controller';

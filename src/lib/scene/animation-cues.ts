@@ -1,4 +1,4 @@
-import { gsap } from 'gsap';
+import gsap from 'gsap';
 
 type AnimationCue = gsap.core.Tween | gsap.core.Timeline;
 type TickerCallback = Parameters<typeof gsap.ticker.add>[0];

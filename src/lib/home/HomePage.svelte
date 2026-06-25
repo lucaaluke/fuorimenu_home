@@ -6,7 +6,7 @@
   import { createAudioCueManager, type AudioCueConfig } from '$lib/scene/audio-cues';
   import { clamp, deg, ease, fixed, px, type CssVars, vh, vw } from '$lib/scene/math';
   import { createSceneResourceScope } from '$lib/scene/resources';
-  import { gsap } from 'gsap';
+  import gsap from 'gsap';
   import { onMount, tick } from 'svelte';
 
   let reelProgress = 0;
