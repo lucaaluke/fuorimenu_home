@@ -2121,8 +2121,8 @@
 
   .audio-gate.is-opening .audio-gate-orbit-dot {
     opacity: 1;
-    animation: audioGateDotOut 320ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
-    animation-delay: calc(var(--orbit-dot-index, 0) * 22ms);
+    animation: audioGateDotOut 220ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+    animation-delay: calc(var(--orbit-dot-index, 0) * 8ms);
   }
 
   @keyframes audioGateDotOut {
@@ -2916,7 +2916,7 @@
   }
 
   .role-card.is-cucina {
-    --role-card-fill: #fcb531;
+    --role-card-fill: var(--color-interactive-hover);
   }
 
   .role-card.is-ufficio {

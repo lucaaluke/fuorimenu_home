@@ -218,6 +218,13 @@
     paganini: 0,
     fausto: 0
   });
+  let mutedTestimonialPageIndex = $state<Record<KitchenTestimonialId, number>>({
+    carlo: 0,
+    paganini: 0,
+    fausto: 0
+  });
+  let hasTrackedAudioMuted = false;
+  let wasAudioMuted = false;
   let prefersReducedMotion = $state(false);
   let toolShedAudioContext: AudioContext | undefined;
   let toolShedAudioSource: MediaElementAudioSourceNode | undefined;
@@ -376,16 +383,21 @@
     if (!placement) return style.join(';');
 
     const prefix = asset.id;
-    const arrowLeft = placement.arrowLeft ?? placement.left;
     style.push(
+      `--interactive-message-width: ${scenePx(placement.width * sceneScale)}`,
+      `--interactive-message-padding: ${scenePx(placement.padding * sceneScale)}`,
+      `--interactive-message-font-size: ${scenePx(placement.fontSize * sceneScale)}`,
+      `--interactive-arrow-size: ${scenePx(placement.arrowSize * sceneScale)}`,
+      `--interactive-message-gap: ${scenePx(34 * sceneScale)}`,
       `--${prefix}-message-left: ${scenePx(placement.left * sceneScale)}`,
       `--${prefix}-message-top: ${scenePx(placement.top * sceneScale)}`,
       `--${prefix}-message-width: ${scenePx(placement.width * sceneScale)}`,
       `--${prefix}-message-padding: ${scenePx(placement.padding * sceneScale)}`,
       `--${prefix}-message-font-size: ${scenePx(placement.fontSize * sceneScale)}`,
-      `--${prefix}-arrow-left: ${scenePx(arrowLeft * sceneScale)}`,
+      `--${prefix}-arrow-left: ${scenePx((placement.arrowLeft ?? asset.width / 2) * sceneScale)}`,
       `--${prefix}-arrow-top: ${scenePx(placement.arrowTop * sceneScale)}`,
-      `--${prefix}-arrow-size: ${scenePx(placement.arrowSize * sceneScale)}`
+      `--${prefix}-arrow-size: ${scenePx(placement.arrowSize * sceneScale)}`,
+      `--${prefix}-message-gap: ${scenePx(34 * sceneScale)}`
     );
 
     return style.join(';');
@@ -493,6 +505,10 @@
   }
 
   function getTestimonialSpeech(testimonial: KitchenTestimonial) {
+    if (isAudioMuted && testimonial.id === 'fausto' && testimonial.secondSpeech) {
+      return `${testimonial.speech} ${testimonial.secondSpeech}`;
+    }
+
     return testimonial.id === 'fausto' && faustoSpeechPart === 2 && testimonial.secondSpeech
       ? testimonial.secondSpeech
       : testimonial.speech;
@@ -505,7 +521,7 @@
     const horizontalPadding = isMobile ? 36 : 40;
     const copyHeight = getTestimonialBubbleCopyHeight();
     const lineHeight = fontSize * 1.34;
-    const lines = Math.max(3, Math.floor(copyHeight / lineHeight));
+    const lines = Math.max(3, Math.floor(copyHeight / lineHeight) - 1);
     const charactersPerLine = Math.max(
       18,
       Math.floor((bubbleWidth - horizontalPadding) / (fontSize * 0.56))
@@ -540,8 +556,130 @@
     return pages.length ? pages : [''];
   }
 
+  function getTestimonialSpeechPages(testimonial: KitchenTestimonial) {
+    return paginateTestimonialSpeech(getTestimonialSpeech(testimonial));
+  }
+
+  function getMutedResumeSpeech(testimonial: KitchenTestimonial) {
+    if (testimonial.id === 'fausto' && testimonial.secondSpeech) {
+      return `${testimonial.speech} ${testimonial.secondSpeech}`;
+    }
+
+    return testimonial.speech;
+  }
+
+  function getPageStartCharacterIndex(pages: string[], pageIndex: number) {
+    if (pageIndex <= 0) return 0;
+    return pages.slice(0, pageIndex).join(' ').length + 1;
+  }
+
+  function getPageIndexForCharacterOffset(pages: string[], characterOffset: number) {
+    let pageStart = 0;
+
+    for (let index = 0; index < pages.length; index += 1) {
+      const pageEnd = pageStart + pages[index].length;
+      if (characterOffset <= pageEnd || index === pages.length - 1) return index;
+      pageStart = pageEnd + 1;
+    }
+
+    return 0;
+  }
+
+  function getMutedTestimonialPageIndex(testimonial: KitchenTestimonial) {
+    const pages = getTestimonialSpeechPages(testimonial);
+    return clamp(mutedTestimonialPageIndex[testimonial.id], 0, Math.max(pages.length - 1, 0));
+  }
+
+  function getMutedTestimonialResumeInfo(testimonial: KitchenTestimonial) {
+    const pages = paginateTestimonialSpeech(getMutedResumeSpeech(testimonial));
+    const pageIndex = clamp(mutedTestimonialPageIndex[testimonial.id], 0, Math.max(pages.length - 1, 0));
+    const pageStart = getPageStartCharacterIndex(pages, pageIndex);
+
+    if (testimonial.id === 'fausto' && testimonial.secondSpeech) {
+      const firstSpeech = testimonial.speech.trim();
+      const secondSpeech = testimonial.secondSpeech.trim();
+      const pageMiddle = pageStart + (pages[pageIndex]?.length ?? 0) / 2;
+
+      if (pageMiddle > firstSpeech.length) {
+        return {
+          part: 2 as const,
+          progress: clamp(
+            (pageStart - firstSpeech.length - 1) / Math.max(secondSpeech.length, 1),
+            0,
+            0.98
+          )
+        };
+      }
+
+      return {
+        part: 1 as const,
+        progress: clamp(pageStart / Math.max(firstSpeech.length, 1), 0, 0.98)
+      };
+    }
+
+    const normalizedSpeech = pages.join(' ');
+    return {
+      part: 1 as const,
+      progress: clamp(pageStart / Math.max(normalizedSpeech.length, 1), 0, 0.98)
+    };
+  }
+
+  function syncMutedTestimonialPageIndexFromReveal(testimonial: KitchenTestimonial) {
+    const pages = paginateTestimonialSpeech(getMutedResumeSpeech(testimonial));
+    let characterOffset = 0;
+
+    if (testimonial.id === 'fausto' && testimonial.secondSpeech) {
+      const firstSpeech = testimonial.speech.trim();
+      const secondSpeech = testimonial.secondSpeech.trim();
+      characterOffset =
+        faustoSpeechPart === 2
+          ? firstSpeech.length + 1 + testimonialRevealProgress.fausto * secondSpeech.length
+          : testimonialRevealProgress.fausto * firstSpeech.length;
+    } else {
+      const normalizedSpeech = pages.join(' ');
+      characterOffset = testimonialRevealProgress[testimonial.id] * normalizedSpeech.length;
+    }
+
+    mutedTestimonialPageIndex[testimonial.id] = getPageIndexForCharacterOffset(
+      pages,
+      characterOffset
+    );
+  }
+
+  function hasNextMutedTestimonialPage(testimonial: KitchenTestimonial) {
+    return isAudioMuted && getMutedTestimonialPageIndex(testimonial) < getTestimonialSpeechPages(testimonial).length - 1;
+  }
+
+  function hasPreviousMutedTestimonialPage(testimonial: KitchenTestimonial) {
+    return isAudioMuted && getMutedTestimonialPageIndex(testimonial) > 0;
+  }
+
+  function advanceMutedTestimonialPage(event: PointerEvent | MouseEvent, testimonial: KitchenTestimonial) {
+    event.stopPropagation();
+    const pages = getTestimonialSpeechPages(testimonial);
+    mutedTestimonialPageIndex[testimonial.id] = clamp(
+      mutedTestimonialPageIndex[testimonial.id] + 1,
+      0,
+      Math.max(pages.length - 1, 0)
+    );
+  }
+
+  function rewindMutedTestimonialPage(event: PointerEvent | MouseEvent, testimonial: KitchenTestimonial) {
+    event.stopPropagation();
+    mutedTestimonialPageIndex[testimonial.id] = clamp(
+      mutedTestimonialPageIndex[testimonial.id] - 1,
+      0,
+      Math.max(getTestimonialSpeechPages(testimonial).length - 1, 0)
+    );
+  }
+
   function getCurrentSpeechPageInfo(testimonial: KitchenTestimonial) {
-    const pages = paginateTestimonialSpeech(getTestimonialSpeech(testimonial));
+    const pages = getTestimonialSpeechPages(testimonial);
+    if (isAudioMuted) {
+      const speech = pages[getMutedTestimonialPageIndex(testimonial)] ?? '';
+      return { highlightedSpeech: speech, speech };
+    }
+
     if (!testimonial.revealSpeechWithAudio) {
       const speech = pages[0] ?? '';
       return { highlightedSpeech: speech, speech };
@@ -574,7 +712,7 @@
   }
 
   function isSpeechHighlightedWithAudio(testimonial: KitchenTestimonial) {
-    return Boolean(testimonial.revealSpeechWithAudio);
+    return !isAudioMuted && Boolean(testimonial.revealSpeechWithAudio);
   }
 
   function getVisibleSpeech(testimonial: KitchenTestimonial) {
@@ -583,6 +721,7 @@
 
   function resetTestimonialSpeechReveal(testimonial: KitchenTestimonial) {
     testimonialRevealProgress[testimonial.id] = testimonial.revealSpeechWithAudio ? 0 : 1;
+    mutedTestimonialPageIndex[testimonial.id] = 0;
   }
 
   function resetTestimonialReplay(testimonial: KitchenTestimonial) {
@@ -620,22 +759,34 @@
     }, faustoSecondAudioPauseMs);
   }
 
-  async function playFaustoSecondAudio() {
+  async function playFaustoSecondAudio(options: { resumeProgress?: number; forceReplay?: boolean } = {}) {
     if (isAudioMuted || dismissedTestimonialIds.fausto || !fausto2AudioEl) return;
+    const state = testimonialAudioState.fausto;
 
     gsap?.killTweensOf(fausto2AudioEl);
+    state.isStarting = true;
+    state.isStopping = false;
     fausto2AudioEl.pause();
-    fausto2AudioEl.currentTime = faustoSecondAudioStartTime;
+    fausto2AudioEl.currentTime =
+      options.resumeProgress === undefined
+        ? faustoSecondAudioStartTime
+        : getAudioTimeForRevealProgress(faustoTestimonial, fausto2AudioEl, options.resumeProgress, {
+            secondPart: true
+          });
     fausto2AudioEl.muted = false;
     fausto2AudioEl.volume = 1;
     faustoSpeechPart = 2;
-    testimonialRevealProgress.fausto = 0;
+    testimonialRevealProgress.fausto = options.resumeProgress ?? 0;
     activeTestimonialAudioId = 'fausto';
+    const playbackToken = ++state.playbackToken;
 
     try {
       await fausto2AudioEl.play();
+      if (playbackToken === state.playbackToken) state.hasPlayed = true;
     } catch {
       if (activeTestimonialAudioId === 'fausto') activeTestimonialAudioId = undefined;
+    } finally {
+      state.isStarting = false;
     }
   }
 
@@ -676,6 +827,29 @@
       0,
       1
     );
+  }
+
+  function getAudioTimeForRevealProgress(
+    testimonial: KitchenTestimonial,
+    audio: HTMLAudioElement,
+    revealProgress: number,
+    options: { secondPart?: boolean } = {}
+  ) {
+    const startTime = options.secondPart
+      ? faustoSecondAudioStartTime
+      : (testimonial.audioStartTime ?? 0);
+    const fallbackDuration = options.secondPart
+      ? (testimonial.secondRevealDurationSeconds ?? 1)
+      : (testimonial.revealDurationSeconds ?? 1);
+    const audioDuration =
+      Number.isFinite(audio.duration) && audio.duration > startTime
+        ? audio.duration - startTime
+        : fallbackDuration;
+    const revealDuration =
+      (options.secondPart ? testimonial.secondRevealDurationSeconds : testimonial.revealDurationSeconds) ??
+      audioDuration;
+
+    return startTime + clamp(revealProgress, 0, 0.98) * Math.max(revealDuration, 0.001);
   }
 
   function onWheel(event: WheelEvent) {
@@ -804,19 +978,29 @@
   }
 
   $effect(() => {
+    const muted = isAudioMuted;
+    if (!hasTrackedAudioMuted) {
+      wasAudioMuted = muted;
+      hasTrackedAudioMuted = true;
+    }
+
     setAmbientAudioVolumes();
 
-    if (!isAudioMuted) {
+    if (!muted) {
       void startAmbientAudio();
+      if (wasAudioMuted) resumeVisibleTestimonialAudioFromMutedPage();
+      wasAudioMuted = muted;
       return;
     }
 
+    if (!wasAudioMuted) syncMutedTestimonialPagesFromAudio();
     toolShedAudioEl?.pause();
     standMixerAudioEl?.pause();
     pauseAllTestimonialAudioForMute();
     constructionAudioEl?.pause();
     kitchenAmbientAudioEl?.pause();
     isAmbientAudioStarted = false;
+    wasAudioMuted = muted;
   });
 
   $effect(() => {
@@ -921,6 +1105,58 @@
     activeTestimonialAudioId = undefined;
   }
 
+  function syncMutedTestimonialPagesFromAudio() {
+    kitchenTestimonials.forEach((testimonial) => {
+      if (!isTestimonialDialogueVisible(testimonial)) return;
+      if (testimonial.id === 'fausto' && faustoSpeechPart === 2) {
+        syncFaustoSecondSpeechReveal();
+      } else {
+        syncTestimonialSpeechReveal(testimonial);
+      }
+      syncMutedTestimonialPageIndexFromReveal(testimonial);
+    });
+  }
+
+  async function resumeFaustoSecondAudioFromMutedPage(resumeProgress: number) {
+    const state = testimonialAudioState.fausto;
+    if (!fausto2AudioEl) return;
+
+    stopAllTestimonialAudio({ duration: 0, except: 'fausto', resetReplay: false });
+    clearFaustoSecondAudioTimer();
+    if (faustoAudioEl) {
+      gsap?.killTweensOf(faustoAudioEl);
+      faustoAudioEl.pause();
+      faustoAudioEl.currentTime = faustoTestimonial.audioStartTime ?? 0;
+      faustoAudioEl.volume = 1;
+    }
+
+    state.hasPlayed = false;
+    dismissedTestimonialIds.fausto = false;
+    await playFaustoSecondAudio({ resumeProgress, forceReplay: true });
+  }
+
+  function resumeVisibleTestimonialAudioFromMutedPage() {
+    const testimonial = kitchenTestimonials.find(
+      (candidate) => isTestimonialDialogueVisible(candidate) && !dismissedTestimonialIds[candidate.id]
+    );
+    if (!testimonial) return;
+
+    const resumeInfo = getMutedTestimonialResumeInfo(testimonial);
+    const state = testimonialAudioState[testimonial.id];
+    state.hasPlayed = false;
+    dismissedTestimonialIds[testimonial.id] = false;
+
+    if (testimonial.id === 'fausto' && resumeInfo.part === 2) {
+      void resumeFaustoSecondAudioFromMutedPage(resumeInfo.progress);
+      return;
+    }
+
+    void playTestimonialAudio(testimonial, {
+      resumeProgress: resumeInfo.progress,
+      forceReplay: true
+    });
+  }
+
   function unlockRelevantTestimonialAudio() {
     kitchenTestimonials.forEach((testimonial) => {
       const unlockStart = testimonial.enterProgress - 0.04;
@@ -986,10 +1222,21 @@
     return state.unlockPromise;
   }
 
-  async function playTestimonialAudio(testimonial: KitchenTestimonial) {
+  async function playTestimonialAudio(
+    testimonial: KitchenTestimonial,
+    options: { resumeProgress?: number; forceReplay?: boolean } = {}
+  ) {
     const audio = getTestimonialAudioEl(testimonial);
     const state = testimonialAudioState[testimonial.id];
-    if (isAudioMuted || !testimonial.audioSrc || state.hasPlayed || state.isStarting || !audio) return;
+    if (
+      isAudioMuted ||
+      !testimonial.audioSrc ||
+      (!options.forceReplay && state.hasPlayed) ||
+      state.isStarting ||
+      !audio
+    ) {
+      return;
+    }
 
     state.isStarting = true;
     if (state.unlockPromise) await state.unlockPromise;
@@ -1004,7 +1251,10 @@
     gsap?.killTweensOf(audio);
     state.isStopping = false;
     audio.pause();
-    audio.currentTime = testimonial.audioStartTime ?? 0;
+    audio.currentTime =
+      options.resumeProgress === undefined
+        ? (testimonial.audioStartTime ?? 0)
+        : getAudioTimeForRevealProgress(testimonial, audio, options.resumeProgress);
     if (testimonial.id === 'fausto' && fausto2AudioEl) {
       gsap?.killTweensOf(fausto2AudioEl);
       fausto2AudioEl.pause();
@@ -1015,7 +1265,11 @@
     audio.volume = 1;
     dismissedTestimonialIds[testimonial.id] = false;
     if (testimonial.id === 'fausto') faustoSpeechPart = 1;
-    resetTestimonialSpeechReveal(testimonial);
+    if (options.resumeProgress === undefined) {
+      resetTestimonialSpeechReveal(testimonial);
+    } else {
+      testimonialRevealProgress[testimonial.id] = options.resumeProgress;
+    }
     activeTestimonialAudioId = testimonial.id;
     const playbackToken = ++state.playbackToken;
 
@@ -1099,6 +1353,15 @@
 
   function onTestimonialPointerDown(event: PointerEvent, testimonial: KitchenTestimonial) {
     event.stopPropagation();
+    if (!testimonial.audioSrc || isAudioMuted) return;
+    testimonialAudioState[testimonial.id].hasPlayed = false;
+    dismissedTestimonialIds[testimonial.id] = false;
+    void playTestimonialAudio(testimonial);
+  }
+
+  function onTestimonialKeydown(event: KeyboardEvent, testimonial: KitchenTestimonial) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
     if (!testimonial.audioSrc || isAudioMuted) return;
     testimonialAudioState[testimonial.id].hasPlayed = false;
     dismissedTestimonialIds[testimonial.id] = false;
@@ -1276,14 +1539,16 @@
 
   {#each kitchenTestimonials as testimonial (testimonial.id)}
     {@const isDialogueVisible = isTestimonialDialogueVisible(testimonial)}
-    <button
+    <div
       class="chef-button"
       class:is-dialogue-visible={isDialogueVisible}
       data-testimonial={testimonial.id}
       style={`${getTestimonialStyle(testimonial)}; --reveal-delay: 390ms;`}
-      type="button"
+      role="button"
+      tabindex="0"
       aria-label={testimonial.ariaLabel}
       onpointerdown={(event) => onTestimonialPointerDown(event, testimonial)}
+      onkeydown={(event) => onTestimonialKeydown(event, testimonial)}
     >
       <span class="speech-bubble" aria-hidden={!isDialogueVisible} data-node-id="3772:1119">
         <span class="speech-bubble-copy" aria-label={getVisibleSpeech(testimonial)}>
@@ -1297,12 +1562,38 @@
           {/if}
         </span>
         <span class="speech-bubble-meta" aria-label={testimonial.metaLabel}>
-          <span>{testimonial.rolePrefix}</span>
-          <strong>{testimonial.name}</strong>
+          <span class="speech-bubble-meta-label">
+            <span>{testimonial.rolePrefix}</span>
+            <strong>{testimonial.name}</strong>
+          </span>
+          {#if isAudioMuted && getTestimonialSpeechPages(testimonial).length > 1}
+            <span class="speech-bubble-page-controls" aria-label="Navigazione testo">
+              <button
+                class="speech-bubble-page-button"
+                type="button"
+                aria-label={`Indietro nel testo di ${testimonial.name}`}
+                disabled={!hasPreviousMutedTestimonialPage(testimonial)}
+                onpointerdown={(event) => rewindMutedTestimonialPage(event, testimonial)}
+                onclick={(event) => event.stopPropagation()}
+              >
+                ind
+              </button>
+              <button
+                class="speech-bubble-page-button"
+                type="button"
+                aria-label={`Avanti nel testo di ${testimonial.name}`}
+                disabled={!hasNextMutedTestimonialPage(testimonial)}
+                onpointerdown={(event) => advanceMutedTestimonialPage(event, testimonial)}
+                onclick={(event) => event.stopPropagation()}
+              >
+                av
+              </button>
+            </span>
+          {/if}
         </span>
       </span>
       <img src={testimonial.imageSrc} alt={testimonial.imageAlt} draggable="false" />
-    </button>
+    </div>
   {/each}
 </section>
 
@@ -1608,8 +1899,8 @@
     transform: translateX(-50%);
     transform-origin: 50% 50%;
     transition:
-      opacity 1ms linear 80ms,
-      scale 220ms cubic-bezier(0.22, 1, 0.36, 1) 80ms;
+      opacity 1ms linear 260ms,
+      scale 240ms cubic-bezier(0.16, 1, 0.3, 1) 260ms;
   }
 
   .speech-bubble-copy {
@@ -1621,7 +1912,7 @@
     align-items: center;
     flex: 0 0 var(--speech-bubble-copy-height, 132px);
     height: var(--speech-bubble-copy-height, 132px);
-    padding: 24px 20px;
+    padding: 34px 20px;
     border: 2px solid var(--color-border-primary);
     border-radius: 10px 10px 0 0;
     background: var(--color-surface-page);
@@ -1664,6 +1955,7 @@
     z-index: 1;
     display: flex;
     align-items: center;
+    gap: 8px;
     flex: 0 0 var(--speech-bubble-meta-height, 34px);
     height: var(--speech-bubble-meta-height, 34px);
     margin-top: -2px;
@@ -1677,10 +1969,55 @@
     line-height: 1.5;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
     -webkit-clip-path: inset(100% 0 0 0);
     clip-path: inset(100% 0 0 0);
     will-change: clip-path;
+  }
+
+  .speech-bubble-meta-label {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .speech-bubble-page-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    pointer-events: auto;
+  }
+
+  .speech-bubble-page-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    height: 20px;
+    padding: 0 5px;
+    border: 1px solid var(--color-surface-page);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--color-surface-page);
+    font-family: var(--font-text);
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1;
+    cursor: var(--kitchen-pointer-cursor);
+  }
+
+  .speech-bubble-page-button:hover,
+  .speech-bubble-page-button:focus-visible {
+    background: var(--color-surface-page);
+    color: var(--color-border-primary);
+    outline: none;
+  }
+
+  .speech-bubble-page-button:disabled {
+    opacity: 0.38;
+    cursor: default;
   }
 
   .speech-bubble-meta strong {
@@ -1813,7 +2150,7 @@
     justify-content: center;
     width: var(--stand-mixer-message-width);
     padding: var(--stand-mixer-message-padding);
-    border: 2px solid #fcb531;
+    border: 2px solid var(--color-interactive-hover);
     border-radius: var(--radius-s);
     background: #f7f3ea;
     color: var(--color-text-primary);
@@ -1833,7 +2170,7 @@
     justify-content: center;
     width: var(--coffee-machine-message-width);
     padding: var(--coffee-machine-message-padding);
-    border: 2px solid #fcb531;
+    border: 2px solid var(--color-interactive-hover);
     border-radius: var(--radius-s);
     background: #f7f3ea;
     color: var(--color-text-primary);
@@ -1853,7 +2190,7 @@
     justify-content: center;
     width: var(--orange-detail-machine-message-width);
     padding: var(--orange-detail-machine-message-padding);
-    border: 2px solid #fcb531;
+    border: 2px solid var(--color-interactive-hover);
     border-radius: var(--radius-s);
     background: #f7f3ea;
     color: var(--color-text-primary);
@@ -1873,7 +2210,7 @@
     justify-content: center;
     width: var(--alarm-clock-message-width);
     padding: var(--alarm-clock-message-padding);
-    border: 2px solid #fcb531;
+    border: 2px solid var(--color-interactive-hover);
     border-radius: var(--radius-s);
     background: #f7f3ea;
     color: var(--color-text-primary);
@@ -1893,7 +2230,7 @@
     justify-content: center;
     width: var(--stove-top-message-width);
     padding: var(--stove-top-message-padding);
-    border: 2px solid #fcb531;
+    border: 2px solid var(--color-interactive-hover);
     border-radius: var(--radius-s);
     background: #f7f3ea;
     color: var(--color-text-primary);
@@ -1909,7 +2246,7 @@
     top: var(--stand-mixer-arrow-top);
     width: var(--stand-mixer-arrow-size);
     height: var(--stand-mixer-arrow-size);
-    background: #fcb531;
+    background: var(--color-interactive-hover);
     transform: translate(-50%, -50%) rotate(45deg);
   }
 
@@ -1920,7 +2257,7 @@
     top: var(--coffee-machine-arrow-top);
     width: var(--coffee-machine-arrow-size);
     height: var(--coffee-machine-arrow-size);
-    background: #fcb531;
+    background: var(--color-interactive-hover);
     transform: translate(-50%, -50%) rotate(45deg);
   }
 
@@ -1931,7 +2268,7 @@
     top: var(--orange-detail-machine-arrow-top);
     width: var(--orange-detail-machine-arrow-size);
     height: var(--orange-detail-machine-arrow-size);
-    background: #fcb531;
+    background: var(--color-interactive-hover);
     transform: translate(-50%, -50%) rotate(45deg);
   }
 
@@ -1942,7 +2279,7 @@
     top: var(--alarm-clock-arrow-top);
     width: var(--alarm-clock-arrow-size);
     height: var(--alarm-clock-arrow-size);
-    background: #fcb531;
+    background: var(--color-interactive-hover);
     transform: translate(-50%, -50%) rotate(45deg);
   }
 
@@ -1953,7 +2290,7 @@
     top: var(--stove-top-arrow-top);
     width: var(--stove-top-arrow-size);
     height: var(--stove-top-arrow-size);
-    background: #fcb531;
+    background: var(--color-interactive-hover);
     transform: translate(-50%, -50%) rotate(45deg);
   }
 
@@ -2168,7 +2505,7 @@
     justify-content: center;
     width: var(--tool-shed-message-width);
     padding: var(--tool-shed-message-padding);
-    border: 2px solid #fcb531;
+    border: 2px solid var(--color-interactive-hover);
     border-radius: var(--radius-s);
     background: #f7f3ea;
     color: var(--color-text-primary);
@@ -2184,7 +2521,7 @@
     top: var(--tool-shed-arrow-top);
     width: var(--tool-shed-arrow-size);
     height: var(--tool-shed-arrow-size);
-    background: #fcb531;
+    background: var(--color-interactive-hover);
     transform: translate(-50%, -50%) rotate(45deg);
   }
 
@@ -2202,6 +2539,47 @@
     word-break: break-word;
   }
 
+  .hover-dialogue {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+    transition:
+      opacity 120ms ease,
+      transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+  }
+
+  .hover-panel {
+    left: 50%;
+    top: auto;
+    bottom: calc(100% + var(--interactive-message-gap, 34px));
+    width: var(--interactive-message-width);
+    padding: var(--interactive-message-padding);
+    transform: translateX(-50%);
+    -webkit-clip-path: inset(100% 0 0 0);
+    clip-path: inset(100% 0 0 0);
+  }
+
+  .hover-arrow {
+    left: 50%;
+    top: auto;
+    bottom: calc(100% + var(--interactive-message-gap, 34px) - var(--interactive-arrow-size, 18px));
+    width: calc(var(--interactive-arrow-size, 18px) * 1.45);
+    height: var(--interactive-arrow-size, 18px);
+    clip-path: polygon(50% 100%, 0 0, 100% 0);
+    opacity: 0;
+    scale: 0.72;
+    transform: translateX(-50%);
+    transform-origin: 50% 50%;
+    transition:
+      opacity 1ms linear 80ms,
+      scale 220ms cubic-bezier(0.22, 1, 0.36, 1) 80ms;
+    will-change: opacity, scale;
+  }
+
+  .hover-copy {
+    font-size: var(--interactive-message-font-size);
+  }
+
   .tool-shed-layer:hover .tool-shed-hover-dialogue,
   .tool-shed-layer:focus-visible .tool-shed-hover-dialogue {
     opacity: 1;
@@ -2210,6 +2588,23 @@
   .tool-shed-layer:hover .tool-shed-hover-panel,
   .tool-shed-layer:focus-visible .tool-shed-hover-panel {
     animation: dialogueRevealX 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .interactive-asset:hover .hover-dialogue,
+  .interactive-asset:focus-visible .hover-dialogue {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  .interactive-asset:hover .hover-arrow,
+  .interactive-asset:focus-visible .hover-arrow {
+    opacity: 1;
+    scale: 1;
+  }
+
+  .interactive-asset:hover .hover-panel,
+  .interactive-asset:focus-visible .hover-panel {
+    animation: dialogueRevealY 320ms cubic-bezier(0.16, 1, 0.3, 1) 20ms both;
   }
 
   @keyframes layerPopIn {
