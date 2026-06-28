@@ -9,10 +9,11 @@ const kitchenTailY = -137;
 export const kitchenConstructionSceneHeight = 875;
 export const kitchenConstructionFloorTopY = 1801;
 const kitchenConstructionChunkHeight = 1330;
-const kitchenConstructionChunkY = 809.93;
-const kitchenConstructionFloorHeight = 333.18;
+const kitchenConstructionFloorHeight = 133.18;
 const kitchenConstructionFloorTileWidth = kitchenConstructionFloorHeight;
-const kitchenConstructionFloorY = 2000;
+const kitchenConstructionFloorY = 2106;
+const kitchenConstructionChunkVisibleBottomY = 1164;
+const kitchenConstructionChunkY = Number((kitchenConstructionFloorY - kitchenConstructionChunkVisibleBottomY).toFixed(2));
 const toolShedMessage =
   'li devi trattare bene, devi dargli dei pasti molto caldi, magari dargli anche il tè o il caffè 24 ore al giorno';
 
