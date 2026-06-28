@@ -1,29 +1,38 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import { onMount } from 'svelte';
-  import { kitchenAssetVersion, kitchenAssets, kitchenSceneConfig } from './kitchen-scene.config';
+  import {
+    kitchenAssetVersion,
+    kitchenAssets,
+    kitchenConstructionChunks,
+    kitchenConstructionFloorTopY,
+    kitchenConstructionObjectAssets,
+    kitchenConstructionSceneHeight,
+    kitchenSceneConfig
+  } from './kitchen-scene.config';
   import { createSceneController } from '$lib/scene/controller';
   import { loadGsap, type Gsap } from '$lib/scene/gsap-loader';
   import { clamp, px } from '$lib/scene/math';
-  import type { InteractiveSceneAsset, SceneAsset } from '$lib/scene/scene-asset.types';
   import { getSceneAssetStyle } from '$lib/scene/scene-utils';
+  import type { InteractiveSceneAsset, SceneAsset } from '$lib/scene/scene-asset.types';
   import { createViewportObserver } from '$lib/scene/viewport';
   import type {
     KitchenControllerEvents,
     KitchenControllerState
-  } from '$lib/kitchen/kitchen-scroll-controller';
+	  } from '$lib/kitchen/kitchen-scroll-controller';
+  import type { KitchenPhaserGameHandle } from '$lib/kitchen/phaser/KitchenPhaserGame';
+  import { screenToFigmaY, tailAwareFigmaX } from '$lib/kitchen/phaser/coordinate-utils';
 
-  const {
-    cursorCss,
-    floorHeight,
-    floorBottomOffset,
-    floorTileWidth,
-    layerSpeed,
-    pointerCursorCss,
-    sceneHeight,
+	  const {
+	    cursorCss,
+	    layerSpeed,
+	    pointerCursorCss,
+	    sceneHeight,
     sceneWidth,
     title
   } = kitchenSceneConfig;
-  const titleLetters = title.split('');
+  const showLegacyKitchenOverlays = false;
+	  const titleLetters = title.split('');
   const initialKitchenState: KitchenControllerState = {
     cameraX: 0,
     targetCameraX: 0,
@@ -178,13 +187,14 @@
     }
   };
 
-  let stageEl: HTMLElement;
-  let viewportWidth = $state(0);
-  let viewportHeight = $state(0);
+	  let stageEl: HTMLElement;
+  let phaserContainerEl = $state<HTMLElement>();
+	  let viewportWidth = $state(0);
+	  let viewportHeight = $state(0);
   let cameraX = $state(0);
   let narrativeProgress = $state(0);
   let activeChefId = $state<KitchenControllerState['activeChefId']>();
-  let kitchenController:
+	  let kitchenController:
     | {
         scrollBy: (delta: number) => void;
         beginDrag: (clientX: number) => void;
@@ -192,8 +202,12 @@
         endDrag: () => void;
         resize: () => void;
         destroy: () => void;
-      }
-    | undefined;
+	      }
+	    | undefined;
+  let kitchenPhaserGame: KitchenPhaserGameHandle | undefined;
+  let phaserResizeTimer: ReturnType<typeof setTimeout> | undefined;
+  let phaserLoadingProgress = $state(0);
+  let isPhaserReady = $state(false);
   let toolShedAudioEl: HTMLAudioElement;
   let standMixerAudioEl: HTMLAudioElement;
   let constructionAudioEl: HTMLAudioElement;
@@ -255,29 +269,42 @@
   const testimonialDialogueGap = 32;
   const coord = (value: number) => Math.round(value).toString();
   const coordDecimal = (value: number) => value.toFixed(3);
+  let nearestSceneAsset = $state<{ id: string; distance: number }>();
 
-  function updatePointerScenePosition(event: PointerEvent) {
-    if (!stageEl || !sceneScale) return;
+	  function updatePointerScenePosition(event: PointerEvent) {
+	    if (!stageEl || !sceneScale) return;
 
     const rect = stageEl.getBoundingClientRect();
     const localX = clamp(event.clientX - rect.left, 0, rect.width);
-    const localY = clamp(event.clientY - rect.top, 0, rect.height);
+	    const localY = clamp(event.clientY - rect.top, 0, rect.height);
 
-    hasPointerScenePosition = true;
-    pointerSceneY = localY / sceneScale;
-    pointerSceneX = {
-      background: (localX + cameraX * resolvedLayerSpeed.background) / sceneScale,
-      middle: (localX + cameraX * resolvedLayerSpeed.middle) / sceneScale,
-      foreground: (localX + cameraX * resolvedLayerSpeed.foreground) / sceneScale
-    };
-  }
+	    hasPointerScenePosition = true;
+    pointerSceneY = screenToFigmaY(localY, sceneScale, viewportHeight, kitchenConstructionFloorTopY);
+	    pointerSceneX = {
+	      background: (localX + cameraX * resolvedLayerSpeed.background) / sceneScale,
+	      middle: (localX + cameraX * resolvedLayerSpeed.middle) / sceneScale,
+	      foreground: (localX + cameraX * resolvedLayerSpeed.foreground) / sceneScale
+	    };
+    nearestSceneAsset = getNearestSceneAsset();
+	  }
 
-  function syncViewport() {
-    if (!stageEl) return;
-    viewportWidth = stageEl.clientWidth;
-    viewportHeight = stageEl.clientHeight;
-    cameraX = clamp(cameraX, 0, maxScrollX);
-    kitchenController?.resize();
+	  function syncViewport() {
+	    if (!stageEl) return;
+	    viewportWidth = stageEl.clientWidth;
+	    viewportHeight = stageEl.clientHeight;
+	    cameraX = clamp(cameraX, 0, maxScrollX);
+	    kitchenController?.resize();
+    schedulePhaserResize();
+	  }
+
+  function schedulePhaserResize() {
+    if (!kitchenPhaserGame || !viewportWidth || !viewportHeight) return;
+    if (phaserResizeTimer) clearTimeout(phaserResizeTimer);
+
+    phaserResizeTimer = setTimeout(() => {
+      kitchenPhaserGame?.resize(viewportWidth, viewportHeight);
+      phaserResizeTimer = undefined;
+    }, 100);
   }
 
   function scrollBy(delta: number) {
@@ -355,29 +382,38 @@
       .join(' ');
   }
 
-  function getAssetStyle(asset: SceneAsset) {
-    return getSceneAssetStyle(
-      asset,
-      cameraX,
-      sceneHeight,
-      sceneScale,
-      resolvedLayerSpeed,
-      tailStartX
-    );
+	  function getAssetStyle(asset: SceneAsset) {
+    const style = [
+      getSceneAssetStyle(asset, cameraX, sceneHeight, sceneScale, resolvedLayerSpeed, tailStartX)
+    ];
+
+    if (asset.opacity !== undefined) style.push(`opacity: ${asset.opacity}`);
+    if (asset.zOffset !== undefined) style.push(`--scene-z-offset: ${asset.zOffset}`);
+
+    return style.join(';');
+	  }
+
+  function getNearestSceneAsset() {
+    if (!hasPointerScenePosition) return undefined;
+
+    let nearest: { id: string; distance: number } | undefined;
+
+    for (const asset of kitchenConstructionObjectAssets) {
+      const x = tailAwareFigmaX(asset.x, asset.isTail, tailStartX) + asset.width / 2;
+      const y = asset.y + asset.height / 2;
+      const layerX = pointerSceneX[asset.layer as keyof typeof pointerSceneX];
+      if (layerX === undefined) continue;
+
+      const distance = Math.hypot(layerX - x, pointerSceneY - y);
+      if (!nearest || distance < nearest.distance) {
+        nearest = { id: asset.id, distance };
+      }
+    }
+
+    return nearest;
   }
 
-  function getFloorStyle() {
-    return [
-      `height: ${scenePx(floorHeight * sceneScale)}`,
-      `bottom: ${scenePx(floorBottomOffset * sceneScale)}`,
-      `background-size: ${scenePx(floorTileWidth * sceneScale)} ${scenePx(floorHeight * sceneScale)}`,
-      `background-position-x: ${scenePx(-cameraX)}`,
-      '--reveal-delay: 160ms',
-      '--reveal-duration: 320ms'
-    ].join(';');
-  }
-
-  function getInteractiveAssetStyle(asset: InteractiveSceneAsset) {
+	  function getInteractiveAssetStyle(asset: InteractiveSceneAsset) {
     const style = [getAssetStyle(asset)];
     const placement = asset.hoverDialoguePlacement;
     if (!placement) return style.join(';');
@@ -1379,12 +1415,45 @@
     syncReducedMotion();
     reducedMotionQuery.addEventListener('change', syncReducedMotion);
     resources.add(() => reducedMotionQuery.removeEventListener('change', syncReducedMotion));
-    resources.add(bridge.subscribe((state) => {
-      cameraX = state.cameraX;
-      narrativeProgress = state.progress;
-      activeChefId = state.activeChefId;
-    }));
-    resources.add(createViewportObserver(stageEl, syncViewport));
+	    resources.add(bridge.subscribe((state) => {
+	      cameraX = state.cameraX;
+	      narrativeProgress = state.progress;
+	      activeChefId = state.activeChefId;
+      kitchenPhaserGame?.setCameraX(state.cameraX);
+	    }));
+	    resources.add(createViewportObserver(stageEl, syncViewport));
+
+    if (browser && phaserContainerEl) {
+      import('$lib/kitchen/phaser/KitchenPhaserGame').then(({ createKitchenPhaserGame }) => {
+        if (destroyed || !phaserContainerEl) return;
+
+        createKitchenPhaserGame({
+          assetVersion: kitchenAssetVersion,
+          assets: kitchenConstructionObjectAssets,
+          chunks: kitchenConstructionChunks,
+          container: phaserContainerEl,
+          floorTopY: kitchenConstructionFloorTopY,
+          getViewport: () => ({ width: viewportWidth, height: viewportHeight }),
+          onLoadingProgress: (progress) => {
+            phaserLoadingProgress = progress;
+          },
+          onReady: () => {
+            isPhaserReady = true;
+          },
+          sceneHeight: kitchenConstructionSceneHeight
+        }).then((game) => {
+          if (destroyed) {
+            game?.destroy();
+            return;
+          }
+
+          kitchenPhaserGame = game;
+          kitchenPhaserGame?.setCameraX(cameraX);
+          schedulePhaserResize();
+          resources.add(() => kitchenPhaserGame?.destroy());
+        });
+      });
+    }
 
     void loadGsap().then((loadedGsap) => {
       if (destroyed) return;
@@ -1414,8 +1483,9 @@
     resources.addEventListener(window, 'keydown', onKeydown as EventListener);
     void startAmbientAudio();
 
-    return () => {
-      constructionAudioEl?.pause();
+	    return () => {
+      if (phaserResizeTimer) clearTimeout(phaserResizeTimer);
+	      constructionAudioEl?.pause();
       kitchenAmbientAudioEl?.pause();
       stopAllTestimonialAudio({ duration: 0, resetReplay: false });
       void toolShedAudioContext?.close();
@@ -1464,17 +1534,34 @@
         <dt>camera</dt>
         <dd>{coord(cameraX)}</dd>
       </div>
+	      <div>
+	        <dt>scale</dt>
+	        <dd>{coordDecimal(sceneScale)}</dd>
+	      </div>
       <div>
-        <dt>scale</dt>
-        <dd>{coordDecimal(sceneScale)}</dd>
+        <dt>near</dt>
+        <dd>{nearestSceneAsset ? nearestSceneAsset.id : '...'}</dd>
       </div>
-    </dl>
-  </aside>
+      <div>
+        <dt>dist</dt>
+        <dd>{nearestSceneAsset ? coord(nearestSceneAsset.distance) : '...'}</dd>
+      </div>
+	    </dl>
+		  </aside>
 
-  <div class="floor-layer reveal-layer" style={getFloorStyle()}></div>
-
-  {#each kitchenAssets as asset (asset.id)}
-    {#if asset.kind === 'interactive'}
+  {#if browser}
+    <div bind:this={phaserContainerEl} class="kitchen-phaser-layer" aria-hidden="true">
+      {#if !isPhaserReady}
+        <div class="kitchen-phaser-loader">
+          {Math.round(phaserLoadingProgress * 100)}%
+        </div>
+      {/if}
+    </div>
+  {/if}
+		
+  {#if showLegacyKitchenOverlays}
+	  {#each kitchenAssets as asset (asset.id)}
+	    {#if asset.kind === 'interactive'}
       <button
         class={getAssetClass(asset)}
         data-node-id={asset.nodeId}
@@ -1508,28 +1595,8 @@
           </span>
         {/if}
       </button>
-    {:else if asset.kind === 'gated'}
-      {#if narrativeProgress >= asset.visibleFrom && (!asset.visibleUntil || narrativeProgress <= asset.visibleUntil)}
-        <img
-          class={getAssetClass(asset)}
-          src={kitchenAsset(asset.src)}
-          alt=""
-          draggable="false"
-          data-node-id={asset.nodeId}
-          style={getAssetStyle(asset)}
-        />
-      {/if}
-    {:else}
-      <img
-        class={getAssetClass(asset)}
-        src={kitchenAsset(asset.src)}
-        alt=""
-        draggable="false"
-        data-node-id={asset.nodeId}
-        style={getAssetStyle(asset)}
-      />
-    {/if}
-  {/each}
+	    {/if}
+	  {/each}
 
   <h1 class="scene-title" style={getTitleStyle()} aria-label="Cucina">
     {#each titleLetters as letter, index}
@@ -1595,6 +1662,7 @@
       <img src={testimonial.imageSrc} alt={testimonial.imageAlt} draggable="false" />
     </div>
   {/each}
+  {/if}
 </section>
 
 <audio bind:this={toolShedAudioEl} src="/sound/toolbox.mp3" preload="auto"></audio>
@@ -1666,6 +1734,7 @@
   .kitchen-stage {
     position: relative;
     width: 100%;
+    height: 100svh;
     min-height: 100svh;
     overflow: hidden;
     background: var(--color-surface-page);
@@ -1678,11 +1747,41 @@
     outline: none;
   }
 
-  .kitchen-stage.is-dragging {
-    cursor: var(--kitchen-cursor);
+	  .kitchen-stage.is-dragging {
+	    cursor: var(--kitchen-cursor);
+	  }
+
+  .kitchen-phaser-layer {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
   }
 
-  .scene-coordinate-indicator {
+  .kitchen-phaser-layer :global(canvas) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .kitchen-phaser-loader {
+    position: absolute;
+    top: var(--layout-page-gutter);
+    left: var(--layout-page-gutter);
+    padding: 8px 10px;
+    border: 2px solid var(--color-border-primary);
+    border-radius: var(--radius-s);
+    background: rgb(248 243 233 / 0.9);
+    color: var(--color-text-primary);
+    font-family: var(--font-text);
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1;
+  }
+	
+	  .scene-coordinate-indicator {
     position: fixed;
     z-index: 130;
     top: calc(var(--layout-page-gutter) + 82px);

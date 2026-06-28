@@ -1,0 +1,7 @@
+{
+  "name": "Kitchen Asset Exporter",
+  "id": "kitchen-asset-exporter",
+  "api": "1.0.0",
+  "main": "export-assets.js",
+  "editorType": ["figma"]
+}

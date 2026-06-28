@@ -1,4 +1,4 @@
-export type SceneLayer = 'background' | 'middle' | 'foreground';
+export type SceneLayer = 'background' | 'middle' | 'foreground' | 'title' | 'chef';
 
 export type SceneAssetBase = {
   id: string;
@@ -23,6 +23,7 @@ export type SceneAssetBase = {
 
   zOffset?: number;
   opacity?: number;
+  interactive?: boolean;
 
   isTail?: boolean;
 };
@@ -55,3 +56,13 @@ export type ProgressGatedAsset = SceneAssetBase & {
 };
 
 export type SceneAsset = StaticSceneAsset | InteractiveSceneAsset | ProgressGatedAsset;
+
+export type SceneChunk = {
+  layer: SceneLayer;
+  frameIndex: number;
+  figmaX: number;
+  figmaY?: number;
+  figmaWidth: number;
+  figmaHeight?: number;
+  assetKey: string;
+};

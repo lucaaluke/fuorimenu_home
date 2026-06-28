@@ -9,20 +9,27 @@
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"kitchen:asset-config": "tsx scripts/generate-asset-config.ts",
+		"figma-plugin:build": "tsc src/figma-plugin/export-assets.ts --ignoreConfig --target ES2019 --module ESNext --lib ES2019 --types @figma/plugin-typings --outDir src/figma-plugin"
 	},
 	"devDependencies": {
+		"@figma/plugin-typings": "^1.130.0",
 		"@sveltejs/adapter-netlify": "^6.0.4",
 		"@sveltejs/kit": "^2.57.0",
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
 		"@types/node": "^25.7.0",
 		"svelte": "^5.55.2",
 		"svelte-check": "^4.4.6",
+		"tsx": "^4.22.4",
 		"typescript": "^6.0.2",
-		"vite": "^8.0.7"
+		"vite": "^8.0.7",
+		"vitest": "^4.1.9"
 	},
 	"dependencies": {
 		"gsap": "^3.15.0",
-		"phaser": "^4.1.0"
+		"phaser": "^4.2.0"
 	}
 }

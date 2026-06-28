@@ -1,11 +1,18 @@
-import type { SceneAsset } from '$lib/scene/scene-asset.types';
+import type { SceneAsset, SceneChunk } from '$lib/scene/scene-asset.types';
 
 export type KitchenChefId = 'carlo';
 
-export const kitchenAssetVersion = '20260624-scene-assets-27';
+export const kitchenAssetVersion = '20260624-scene-assets-28';
 
 const kitchenTailHeight = 1117;
 const kitchenTailY = -137;
+export const kitchenConstructionSceneHeight = 875;
+export const kitchenConstructionFloorTopY = 1801;
+const kitchenConstructionChunkHeight = 1330;
+const kitchenConstructionChunkY = 809.93;
+const kitchenConstructionFloorHeight = 333.18;
+const kitchenConstructionFloorTileWidth = kitchenConstructionFloorHeight;
+const kitchenConstructionFloorY = 2000;
 const toolShedMessage =
   'li devi trattare bene, devi dargli dei pasti molto caldi, magari dargli anche il tè o il caffè 24 ore al giorno';
 
@@ -215,6 +222,88 @@ const kitchenInteractiveMiddleAssets: SceneAsset[] = [
   }
 ];
 
+export const kitchenConstructionChunks: SceneChunk[] = [
+  {
+    layer: 'foreground',
+    frameIndex: 0,
+    figmaX: 0,
+    figmaY: kitchenConstructionChunkY,
+    figmaWidth: 2048,
+    figmaHeight: kitchenConstructionChunkHeight,
+    assetKey: 'fg-frame-00'
+  },
+  {
+    layer: 'foreground',
+    frameIndex: 1,
+    figmaX: 2048,
+    figmaY: kitchenConstructionChunkY,
+    figmaWidth: 2048,
+    figmaHeight: kitchenConstructionChunkHeight,
+    assetKey: 'fg-frame-01'
+  },
+  {
+    layer: 'foreground',
+    frameIndex: 2,
+    figmaX: 4096,
+    figmaY: kitchenConstructionChunkY,
+    figmaWidth: 2048,
+    figmaHeight: kitchenConstructionChunkHeight,
+    assetKey: 'fg-frame-02'
+  }
+];
+
+const kitchenConstructionFloorAssets: SceneAsset[] = Array.from(
+  { length: Math.ceil(6144 / kitchenConstructionFloorTileWidth) + 1 },
+  (_, index) => ({
+    id: `pavimento-${index.toString().padStart(2, '0')}`,
+    kind: 'static',
+    src: 'kitchen/objects/pavimento.png',
+    x: Number((index * kitchenConstructionFloorTileWidth).toFixed(2)),
+    y: kitchenConstructionFloorY,
+    width: kitchenConstructionFloorTileWidth,
+    height: kitchenConstructionFloorHeight,
+    layer: 'foreground',
+    zOffset: 1
+  })
+);
+
+export const kitchenConstructionObjectAssets: SceneAsset[] = [
+  ...kitchenConstructionFloorAssets,
+  {
+    id: 'cartello-stradale',
+    kind: 'static',
+    src: 'kitchen/objects/cartello-stradale.png',
+    x: 4504.66,
+    y: 1554.83,
+    width: 248,
+    height: 329.5,
+    layer: 'foreground',
+    zOffset: 8
+  },
+  {
+    id: 'cono',
+    kind: 'static',
+    src: 'kitchen/objects/cono.png',
+    x: 5837.38,
+    y: 1730.9,
+    width: 111.5,
+    height: 169.5,
+    layer: 'foreground',
+    zOffset: 9
+  },
+  {
+    id: 'sbarre',
+    kind: 'static',
+    src: 'kitchen/objects/sbarre.png',
+    x: 8567.8,
+    y: 1365.22,
+    width: 578.5,
+    height: 355.5,
+    layer: 'foreground',
+    zOffset: 7
+  }
+];
+
 export const kitchenAssets: SceneAsset[] = [
   {
     id: 'layer-bg',
@@ -264,8 +353,8 @@ export const kitchenAssets: SceneAsset[] = [
     layer: 'middle',
     isTail: true
   },
-  ...kitchenMiddleTailFurnitureAssets,
-  {
+	  ...kitchenMiddleTailFurnitureAssets,
+	  {
     id: 'tool-shed',
     kind: 'interactive',
     src: 'casetta_attrezzi_figma.svg',
