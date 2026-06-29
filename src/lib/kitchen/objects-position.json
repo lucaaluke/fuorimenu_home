@@ -1,0 +1,65 @@
+[
+  {
+    "name": "cartello-cantiere",
+    "x": 4415,
+    "y": 2080,
+    "width": 491,
+    "height": 654
+  },
+  {
+    "name": "cono_1",
+    "x": 5748,
+    "y": 2256,
+    "width": 223,
+    "height": 339
+  },
+  {
+    "name": "transenna",
+    "x": 8478,
+    "y": 1891,
+    "width": 1157,
+    "height": 711
+  },
+  {
+    "name": "cono_2",
+    "x": 9988,
+    "y": 2275,
+    "width": 223,
+    "height": 339
+  },
+  {
+    "name": "cono_3",
+    "x": 10304,
+    "y": 2199,
+    "width": 223,
+    "height": 339
+  },
+  {
+    "name": "cono_4",
+    "x": 10515,
+    "y": 2275,
+    "width": 223,
+    "height": 339
+  },
+  {
+    "name": "sabbia-pala",
+    "x": 12793,
+    "y": 1961,
+    "width": 1520,
+    "height": 899
+  },
+  {
+    "name": "cariola",
+    "x": 16498,
+    "y": 2080,
+    "width": 1120,
+    "height": 691
+  },
+  {
+    "name": "mattoni-pila",
+    "x": 18887,
+    "y": 2470,
+    "width": 868,
+    "height": 243
+  }
+]
