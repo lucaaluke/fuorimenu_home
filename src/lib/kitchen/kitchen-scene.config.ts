@@ -6,7 +6,7 @@ export const kitchenAssetVersion = '20260624-scene-assets-28';
 
 const kitchenTailHeight = 1117;
 const kitchenTailY = -137;
-export const kitchenConstructionSceneHeight = 875;
+export const kitchenConstructionSceneHeight = 1330;
 export const kitchenConstructionFloorTopY = 1801;
 const kitchenConstructionChunkHeight = 1330;
 const kitchenConstructionFloorHeight = 133.18;
