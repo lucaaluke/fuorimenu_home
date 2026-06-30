@@ -728,6 +728,13 @@
     resetRoleCard(index);
 
     const rect = card.getBoundingClientRect();
+    const roleCardTop = card.querySelector<HTMLElement>('.role-card-top');
+    const roleCardRadius = roleCardTop
+      ? getComputedStyle(roleCardTop).borderTopLeftRadius
+      : getComputedStyle(card).borderTopLeftRadius;
+    const viewportOverscan = 80;
+    const horizontalTop = rect.top - 4;
+    const horizontalHeight = rect.height + 8;
     const clone = card.cloneNode(true) as HTMLElement;
     clone.removeAttribute('href');
     clone.setAttribute('aria-hidden', 'true');
@@ -772,7 +779,8 @@
       '--role-dialogue-x': '0px',
       '--role-dialogue-y': '0px',
       '--role-person-x': '0px',
-      '--role-person-y': '0px'
+      '--role-person-y': '0px',
+      '--role-card-radius': roleCardRadius
     });
     gsap.set(bg, { opacity: 1, filter: 'grayscale(1) opacity(0.42)', scale: 1.04 });
     gsap.set([copy, hoverPanel, person], { opacity: 0 });
@@ -792,21 +800,42 @@
     );
 
     cardEnterTween
-      .to(pageFade, { opacity: 1, duration: 0.16, ease: 'power2.out' }, 0)
+      .to(pageFade, { opacity: 1, duration: 0.18, ease: 'power2.out' }, 0)
       .set([bg, copy, hoverPanel, person], { opacity: 0 }, 0.02)
       .to(
         clone,
         {
-          left: -96,
-          top: -96,
-          width: window.innerWidth + 192,
-          height: window.innerHeight + 192,
-          borderRadius: 0,
-          duration: 0.62
+          y: -12,
+          scale: 1.012,
+          duration: 0.18,
+          ease: 'back.out(1.25)'
         },
         0
       )
-      .to(clone, { boxShadow: '0 0 0 rgb(42 68 132 / 0)', duration: 0.32 }, 0);
+      .to(clone, { y: 0, scale: 1, duration: 0.16, ease: 'power2.out' }, 0.16)
+      .to(
+        clone,
+        {
+          left: -viewportOverscan,
+          top: horizontalTop,
+          width: window.innerWidth + viewportOverscan * 2,
+          height: horizontalHeight,
+          duration: 0.56,
+          ease: 'power4.inOut'
+        },
+        0.18
+      )
+      .to(
+        clone,
+        {
+          top: -viewportOverscan,
+          height: window.innerHeight + viewportOverscan * 2,
+          duration: 0.58,
+          ease: 'power4.inOut'
+        },
+        0.68
+      )
+      .to(clone, { boxShadow: '0 0 0 rgb(42 68 132 / 0)', duration: 0.34 }, 0);
   }
 
   function revealIntroLetters() {
@@ -1636,31 +1665,34 @@
         onclick={closeAbout}
       >
         <span class="topbar-control-content" aria-hidden="true">
-          <span class="close-icon"></span>
+          <span class="menu-icon"></span>
         </span>
       </button>
     </header>
 
-    <div class="about-copy" data-node-id="256:1831">
-      <h2 id="about-title" class="visually-hidden">About Fuorimenù</h2>
-      <p>
-        Questo progetto nasce nel corso di Web Design del Politecnico di Milano con l'obiettivo di raccontare il ruolo delle persone che, attraverso la cultura alimentare italiana, hanno contribuito a Milano Cortina 2026.
-      </p>
-      <p>
-        In un'esperienza digitale immersiva, il progetto esplora il lavoro di chi ha operato dietro le quinte dei Giochi Olimpici - chef, organizzatori e team di ristorazione - mettendo in luce il legame profondo tra tradizione culinaria italiana e performance sportiva.
-      </p>
-      <p>
-        Il racconto si basa sulle testimonianze e le storie reali delle persone che hanno preso parte alla cucina olimpica, portando ogni giorno sulle tavole degli atleti il meglio della gastronomia italiana.
-      </p>
+    <h2 id="about-title" class="visually-hidden">About Fuorimenù</h2>
+    <div class="about-gate-grid" aria-label="Argomenti about" data-node-id="381:155">
+      <button class="about-gate-section" type="button" data-node-id="381:277">
+        <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
+          <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
+        </span>
+        <span class="about-gate-title">PROGETTO</span>
+        <span class="about-gate-subtitle">Concept e team</span>
+        <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
+          <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
+        </span>
+      </button>
+      <button class="about-gate-section" type="button" data-node-id="381:308">
+        <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
+          <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
+        </span>
+        <span class="about-gate-title">INTERVISTE</span>
+        <span class="about-gate-subtitle">Archivio dei contenuti</span>
+        <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
+          <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
+        </span>
+      </button>
     </div>
-
-    <img
-      class="polimi-logo"
-      src="/images/politecnico-bianco.png"
-      alt="Politecnico Milano 1863"
-      data-node-id="256:1835"
-      draggable="false"
-    />
   </section>
 {/if}
 
@@ -2461,14 +2493,17 @@
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     width: 100%;
-    height: var(--layout-topbar-height);
-    padding: var(--layout-topbar-padding);
+    height: 136px;
+    padding: 0 var(--layout-page-gutter);
   }
 
-  .about-logo,
-  .about-audio,
-  .about-close {
-    color: var(--color-text-primary);
+  .about-top-bar .logo,
+  .about-top-bar .icon-button {
+    --topbar-control-bg: var(--color-text-primary);
+    --topbar-control-fg: var(--color-surface-page);
+    --topbar-control-hover-bg: var(--color-text-primary);
+    --topbar-control-hover-fg: var(--color-surface-page);
+    --topbar-control-depth: var(--color-surface-page);
   }
 
   .about-logo {
@@ -2481,7 +2516,7 @@
   .about-audio:focus-visible,
   .about-close:hover,
   .about-close:focus-visible {
-    color: var(--color-text-primary);
+    color: var(--color-surface-page);
   }
 
   .about-audio {
@@ -2492,33 +2527,158 @@
     justify-self: end;
   }
 
-  .about-copy {
+  .about-gate-grid {
     position: absolute;
-    top: 132px;
-    left: var(--layout-page-gutter);
+    inset: 136px 0 0;
     box-sizing: border-box;
-    width: min(779px, calc(100vw - var(--spacing-13)));
-    max-height: calc(100svh - 250px);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-height: 0;
+  }
+
+  .about-gate-section {
+    --about-word-width: clamp(330px, 66%, 500px);
+
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-width: 0;
+    min-height: 0;
+    padding: clamp(64px, 9vw, 128px) 28px;
+    border: 0;
+    background: transparent;
+    color: var(--color-surface-page);
+    text-align: center;
+    cursor: url('/cursors/retrogusto-cursor-light.svg') 5 5, pointer;
+    isolation: isolate;
     overflow: hidden;
-    color: var(--color-text-inverse);
-    font-family: var(--font-text);
-    font-size: clamp(18px, 1.45vw, 21px);
-    font-weight: 400;
-    line-height: 1.42;
   }
 
-  .about-copy p {
-    margin: 0 0 1.12em;
+  .about-gate-section[data-node-id='381:308'] {
+    --about-word-width: clamp(372px, 74%, 558px);
   }
 
-  .polimi-logo {
+  .about-gate-section::before {
     position: absolute;
-    left: var(--layout-page-gutter);
-    bottom: var(--spacing-8);
-    width: min(250px, 36vw);
-    height: auto;
+    inset: 0;
+    z-index: -1;
+    background: var(--brand-700);
+    content: '';
+    opacity: 0;
+    transition:
+      opacity 180ms ease,
+      transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .about-gate-section:hover::before,
+  .about-gate-section:focus-visible::before {
+    opacity: 1;
+  }
+
+  .about-gate-section:focus-visible {
+    outline: 2px solid var(--color-surface-page);
+    outline-offset: -10px;
+  }
+
+  .about-gate-title {
+    position: relative;
+    z-index: 2;
+    display: block;
+    max-width: 100%;
+    color: currentColor;
+    font-family: var(--font-display);
+    font-size: clamp(52px, 6.35vw, 96px);
+    font-weight: 700;
+    line-height: 1.08;
+    overflow-wrap: anywhere;
+  }
+
+  .about-gate-subtitle {
+    position: relative;
+    z-index: 2;
+    display: block;
+    color: currentColor;
+    font-family: var(--font-text);
+    font-size: clamp(16px, 1.58vw, 24px);
+    font-weight: 400;
+    line-height: 1.34;
+  }
+
+  .about-gate-utensil {
+    position: absolute;
+    z-index: 1;
+    display: block;
+    opacity: 0;
     user-select: none;
     pointer-events: none;
+    transition:
+      opacity 220ms ease,
+      transform 560ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+  }
+
+  .about-gate-utensil img {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    display: block;
+    object-fit: contain;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .about-gate-fork {
+    --about-utensil-length: clamp(470px, 52.5vw, 760px);
+
+    top: clamp(50px, 8vh, 86px);
+    left: calc(50% + var(--about-word-width) / 2);
+    width: var(--about-utensil-length);
+    height: calc(var(--about-utensil-length) * 150.086 / 844.959);
+    transform: translate3d(-200%, 0, 0) scaleX(0.96);
+    transform-origin: 100% 50%;
+  }
+
+  .about-gate-fork img {
+    width: calc(var(--about-utensil-length) * 150.086 / 844.959);
+    height: var(--about-utensil-length);
+    transform:
+      translate3d(-50%, -50%, 0)
+      rotate(90deg);
+  }
+
+  .about-gate-knife {
+    --about-utensil-length: clamp(532px, 57vw, 855px);
+
+    left: calc(50% - var(--about-word-width) / 2);
+    bottom: clamp(52px, 8vh, 88px);
+    width: var(--about-utensil-length);
+    height: calc(var(--about-utensil-length) * 134.155 / 1130.78);
+    transform: translate3d(100%, 0, 0) scaleX(0.96);
+    transform-origin: 0 50%;
+  }
+
+  .about-gate-knife img {
+    width: calc(var(--about-utensil-length) * 134.155 / 1130.78);
+    height: var(--about-utensil-length);
+    transform:
+      translate3d(-50%, -50%, 0)
+      rotate(-90deg);
+  }
+
+  .about-gate-section:hover .about-gate-fork,
+  .about-gate-section:focus-visible .about-gate-fork {
+    opacity: 1;
+    transform: translate3d(-100%, 0, 0) scaleX(0.96);
+  }
+
+  .about-gate-section:hover .about-gate-knife,
+  .about-gate-section:focus-visible .about-gate-knife {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scaleX(0.96);
   }
 
   .visually-hidden {
@@ -3248,23 +3408,43 @@
     .audio-gate-button-frame {
       min-width: 132px;
     }
-    .about-top-bar { height: var(--layout-topbar-height-mobile); padding: var(--layout-topbar-padding-mobile); }
+    .about-top-bar {
+      height: var(--layout-topbar-height-mobile);
+      padding: var(--layout-topbar-padding-mobile);
+    }
+    .about-top-bar .logo {
+      font-size: 24px;
+    }
     .logo         { font-size: 34px; }
     .close-icon,
     .close-icon::before { width: 22px; }
-    .about-copy {
-      top: 132px;
-      left: var(--layout-page-gutter-mobile);
-      width: calc(100vw - var(--spacing-8));
-      max-height: calc(100svh - 220px);
-      font-size: 13px;
-      line-height: 1.35;
+    .about-gate-grid {
+      inset: var(--layout-topbar-height-mobile) 0 0;
+      grid-template-columns: 1fr;
+      grid-template-rows: repeat(2, minmax(0, 1fr));
     }
-    .about-copy p { margin-bottom: 0.95em; }
-    .polimi-logo {
-      left: var(--layout-page-gutter-mobile);
-      bottom: var(--spacing-5);
-      width: min(180px, 48vw);
+    .about-gate-section {
+      --about-word-width: clamp(258px, 74vw, 338px);
+
+      gap: 8px;
+      padding: 32px var(--layout-page-gutter-mobile);
+    }
+    .about-gate-section[data-node-id='381:308'] {
+      --about-word-width: clamp(286px, 80vw, 364px);
+    }
+    .about-gate-title {
+      font-size: clamp(42px, 14vw, 58px);
+    }
+    .about-gate-subtitle {
+      font-size: 15px;
+    }
+    .about-gate-fork {
+      --about-utensil-length: clamp(288px, 82vw, 470px);
+      top: clamp(20px, 4.5vh, 38px);
+    }
+    .about-gate-knife {
+      --about-utensil-length: clamp(322px, 91vw, 532px);
+      bottom: clamp(18px, 4.5vh, 38px);
     }
     .intro        { padding: var(--layout-page-gutter-mobile); }
     .persistent-top-audio { top: calc(var(--unit-24) + var(--unit-4)); }

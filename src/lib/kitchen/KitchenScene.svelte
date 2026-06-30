@@ -441,10 +441,10 @@
 
   function getTestimonialBubbleCopyHeight() {
     if (viewportWidth <= 760) {
-      return 106;
+      return 142;
     }
 
-    return 132;
+    return 172;
   }
 
   function getTestimonialBubbleMetaHeight() {
@@ -519,9 +519,13 @@
     const bubbleWidth = getTestimonialBubbleWidth();
     const fontSize = isMobile ? 13 : 15;
     const horizontalPadding = isMobile ? 36 : 40;
+    const verticalPadding = isMobile ? 36 : 34;
+    const pageControlsHeight = isMobile ? 34 : 38;
+    const pageControlsGap = isMobile ? 8 : 10;
     const copyHeight = getTestimonialBubbleCopyHeight();
     const lineHeight = fontSize * 1.34;
-    const lines = Math.max(3, Math.floor(copyHeight / lineHeight) - 1);
+    const textHeight = copyHeight - verticalPadding - pageControlsHeight - pageControlsGap;
+    const lines = Math.max(3, Math.floor(textHeight / lineHeight));
     const charactersPerLine = Math.max(
       18,
       Math.floor((bubbleWidth - horizontalPadding) / (fontSize * 0.56))
@@ -590,6 +594,19 @@
     return clamp(mutedTestimonialPageIndex[testimonial.id], 0, Math.max(pages.length - 1, 0));
   }
 
+  function getVisibleTestimonialPageIndex(testimonial: KitchenTestimonial) {
+    const pages = getTestimonialSpeechPages(testimonial);
+    if (isAudioMuted || !testimonial.revealSpeechWithAudio) {
+      return getMutedTestimonialPageIndex(testimonial);
+    }
+
+    const normalizedSpeech = pages.join(' ');
+    const characterOffset =
+      normalizedSpeech.length * testimonialRevealProgress[testimonial.id];
+
+    return getPageIndexForCharacterOffset(pages, characterOffset);
+  }
+
   function getMutedTestimonialResumeInfo(testimonial: KitchenTestimonial) {
     const pages = paginateTestimonialSpeech(getMutedResumeSpeech(testimonial));
     const pageIndex = clamp(mutedTestimonialPageIndex[testimonial.id], 0, Math.max(pages.length - 1, 0));
@@ -646,31 +663,45 @@
     );
   }
 
-  function hasNextMutedTestimonialPage(testimonial: KitchenTestimonial) {
-    return isAudioMuted && getMutedTestimonialPageIndex(testimonial) < getTestimonialSpeechPages(testimonial).length - 1;
+  function hasNextTestimonialPage(testimonial: KitchenTestimonial) {
+    return getVisibleTestimonialPageIndex(testimonial) < getTestimonialSpeechPages(testimonial).length - 1;
   }
 
-  function hasPreviousMutedTestimonialPage(testimonial: KitchenTestimonial) {
-    return isAudioMuted && getMutedTestimonialPageIndex(testimonial) > 0;
+  function hasPreviousTestimonialPage(testimonial: KitchenTestimonial) {
+    return getVisibleTestimonialPageIndex(testimonial) > 0;
   }
 
-  function advanceMutedTestimonialPage(event: PointerEvent | MouseEvent, testimonial: KitchenTestimonial) {
-    event.stopPropagation();
+  function setTestimonialPage(testimonial: KitchenTestimonial, pageIndex: number) {
     const pages = getTestimonialSpeechPages(testimonial);
-    mutedTestimonialPageIndex[testimonial.id] = clamp(
-      mutedTestimonialPageIndex[testimonial.id] + 1,
-      0,
-      Math.max(pages.length - 1, 0)
-    );
+    const nextPageIndex = clamp(pageIndex, 0, Math.max(pages.length - 1, 0));
+
+    if (isAudioMuted || !testimonial.revealSpeechWithAudio) {
+      mutedTestimonialPageIndex[testimonial.id] = nextPageIndex;
+      return;
+    }
+
+    const pageStart = getPageStartCharacterIndex(pages, nextPageIndex);
+    const normalizedSpeech = pages.join(' ');
+    const progress = clamp(pageStart / Math.max(normalizedSpeech.length, 1), 0, 0.98);
+    const isFaustoSecondPart = testimonial.id === 'fausto' && faustoSpeechPart === 2;
+    const audio = isFaustoSecondPart ? fausto2AudioEl : getTestimonialAudioEl(testimonial);
+
+    testimonialRevealProgress[testimonial.id] = progress;
+    if (!audio) return;
+
+    audio.currentTime = getAudioTimeForRevealProgress(testimonial, audio, progress, {
+      secondPart: isFaustoSecondPart
+    });
   }
 
-  function rewindMutedTestimonialPage(event: PointerEvent | MouseEvent, testimonial: KitchenTestimonial) {
+  function advanceTestimonialPage(event: Event, testimonial: KitchenTestimonial) {
     event.stopPropagation();
-    mutedTestimonialPageIndex[testimonial.id] = clamp(
-      mutedTestimonialPageIndex[testimonial.id] - 1,
-      0,
-      Math.max(getTestimonialSpeechPages(testimonial).length - 1, 0)
-    );
+    setTestimonialPage(testimonial, getVisibleTestimonialPageIndex(testimonial) + 1);
+  }
+
+  function rewindTestimonialPage(event: Event, testimonial: KitchenTestimonial) {
+    event.stopPropagation();
+    setTestimonialPage(testimonial, getVisibleTestimonialPageIndex(testimonial) - 1);
   }
 
   function getCurrentSpeechPageInfo(testimonial: KitchenTestimonial) {
@@ -709,6 +740,11 @@
 
   function getHighlightedSpeech(testimonial: KitchenTestimonial) {
     return getCurrentSpeechPageInfo(testimonial).highlightedSpeech;
+  }
+
+  function getPendingSpeech(testimonial: KitchenTestimonial) {
+    const { highlightedSpeech, speech } = getCurrentSpeechPageInfo(testimonial);
+    return speech.slice(highlightedSpeech.length);
   }
 
   function isSpeechHighlightedWithAudio(testimonial: KitchenTestimonial) {
@@ -1539,6 +1575,10 @@
 
   {#each kitchenTestimonials as testimonial (testimonial.id)}
     {@const isDialogueVisible = isTestimonialDialogueVisible(testimonial)}
+    {@const speechPages = getTestimonialSpeechPages(testimonial)}
+    {@const speechPageCount = speechPages.length}
+    {@const visibleSpeechPageIndex = getVisibleTestimonialPageIndex(testimonial)}
+    {@const hasSpeechPageControls = speechPageCount > 1}
     <div
       class="chef-button"
       class:is-dialogue-visible={isDialogueVisible}
@@ -1551,11 +1591,76 @@
       onkeydown={(event) => onTestimonialKeydown(event, testimonial)}
     >
       <span class="speech-bubble" aria-hidden={!isDialogueVisible} data-node-id="3772:1119">
-        <span class="speech-bubble-copy" aria-label={getVisibleSpeech(testimonial)}>
+        <span
+          class={`speech-bubble-copy${hasSpeechPageControls ? ' has-page-controls' : ''}`}
+          aria-label={getVisibleSpeech(testimonial)}
+        >
+          {#if hasSpeechPageControls}
+            <span
+              class="speech-bubble-page-controls"
+              aria-label={`Dialogo ${visibleSpeechPageIndex + 1} di ${speechPageCount} per ${testimonial.name}`}
+              data-node-id="4890:3921"
+            >
+              <button
+                class="speech-bubble-page-button speech-bubble-page-button-prev"
+                type="button"
+                aria-label={`Dialogo precedente di ${testimonial.name}`}
+                disabled={!hasPreviousTestimonialPage(testimonial)}
+                onpointerdown={(event) => event.stopPropagation()}
+                onclick={(event) => rewindTestimonialPage(event, testimonial)}
+              >
+                <svg
+                  class="speech-bubble-page-icon"
+                  viewBox="0 0 52 52"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    class="speech-bubble-page-icon-depth"
+                    d="M14.1 22.5 Q8 26 14.1 29.5 L34.9 41.5 Q41 45 41 38 L41 14 Q41 7 34.9 10.5 Z"
+                  />
+                  <path
+                    class="speech-bubble-page-icon-face"
+                    d="M14.1 22.5 Q8 26 14.1 29.5 L34.9 41.5 Q41 45 41 38 L41 14 Q41 7 34.9 10.5 Z"
+                  />
+                </svg>
+              </button>
+              <span class="speech-bubble-page-counter" aria-hidden="true">
+                {visibleSpeechPageIndex + 1}/{speechPageCount}
+              </span>
+              <button
+                class="speech-bubble-page-button speech-bubble-page-button-next"
+                type="button"
+                aria-label={`Dialogo successivo di ${testimonial.name}`}
+                disabled={!hasNextTestimonialPage(testimonial)}
+                onpointerdown={(event) => event.stopPropagation()}
+                onclick={(event) => advanceTestimonialPage(event, testimonial)}
+              >
+                <svg
+                  class="speech-bubble-page-icon"
+                  viewBox="0 0 52 52"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    class="speech-bubble-page-icon-depth"
+                    d="M37.9 22.5 Q44 26 37.9 29.5 L17.1 41.5 Q11 45 11 38 L11 14 Q11 7 17.1 10.5 Z"
+                  />
+                  <path
+                    class="speech-bubble-page-icon-face"
+                    d="M37.9 22.5 Q44 26 37.9 29.5 L17.1 41.5 Q11 45 11 38 L11 14 Q11 7 17.1 10.5 Z"
+                  />
+                </svg>
+              </button>
+            </span>
+          {/if}
           {#if isSpeechHighlightedWithAudio(testimonial)}
             <span class="speech-bubble-text speech-bubble-text-audio" aria-hidden="true">
-              <span class="speech-bubble-text-base">{getVisibleSpeech(testimonial)}</span>
-              <span class="speech-bubble-text-progress">{getHighlightedSpeech(testimonial)}</span>
+              <span class="speech-bubble-text-line">
+                <span class="speech-bubble-text-progress">{getHighlightedSpeech(testimonial)}</span><span
+                  class="speech-bubble-text-pending">{getPendingSpeech(testimonial)}</span
+                >
+              </span>
             </span>
           {:else}
             <span class="speech-bubble-text">{getVisibleSpeech(testimonial)}</span>
@@ -1566,30 +1671,6 @@
             <span>{testimonial.rolePrefix}</span>
             <strong>{testimonial.name}</strong>
           </span>
-          {#if isAudioMuted && getTestimonialSpeechPages(testimonial).length > 1}
-            <span class="speech-bubble-page-controls" aria-label="Navigazione testo">
-              <button
-                class="speech-bubble-page-button"
-                type="button"
-                aria-label={`Indietro nel testo di ${testimonial.name}`}
-                disabled={!hasPreviousMutedTestimonialPage(testimonial)}
-                onpointerdown={(event) => rewindMutedTestimonialPage(event, testimonial)}
-                onclick={(event) => event.stopPropagation()}
-              >
-                ind
-              </button>
-              <button
-                class="speech-bubble-page-button"
-                type="button"
-                aria-label={`Avanti nel testo di ${testimonial.name}`}
-                disabled={!hasNextMutedTestimonialPage(testimonial)}
-                onpointerdown={(event) => advanceMutedTestimonialPage(event, testimonial)}
-                onclick={(event) => event.stopPropagation()}
-              >
-                av
-              </button>
-            </span>
-          {/if}
         </span>
       </span>
       <img src={testimonial.imageSrc} alt={testimonial.imageAlt} draggable="false" />
@@ -1927,27 +2008,43 @@
     will-change: clip-path;
   }
 
+  .speech-bubble-copy.has-page-controls {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 14px 20px 20px;
+  }
+
   .speech-bubble-text {
     position: relative;
     display: block;
     width: 100%;
   }
 
+  .speech-bubble-copy.has-page-controls .speech-bubble-text {
+    flex: 1;
+    display: grid;
+    align-items: center;
+    min-height: 0;
+  }
+
   .speech-bubble-text-audio {
     color: color-mix(in srgb, var(--color-text-primary) 38%, var(--color-surface-page));
   }
 
-  .speech-bubble-text-base {
+  .speech-bubble-text-line {
     display: block;
   }
 
   .speech-bubble-text-progress {
-    position: absolute;
-    inset: 0;
-    display: block;
     color: var(--color-text-primary);
     white-space: inherit;
-    pointer-events: none;
+  }
+
+  .speech-bubble-text-pending {
+    color: color-mix(in srgb, var(--color-text-primary) 38%, var(--color-surface-page));
+    white-space: inherit;
   }
 
   .speech-bubble-meta {
@@ -1983,41 +2080,101 @@
   }
 
   .speech-bubble-page-controls {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 4px;
-    margin-left: auto;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 24px;
+    color: var(--color-text-primary);
+    line-height: 1;
     pointer-events: auto;
   }
 
   .speech-bubble-page-button {
-    display: inline-flex;
+    --page-arrow-depth-y: 2px;
+    --page-arrow-lift-y: 0px;
+    --page-arrow-depth-opacity: 0;
+
+    position: relative;
+    display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 26px;
-    height: 20px;
-    padding: 0 5px;
-    border: 1px solid var(--color-surface-page);
-    border-radius: 4px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
     background: transparent;
-    color: var(--color-surface-page);
-    font-family: var(--font-text);
-    font-size: 9px;
-    font-weight: 800;
-    line-height: 1;
+    color: currentColor;
     cursor: var(--kitchen-pointer-cursor);
+    transition:
+      opacity 140ms ease,
+      transform 210ms cubic-bezier(0.18, 1.35, 0.28, 1);
+  }
+
+  .speech-bubble-page-icon {
+    display: block;
+    width: 24px;
+    height: 24px;
+    overflow: visible;
+  }
+
+  .speech-bubble-page-icon-depth,
+  .speech-bubble-page-icon-face {
+    stroke: currentColor;
+    stroke-width: 2.6;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    transition:
+      opacity 140ms ease,
+      transform 210ms cubic-bezier(0.18, 1.35, 0.28, 1);
+  }
+
+  .speech-bubble-page-icon-depth {
+    fill: currentColor;
+    opacity: var(--page-arrow-depth-opacity);
+    transform: translateY(var(--page-arrow-depth-y));
+  }
+
+  .speech-bubble-page-icon-face {
+    fill: var(--color-surface-page);
+    transform: translateY(var(--page-arrow-lift-y));
+  }
+
+  .speech-bubble-page-counter {
+    min-width: 34px;
+    color: currentColor;
+    font-family: var(--font-text);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
   }
 
   .speech-bubble-page-button:hover,
   .speech-bubble-page-button:focus-visible {
-    background: var(--color-surface-page);
-    color: var(--color-border-primary);
+    --page-arrow-lift-y: calc(var(--page-arrow-depth-y) * -1);
+    --page-arrow-depth-opacity: 1;
+
     outline: none;
   }
 
+  .speech-bubble-page-button:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
   .speech-bubble-page-button:disabled {
-    opacity: 0.38;
+    opacity: 0.28;
     cursor: default;
+  }
+
+  .speech-bubble-page-button:disabled:hover,
+  .speech-bubble-page-button:disabled:focus-visible {
+    --page-arrow-lift-y: 0px;
+    --page-arrow-depth-opacity: 0;
   }
 
   .speech-bubble-meta strong {
@@ -2953,6 +3110,38 @@
       padding: 18px 18px;
       border-width: 2px;
       font-size: 13px;
+    }
+
+    .speech-bubble-copy.has-page-controls {
+      gap: 8px;
+      padding: 12px 18px 16px;
+    }
+
+    .speech-bubble-page-controls {
+      gap: 7px;
+      min-height: 22px;
+    }
+
+    .speech-bubble-page-button {
+      --page-arrow-depth-y: 1.5px;
+
+      width: 26px;
+      height: 26px;
+    }
+
+    .speech-bubble-page-icon {
+      width: 22px;
+      height: 22px;
+    }
+
+    .speech-bubble-page-icon-depth,
+    .speech-bubble-page-icon-face {
+      stroke-width: 2.8;
+    }
+
+    .speech-bubble-page-counter {
+      min-width: 32px;
+      font-size: 15px;
     }
 
     .speech-bubble-meta {
