@@ -33,6 +33,7 @@
   let audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
   let isBrandWordSharp = $state(false);
   let isAboutOpen = $state(false);
+  let aboutView = $state<'gate' | 'interviews'>('gate');
   let aboutScreenEl = $state<HTMLElement>();
   let gsap: Gsap;
   let flowTween: ReturnType<Gsap['to']> | undefined;
@@ -55,6 +56,30 @@
     personFillSrc?: string;
     personFillNodeId?: string;
     href?: string;
+  };
+  type InterviewFacePiece = {
+    src: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    maskSrc?: string;
+    maskX?: number;
+    maskY?: number;
+    maskSize?: number;
+  };
+  type InterviewChef = {
+    number: string;
+    name: string;
+    nameHeight: number;
+    faceWidth: number;
+    faceHeight: number;
+    pieces: InterviewFacePiece[];
+    featuredHover?: {
+      role: string;
+      description: string;
+      bodySrc: string;
+    };
   };
 
   const roleAudio: Record<AudioRole, AudioCueConfig> = {
@@ -89,6 +114,94 @@
     loop: true
   };
   const roleAudioEntries = audioRoles.map((role) => ({ role, config: roleAudio[role] }));
+  const interviewAssetBase = '/assets/interviews/';
+  const interviewChefs: InterviewChef[] = [
+    {
+      number: '01',
+      name: 'Stefano Paganini',
+      nameHeight: 231,
+      faceWidth: 85,
+      faceHeight: 85,
+      featuredHover: {
+        role: 'Executive Chef',
+        description:
+          'Lo chef piemontese ha fatto parte del team incaricato della ristorazione olimpica internazionale a Livigno.',
+        bodySrc: '/assets/interviews-hover/stefano-paganini-figma.svg'
+      },
+      pieces: [
+        { src: 'stefano-ring.svg', x: -1.31, y: -1.31, width: 87.62, height: 87.62 },
+        { src: 'stefano-layer-1.svg', x: -16.75, y: 6.44, width: 104.62, height: 341.98, maskSrc: 'stefano-mask.svg', maskX: 18.67, maskY: -4.51, maskSize: 83.07 },
+        { src: 'stefano-layer-2.svg', x: -16.75, y: 23.42, width: 105.35, height: 325.36, maskSrc: 'stefano-mask.svg', maskX: 18.67, maskY: -21.48, maskSize: 83.07 }
+      ]
+    },
+    {
+      number: '02',
+      name: 'Carlo Zarri',
+      nameHeight: 231,
+      faceWidth: 86,
+      faceHeight: 87,
+      pieces: [
+        { src: 'zarri-ring.svg', x: -0.31, y: 0.69, width: 87.62, height: 87.62 },
+        { src: 'zarri-layer-1.svg', x: -3.0, y: 9.0, width: 113.98, height: 341.71, maskSrc: 'zarri-mask.svg', maskX: 1.69, maskY: -10.31, maskSize: 87.62 },
+        { src: 'zarri-layer-2.svg', x: -3.0, y: 9.02, width: 114.72, height: 342.37, maskSrc: 'zarri-mask.svg', maskX: 1.69, maskY: -10.33, maskSize: 87.62 }
+      ]
+    },
+    {
+      number: '03',
+      name: 'Elisabetta Salvadori',
+      nameHeight: 288,
+      faceWidth: 85,
+      faceHeight: 86,
+      pieces: [
+        { src: 'salvadori-ring.svg', x: -1.31, y: -0.31, width: 87.62, height: 87.62 },
+        { src: 'salvadori-layer-1.svg', x: -5.0, y: 7.0, width: 100.93, height: 389.82, maskSrc: 'salvadori-mask.svg', maskX: 3.69, maskY: -8.31, maskSize: 87.62 },
+        { src: 'salvadori-layer-2.svg', x: -5.0, y: 7.04, width: 101.83, height: 390.59, maskSrc: 'salvadori-mask.svg', maskX: 3.69, maskY: -8.35, maskSize: 87.62 },
+        { src: 'salvadori-eye-1.svg', x: 37.53, y: 29.66, width: 10.17, height: 3.64, maskSrc: 'salvadori-mask.svg', maskX: -38.83, maskY: -30.97, maskSize: 87.62 },
+        { src: 'salvadori-eye-2.svg', x: 55.56, y: 28.57, width: 9.53, height: 2.62, maskSrc: 'salvadori-mask.svg', maskX: -56.86, maskY: -29.88, maskSize: 87.62 }
+      ]
+    },
+    {
+      number: '04',
+      name: 'Fausto Meli',
+      nameHeight: 288,
+      faceWidth: 85,
+      faceHeight: 87,
+      pieces: [
+        { src: 'meli-ring.svg', x: -1.31, y: 0.69, width: 87.62, height: 87.62 },
+        { src: 'meli-layer-1.svg', x: -14.0, y: 6.0, width: 113.98, height: 365.62, maskSrc: 'meli-mask.svg', maskX: 12.69, maskY: -7.31, maskSize: 87.62 },
+        { src: 'meli-layer-2.svg', x: -13.97, y: 6.0, width: 114.73, height: 366.36, maskSrc: 'meli-mask.svg', maskX: 12.66, maskY: -7.31, maskSize: 87.62 }
+      ]
+    },
+    {
+      number: '05',
+      name: 'Marco Frassante',
+      nameHeight: 288,
+      faceWidth: 85,
+      faceHeight: 85,
+      pieces: [{ src: 'frassante-face.svg', x: -1.31, y: -1.31, width: 87.62, height: 87.62 }]
+    },
+    {
+      number: '06',
+      name: 'Carlo Cracco',
+      nameHeight: 288,
+      faceWidth: 85,
+      faceHeight: 87,
+      pieces: [{ src: 'cracco-face.svg', x: -1.31, y: 0, width: 87.62, height: 88.31 }]
+    },
+    {
+      number: '07',
+      name: 'Ken Frank',
+      nameHeight: 288,
+      faceWidth: 85,
+      faceHeight: 87,
+      pieces: [
+        { src: 'frank-ring.svg', x: -1.31, y: 0.69, width: 87.62, height: 87.62 },
+        { src: 'frank-layer-1.svg', x: 1.41, y: 32.87, width: 59.45, height: 86.09, maskSrc: 'frank-mask.svg', maskX: -2.72, maskY: -34.18, maskSize: 87.62 },
+        { src: 'frank-layer-2.svg', x: -10.0, y: 5.47, width: 100.99, height: 329.54, maskSrc: 'frank-mask.svg', maskX: 8.69, maskY: -6.78, maskSize: 87.62 },
+        { src: 'frank-layer-3.svg', x: -9.98, y: 5.47, width: 100.98, height: 329.55, maskSrc: 'frank-mask.svg', maskX: 8.68, maskY: -6.78, maskSize: 87.62 }
+      ]
+    }
+  ];
   type LetterStyleOptions = { start: number; end: number; windowSize: number; invert: boolean; dy: number };
 
   function setCssVars(el: HTMLElement | undefined, vars: CssVars) {
@@ -118,6 +231,17 @@
       isSpace:  letter === ' ',
       isAccent: start >= 0 && i >= start && i < end
     }));
+  }
+
+  function interviewAsset(src: string) {
+    return `${interviewAssetBase}${src}`;
+  }
+
+  function facePieceStyle(piece: InterviewFacePiece) {
+    const mask = piece.maskSrc
+      ? `-webkit-mask-image:url('${interviewAsset(piece.maskSrc)}');mask-image:url('${interviewAsset(piece.maskSrc)}');-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-size:${piece.maskSize}px ${piece.maskSize}px;mask-size:${piece.maskSize}px ${piece.maskSize}px;-webkit-mask-position:${piece.maskX}px ${piece.maskY}px;mask-position:${piece.maskX}px ${piece.maskY}px;`
+      : '';
+    return `left:${piece.x}px;top:${piece.y}px;width:${piece.width}px;height:${piece.height}px;${mask}`;
   }
 
   function groupWords(characters: ReturnType<typeof parseMessage>) {
@@ -893,6 +1017,7 @@
 
   async function openAbout() {
     animations.kill('about');
+    aboutView = 'gate';
     isAboutOpen = true;
     await tick();
     if (!aboutScreenEl) return;
@@ -921,9 +1046,22 @@
         ease: aboutMotion.closeEase,
         onComplete: () => {
           isAboutOpen = false;
+          aboutView = 'gate';
         }
       })
     );
+  }
+
+  function openAboutInterviews() {
+    aboutView = 'interviews';
+  }
+
+  function handleInterviewsWheel(event: WheelEvent) {
+    const scroller = event.currentTarget as HTMLElement;
+    if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+    if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+    event.preventDefault();
+    scroller.scrollLeft += event.deltaY;
   }
 
   async function startRoleAudio(role: AudioRole) {
@@ -1312,7 +1450,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
   <link
-    href="https://fonts.googleapis.com/css2?family=DynaPuff:wght@400..700&family=JetBrains+Mono:ital,wght@0,400;1,700&family=Roboto:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=DynaPuff:wght@400..700&family=Fasthand&family=JetBrains+Mono:ital,wght@0,400;0,800;1,700&family=Roboto:wght@400;500&display=swap"
     rel="stylesheet"
   />
 </svelte:head>
@@ -1636,6 +1774,7 @@
   <section
     bind:this={aboutScreenEl}
     class="about-screen"
+    class:is-interviews={aboutView === 'interviews'}
     aria-labelledby="about-title"
     data-node-id="256:1827"
   >
@@ -1671,28 +1810,101 @@
     </header>
 
     <h2 id="about-title" class="visually-hidden">About Fuorimenù</h2>
-    <div class="about-gate-grid" aria-label="Argomenti about" data-node-id="381:155">
-      <button class="about-gate-section" type="button" data-node-id="381:277">
-        <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
-          <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
-        </span>
-        <span class="about-gate-title">PROGETTO</span>
-        <span class="about-gate-subtitle">Concept e team</span>
-        <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
-          <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
-        </span>
-      </button>
-      <button class="about-gate-section" type="button" data-node-id="381:308">
-        <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
-          <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
-        </span>
-        <span class="about-gate-title">INTERVISTE</span>
-        <span class="about-gate-subtitle">Archivio dei contenuti</span>
-        <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
-          <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
-        </span>
-      </button>
-    </div>
+    {#if aboutView === 'gate'}
+      <div class="about-gate-grid" aria-label="Argomenti about" data-node-id="381:155">
+        <button class="about-gate-section" type="button" data-node-id="381:277">
+          <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
+            <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
+          </span>
+          <span class="about-gate-title">PROGETTO</span>
+          <span class="about-gate-subtitle">Concept e team</span>
+          <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
+            <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
+          </span>
+        </button>
+        <button class="about-gate-section" type="button" data-node-id="381:308" onclick={openAboutInterviews}>
+          <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
+            <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
+          </span>
+          <span class="about-gate-title">INTERVISTE</span>
+          <span class="about-gate-subtitle">Archivio dei contenuti</span>
+          <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
+            <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
+          </span>
+        </button>
+      </div>
+    {:else}
+      <section
+        class="about-interviews"
+        aria-labelledby="about-interviews-title"
+        data-node-id="381:464"
+        onwheel={handleInterviewsWheel}
+      >
+        <div class="about-interviews-rail" aria-label="Interviste agli chef">
+          <div class="about-interviews-copy" data-node-id="381:2073">
+            <h3 id="about-interviews-title">INTERVISTE</h3>
+            <p>
+              Qui troverai le 7 interviste complete:<br />
+              le 5 con audio presenti nelle altre<br />
+              pagine, più altre 2 testimonianze<br />
+              aggiuntive esclusivamente scritte.
+            </p>
+          </div>
+          {#each interviewChefs as chef (chef.number)}
+            <button
+              class="interview-mini-card"
+              class:is-featured={Boolean(chef.featuredHover)}
+              type="button"
+              aria-label={`Apri intervista ${chef.number}: ${chef.name}`}
+              style={`--interview-name-height:${chef.nameHeight}px;--interview-face-width:${chef.faceWidth}px;--interview-face-height:${chef.faceHeight}px;`}
+            >
+              <span class="interview-mini-number">{chef.number}</span>
+              <span class="interview-mini-name-wrap" aria-hidden="true">
+                <span class="interview-mini-name">{chef.name}</span>
+              </span>
+              <span class="interview-face" aria-hidden="true">
+                {#each chef.pieces as piece}
+                  <span class="interview-face-piece" style={facePieceStyle(piece)}>
+                    <img src={interviewAsset(piece.src)} alt="" draggable="false" />
+                  </span>
+                {/each}
+              </span>
+              {#if chef.featuredHover}
+                <span class="interview-hover-card" aria-hidden="true">
+                  <span class="interview-hover-person-zone">
+                    <img
+                      class="interview-hover-person"
+                      src={chef.featuredHover.bodySrc}
+                      alt=""
+                      draggable="false"
+                    />
+                  </span>
+                  <span class="interview-hover-name">
+                    <span class="interview-hover-first-name">Stefano</span>
+                    <span class="interview-hover-last-name">Paganini</span>
+                  </span>
+                  <span class="interview-hover-copy-block">
+                    <span class="interview-hover-role">{chef.featuredHover.role}</span>
+                    <span class="interview-hover-details">
+                      <span class="interview-hover-description">{chef.featuredHover.description}</span>
+                      <span class="interview-hover-cta">
+                        <span>Vai all’intervista</span>
+                        <img
+                          class="interview-hover-arrow"
+                          src="/assets/interviews-hover/arrow-right.svg"
+                          alt=""
+                          draggable="false"
+                        />
+                      </span>
+                    </span>
+                  </span>
+                </span>
+              {/if}
+            </button>
+          {/each}
+        </div>
+      </section>
+    {/if}
   </section>
 {/if}
 
@@ -2483,6 +2695,11 @@
     will-change: clip-path, transform;
   }
 
+  .about-screen.is-interviews {
+    background: var(--color-surface-page);
+    color: var(--color-text-primary);
+  }
+
   .about-top-bar {
     position: absolute;
     z-index: 3;
@@ -2506,6 +2723,15 @@
     --topbar-control-depth: var(--color-surface-page);
   }
 
+  .about-screen.is-interviews .about-top-bar .logo,
+  .about-screen.is-interviews .about-top-bar .icon-button {
+    --topbar-control-bg: var(--color-surface-page);
+    --topbar-control-fg: var(--color-text-primary);
+    --topbar-control-hover-bg: var(--color-surface-page);
+    --topbar-control-hover-fg: var(--color-text-primary);
+    --topbar-control-depth: var(--color-text-primary);
+  }
+
   .about-logo {
     font-weight: 700;
   }
@@ -2517,6 +2743,15 @@
   .about-close:hover,
   .about-close:focus-visible {
     color: var(--color-surface-page);
+  }
+
+  .about-screen.is-interviews .about-logo:hover,
+  .about-screen.is-interviews .about-logo:focus-visible,
+  .about-screen.is-interviews .about-audio:hover,
+  .about-screen.is-interviews .about-audio:focus-visible,
+  .about-screen.is-interviews .about-close:hover,
+  .about-screen.is-interviews .about-close:focus-visible {
+    color: var(--color-text-primary);
   }
 
   .about-audio {
@@ -2679,6 +2914,356 @@
   .about-gate-section:focus-visible .about-gate-knife {
     opacity: 1;
     transform: translate3d(0, 0, 0) scaleX(0.96);
+  }
+
+  .about-interviews {
+    position: absolute;
+    inset: 136px 0 0;
+    box-sizing: border-box;
+    overflow-x: auto;
+    overflow-y: hidden;
+    color: var(--color-text-primary);
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    touch-action: pan-x;
+  }
+
+  .about-interviews::-webkit-scrollbar {
+    display: none;
+  }
+
+  .about-interviews-rail {
+    display: flex;
+    align-items: stretch;
+    width: max-content;
+    min-width: 100%;
+    height: 100%;
+  }
+
+  .about-interviews-copy {
+    box-sizing: border-box;
+    display: flex;
+    flex: 0 0 742px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--unit-24);
+    height: 100%;
+    padding: 0 var(--unit-80);
+    background: var(--color-surface-page);
+  }
+
+  .about-interviews-copy h3 {
+    display: flex;
+    align-items: center;
+    width: 548px;
+    min-height: 115px;
+    margin: 0;
+    color: var(--color-text-primary);
+    font-family: var(--font-display);
+    font-size: 96px;
+    font-weight: 700;
+    line-height: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .about-interviews-copy p {
+    width: 564px;
+    margin: 0;
+    color: var(--color-text-primary);
+    font-family: var(--font-text);
+    font-size: 20px;
+    font-weight: 400;
+    line-height: normal;
+  }
+
+  .interview-mini-card {
+    box-sizing: border-box;
+    position: relative;
+    display: flex;
+    flex: 0 0 115px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    width: 115px;
+    height: 100%;
+    min-height: 0;
+    padding: var(--unit-40) 0;
+    border: 2px solid var(--color-text-primary);
+    border-bottom-width: 0;
+    border-radius: 0;
+    background: var(--color-surface-page);
+    color: var(--color-text-primary);
+    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, pointer;
+    overflow: hidden;
+    scroll-snap-align: start;
+  }
+
+  .interview-mini-card.is-featured {
+    transition:
+      flex-basis 520ms cubic-bezier(0.19, 1, 0.22, 1),
+      width 520ms cubic-bezier(0.19, 1, 0.22, 1);
+    will-change: flex-basis, width;
+  }
+
+  .interview-mini-card.is-featured:hover,
+  .interview-mini-card.is-featured:focus-visible {
+    flex-basis: 772px;
+    width: 772px;
+  }
+
+  .interview-mini-card + .interview-mini-card {
+    border-left-width: 0;
+  }
+
+  .interview-mini-number,
+  .interview-mini-name {
+    color: currentColor;
+    font-family: var(--font-text);
+    font-size: var(--unit-24);
+    font-weight: 400;
+    line-height: normal;
+  }
+
+  .interview-mini-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    text-align: center;
+    transition: opacity 160ms ease;
+  }
+
+  .interview-mini-name-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 115px;
+    height: var(--interview-name-height);
+    min-height: 0;
+    transition: opacity 160ms ease;
+  }
+
+  .interview-mini-name {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--interview-name-height);
+    height: 115px;
+    white-space: nowrap;
+    transform: rotate(-90deg);
+    transform-origin: center;
+  }
+
+  .interview-face {
+    position: relative;
+    display: block;
+    flex: 0 0 auto;
+    width: var(--interview-face-width);
+    height: var(--interview-face-height);
+    overflow: hidden;
+    border-radius: var(--radius-full);
+    clip-path: circle(50% at 50% 50%);
+    contain: paint;
+    transition: opacity 160ms ease;
+  }
+
+  .interview-mini-card.is-featured:hover .interview-mini-number,
+  .interview-mini-card.is-featured:hover .interview-mini-name-wrap,
+  .interview-mini-card.is-featured:hover .interview-face,
+  .interview-mini-card.is-featured:focus-visible .interview-mini-number,
+  .interview-mini-card.is-featured:focus-visible .interview-mini-name-wrap,
+  .interview-mini-card.is-featured:focus-visible .interview-face {
+    opacity: 0;
+  }
+
+  .interview-hover-card {
+    position: absolute;
+    inset: 0;
+    display: block;
+    --interview-hover-person-left: 0px;
+    --interview-hover-person-width: 326px;
+    --interview-hover-content-left: 326px;
+    --interview-hover-content-width: 446px;
+    width: 772px;
+    min-width: 772px;
+    height: 100%;
+    min-height: 0;
+    color: var(--color-text-primary);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+  }
+
+  .interview-mini-card.is-featured:hover .interview-hover-card,
+  .interview-mini-card.is-featured:focus-visible .interview-hover-card {
+    opacity: 1;
+  }
+
+  .interview-hover-person-zone {
+    position: absolute;
+    top: 1px;
+    bottom: 0;
+    left: var(--interview-hover-person-left);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--interview-hover-person-width);
+    overflow: hidden;
+    opacity: 0;
+    transform: translate3d(-58px, 0, 0);
+    transition:
+      opacity 220ms ease 110ms,
+      transform 560ms cubic-bezier(0.19, 1, 0.22, 1) 80ms;
+  }
+
+  .interview-hover-person {
+    display: block;
+    width: 187.838px;
+    height: 614px;
+    max-width: 100%;
+    max-height: calc(100% - 80px);
+    object-fit: contain;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .interview-hover-name {
+    position: absolute;
+    top: 0;
+    left: var(--interview-hover-content-left);
+    display: block;
+    width: var(--interview-hover-content-width);
+    height: 277px;
+    color: var(--color-text-primary);
+    font-family: 'Fasthand', cursive;
+    font-size: 120px;
+    font-weight: 400;
+    line-height: 1;
+    text-align: left;
+    white-space: nowrap;
+    opacity: 0;
+    transform: translate3d(58px, 0, 0);
+    transition:
+      opacity 220ms ease 130ms,
+      transform 560ms cubic-bezier(0.19, 1, 0.22, 1) 100ms;
+  }
+
+  .interview-hover-first-name,
+  .interview-hover-last-name {
+    position: absolute;
+    display: block;
+  }
+
+  .interview-hover-first-name {
+    top: 0;
+    left: 71px;
+  }
+
+  .interview-hover-last-name {
+    top: 100px;
+    left: 0;
+  }
+
+  .interview-hover-copy-block {
+    position: absolute;
+    top: 276.5px;
+    left: var(--interview-hover-content-left);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: var(--interview-hover-content-width);
+    height: calc(100% - 276.5px);
+    padding: 34px 0 56px;
+    color: var(--color-text-primary);
+    font-family: var(--font-text);
+    text-align: left;
+    opacity: 0;
+    transform: translate3d(58px, 0, 0);
+    transition:
+      opacity 220ms ease 160ms,
+      transform 560ms cubic-bezier(0.19, 1, 0.22, 1) 130ms;
+  }
+
+  .interview-mini-card.is-featured:hover .interview-hover-person-zone,
+  .interview-mini-card.is-featured:hover .interview-hover-name,
+  .interview-mini-card.is-featured:hover .interview-hover-copy-block,
+  .interview-mini-card.is-featured:focus-visible .interview-hover-person-zone,
+  .interview-mini-card.is-featured:focus-visible .interview-hover-name,
+  .interview-mini-card.is-featured:focus-visible .interview-hover-copy-block {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  .interview-hover-role {
+    display: block;
+    font-size: 20px;
+    font-weight: 800;
+    line-height: normal;
+  }
+
+  .interview-hover-details {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 32px;
+  }
+
+  .interview-hover-description {
+    display: block;
+    width: 372px;
+    max-width: 100%;
+    color: var(--color-text-primary);
+    font-size: 21.603px;
+    font-weight: 400;
+    line-height: normal;
+  }
+
+  .interview-hover-cta {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 244px;
+    min-height: 40px;
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    background: var(--color-text-primary);
+    color: var(--color-surface-page);
+    font-family: var(--font-text);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+
+  .interview-hover-arrow {
+    display: block;
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .interview-face-piece {
+    position: absolute;
+    display: block;
+    overflow: hidden;
+  }
+
+  .interview-face-piece img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: fill;
+    user-select: none;
+    pointer-events: none;
   }
 
   .visually-hidden {
@@ -3445,6 +4030,46 @@
     .about-gate-knife {
       --about-utensil-length: clamp(322px, 91vw, 532px);
       bottom: clamp(18px, 4.5vh, 38px);
+    }
+    .about-interviews {
+      inset: var(--layout-topbar-height-mobile) 0 0;
+    }
+    .about-interviews-copy {
+      flex-basis: min(86vw, 360px);
+      gap: 16px;
+      padding: 0 var(--layout-page-gutter-mobile);
+    }
+    .about-interviews-copy h3 {
+      width: min(100%, 320px);
+      min-height: 72px;
+      font-size: clamp(42px, 14vw, 58px);
+      line-height: 1.08;
+    }
+    .about-interviews-copy p {
+      width: min(100%, 320px);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+    .interview-mini-card {
+      flex-basis: 104px;
+      width: 104px;
+      padding: 28px 0;
+    }
+    .interview-mini-number,
+    .interview-mini-name {
+      font-size: 20px;
+    }
+    .interview-mini-name-wrap {
+      width: 104px;
+      height: min(var(--interview-name-height), 248px);
+    }
+    .interview-mini-name {
+      width: min(var(--interview-name-height), 248px);
+      height: 104px;
+    }
+    .interview-face {
+      transform: scale(0.9);
+      transform-origin: bottom center;
     }
     .intro        { padding: var(--layout-page-gutter-mobile); }
     .persistent-top-audio { top: calc(var(--unit-24) + var(--unit-4)); }
