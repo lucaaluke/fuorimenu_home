@@ -12,7 +12,6 @@ import {
 import {
   figmaToWorldX,
   figmaToWorldY,
-  figmaTopToWorldY,
   tailAwareFigmaX,
   viewportBottomAlignedWorldY
 } from './coordinate-utils';
@@ -115,9 +114,17 @@ export function createKitchenMainSceneClass(Phaser: PhaserModule, dependencies: 
     }
 
     create() {
-      this.cameras.main.setRoundPixels(true);
-      this.cameras.main.setScroll(0, 0);
-      this.cameras.main.setZoom(this.pixelRatio);
+      const camera = this.cameras.main;
+      const renderWidth = this.getRenderWidth();
+      const renderHeight = this.getRenderHeight();
+
+      camera.setRoundPixels(true);
+      camera.setPosition(0, 0);
+      camera.setSize(renderWidth, renderHeight);
+      camera.setViewport(0, 0, renderWidth, renderHeight);
+      camera.setScroll(0, 0);
+      camera.setZoom(1);
+      camera.scrollY = 0;
 
       this.chunkSprites = this.chunks.map((chunk) => {
         this.setTextureSmoothing(chunk.assetKey);
@@ -147,13 +154,15 @@ export function createKitchenMainSceneClass(Phaser: PhaserModule, dependencies: 
     }
 
     update() {
-      this.cameras.main.scrollX = Math.round(this.cameraX);
+      this.cameras.main.scrollX = this.getRenderCameraX();
+      this.cameras.main.scrollY = 0;
       this.updateChunkVisibility();
     }
 
     setCameraX(cameraX: number) {
       this.cameraX = cameraX;
-      this.cameras.main.scrollX = Math.round(cameraX);
+      this.cameras.main.scrollX = this.getRenderCameraX();
+      this.cameras.main.scrollY = 0;
       this.updateChunkVisibility();
     }
 
@@ -161,15 +170,22 @@ export function createKitchenMainSceneClass(Phaser: PhaserModule, dependencies: 
       this.viewport = { width, height };
       this.pixelRatio = Math.max(1, pixelRatio);
       this.sceneScale = this.getSceneScale();
-      this.scale.resize(Math.round(width * this.pixelRatio), Math.round(height * this.pixelRatio));
-      this.cameras.main.setSize(Math.round(width * this.pixelRatio), Math.round(height * this.pixelRatio));
-      this.cameras.main.setZoom(this.pixelRatio);
+      const renderWidth = this.getRenderWidth();
+      const renderHeight = this.getRenderHeight();
+
+      this.scale.resize(renderWidth, renderHeight);
+      this.cameras.main.setPosition(0, 0);
+      this.cameras.main.setSize(renderWidth, renderHeight);
+      this.cameras.main.setViewport(0, 0, renderWidth, renderHeight);
+      this.cameras.main.setZoom(1);
+      this.cameras.main.scrollX = this.getRenderCameraX();
+      this.cameras.main.scrollY = 0;
 
       for (const { chunk, sprite } of this.chunkSprites) {
         const chunkHeight = chunk.figmaHeight ?? (dependencies.sceneHeight ?? SCENE_HEIGHT_FIGMA);
         sprite.setPosition(
           figmaToWorldX(chunk.figmaX, this.sceneScale),
-          figmaTopToWorldY(chunk.figmaY ?? 0, this.sceneScale)
+          viewportBottomAlignedWorldY(chunkHeight, this.sceneScale, renderHeight)
         );
         sprite.setDisplaySize(Math.round(chunk.figmaWidth * this.sceneScale), Math.round(chunkHeight * this.sceneScale));
       }
@@ -181,10 +197,8 @@ export function createKitchenMainSceneClass(Phaser: PhaserModule, dependencies: 
         const overlapX = asset.overlapX === undefined ? 0 : Math.ceil(asset.overlapX * this.sceneScale);
         const worldY =
           asset.viewportBottomAligned === true
-            ? viewportBottomAlignedWorldY(asset.height, this.sceneScale, height)
-            : asset.viewportTopAligned === true
-              ? figmaTopToWorldY(asset.y, this.sceneScale)
-            : figmaToWorldY(asset.y, this.sceneScale, height, dependencies.floorTopY ?? FLOOR_TOP_Y_FIGMA);
+            ? viewportBottomAlignedWorldY(asset.height, this.sceneScale, renderHeight)
+            : figmaToWorldY(asset.y, this.sceneScale, renderHeight, dependencies.floorTopY ?? FLOOR_TOP_Y_FIGMA);
 
         sprite.setPosition(
           figmaToWorldX(figmaX, this.sceneScale),
@@ -238,15 +252,27 @@ export function createKitchenMainSceneClass(Phaser: PhaserModule, dependencies: 
     }
 
     private getSceneScale() {
-      return this.viewport.height / (dependencies.sceneHeight ?? SCENE_HEIGHT_FIGMA);
+      return this.getRenderHeight() / (dependencies.sceneHeight ?? SCENE_HEIGHT_FIGMA);
+    }
+
+    private getRenderCameraX() {
+      return Math.round(this.cameraX * this.pixelRatio);
+    }
+
+    private getRenderWidth() {
+      return Math.round(this.viewport.width * this.pixelRatio);
+    }
+
+    private getRenderHeight() {
+      return Math.round(this.viewport.height * this.pixelRatio);
     }
 
     private updateChunkVisibility() {
       for (const { chunk, sprite } of this.chunkSprites) {
         const width = Math.round(chunk.figmaWidth * this.sceneScale);
-        const screenX = sprite.x - this.cameraX * this.getLayerSpeed(chunk.layer);
+        const screenX = sprite.x - this.getRenderCameraX() * this.getLayerSpeed(chunk.layer);
 
-        sprite.visible = screenX > -width && screenX < this.viewport.width + width;
+        sprite.visible = screenX > -width && screenX < this.getRenderWidth() + width;
       }
     }
   };

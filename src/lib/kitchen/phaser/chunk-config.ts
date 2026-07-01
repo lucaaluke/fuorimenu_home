@@ -3,7 +3,7 @@ import type { SceneChunk, SceneLayer } from '$lib/scene/scene-asset.types';
 export const SCENE_WIDTH_FIGMA = 46600;
 export const SCENE_HEIGHT_FIGMA = 1330;
 export const TAIL_START_X = 23600;
-export const FLOOR_TOP_Y_FIGMA = 3;
+export const FLOOR_TOP_Y_FIGMA = SCENE_HEIGHT_FIGMA;
 export const FLOOR_HEIGHT_FIGMA = 333.18;
 export const CHUNK_WIDTH_FIGMA = 2048;
 

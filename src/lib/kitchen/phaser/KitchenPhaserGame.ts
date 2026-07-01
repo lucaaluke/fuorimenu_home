@@ -32,6 +32,10 @@ function setCanvasCssSize(game: Phaser.Game | undefined, width: number, height: 
   const canvas = game?.canvas;
   if (!canvas) return;
 
+  canvas.style.position = 'absolute';
+  canvas.style.top = '0';
+  canvas.style.left = '0';
+  canvas.style.display = 'block';
   canvas.style.width = `${width}px`;
   canvas.style.height = `${height}px`;
 }
@@ -71,10 +75,12 @@ export async function createKitchenPhaserGame(
     width: Math.round(viewport.width * initialPixelRatio),
     height: Math.round(viewport.height * initialPixelRatio),
     transparent: true,
-    canvasStyle: `width: ${viewport.width}px; height: ${viewport.height}px;`,
+    canvasStyle: `position: absolute; top: 0; left: 0; display: block; width: ${viewport.width}px; height: ${viewport.height}px;`,
     scale: {
       mode: Phaser.Scale.NONE,
-      autoCenter: Phaser.Scale.NO_CENTER
+      autoCenter: Phaser.Scale.NO_CENTER,
+      width: Math.round(viewport.width * initialPixelRatio),
+      height: Math.round(viewport.height * initialPixelRatio)
     },
     render: {
       antialias: true,

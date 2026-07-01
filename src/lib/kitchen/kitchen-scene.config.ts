@@ -10,9 +10,8 @@ export const kitchenConstructionSceneHeight = 1330;
 const kitchenConstructionChunkWidth = 2048;
 const kitchenConstructionChunkHeight = kitchenConstructionSceneHeight;
 const kitchenConstructionFloorHeight = 166.2;
-export const kitchenConstructionFloorTopY = 1801;
+export const kitchenConstructionFloorTopY = kitchenConstructionSceneHeight;
 const kitchenConstructionFloorTileWidth = kitchenConstructionFloorHeight;
-const kitchenConstructionFloorY = 2106;
 const kitchenConstructionPositionScale = 0.5;
 const toolShedMessage =
   'li devi trattare bene, devi dargli dei pasti molto caldi, magari dargli anche il tè o il caffè 24 ore al giorno';
@@ -260,7 +259,7 @@ const kitchenConstructionFloorAssets: SceneAsset[] = Array.from(
     kind: 'static',
     src: 'kitchen/objects/pavimento.png',
     x: Number((index * kitchenConstructionFloorTileWidth).toFixed(2)),
-    y: kitchenConstructionFloorY,
+    y: 0,
     width: kitchenConstructionFloorTileWidth,
     height: kitchenConstructionFloorHeight,
     layer: 'foreground',
@@ -288,7 +287,6 @@ function kitchenConstructionObjectAsset(
     width: width * kitchenConstructionPositionScale,
     height: height * kitchenConstructionPositionScale,
     layer: 'foreground',
-    viewportTopAligned: true,
     zOffset
   };
 }

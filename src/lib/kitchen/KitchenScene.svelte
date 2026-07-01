@@ -1754,12 +1754,18 @@
   .kitchen-phaser-layer {
     position: absolute;
     z-index: 0;
-    inset: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     overflow: hidden;
     pointer-events: none;
   }
 
   .kitchen-phaser-layer :global(canvas) {
+    position: absolute;
+    top: 0;
+    left: 0;
     display: block;
     width: 100%;
     height: 100%;
