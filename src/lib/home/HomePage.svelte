@@ -3,6 +3,7 @@
   import VolumeMaxIcon from '$lib/VolumeMaxIcon.svelte';
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
   import { createAnimationCueManager } from '$lib/scene/animation-cues';
+  import { readAudioMutedPreference, writeAudioMutedPreference } from '$lib/scene/audio-preference';
   import { createAudioCueManager, type AudioCueConfig } from '$lib/scene/audio-cues';
   import { loadGsap, type Gsap } from '$lib/scene/gsap-loader';
   import { clamp, deg, ease, fixed, px, type CssVars, vh, vw } from '$lib/scene/math';
@@ -478,7 +479,7 @@
   const roleItems: RoleItem[] = [
     {
       title: 'ufficio',
-      description: 'descrizione testo',
+      description: 'Coordinamento e amministrazione',
       speaker: 'Carlo Zarri',
       dialogue: "il mio ruolo ... seguimi nell'ufficio per saperne di più",
       hoverText: "io sono carlo zarri seguimi nell'ufficio",
@@ -487,7 +488,7 @@
     },
     {
       title: 'cucina',
-      description: 'descrizione testo',
+      description: 'Preparazione dei pasti',
       speaker: 'Stefano Paganini',
       dialogue: 'il mio ruolo ... seguimi nella cucina per saperne di più',
       hoverText: 'io sono stefano paganini seguimi in cucina',
@@ -496,7 +497,7 @@
     },
     {
       title: 'servizio',
-      description: 'descrizione testo',
+      description: 'Distribuzione e assistenza',
       speaker: 'Ken Frank',
       dialogue: 'il mio ruolo ... seguimi nella mensa per saperne di più',
       hoverText: 'io sono ken frank seguimi in sala',
@@ -1074,6 +1075,7 @@
   }
 
   function setAudioMuted(nextMuted: boolean) {
+    writeAudioMutedPreference(nextMuted);
     if (isAudioMuted === nextMuted) return;
     isAudioMuted = nextMuted;
     if (isAudioMuted) {
@@ -1109,6 +1111,7 @@
     if (isAudioGateOpening) return;
     setAudioGateButtonTransitionVars();
     isAudioMuted = nextMuted;
+    writeAudioMutedPreference(nextMuted);
     isAudioGateOpening = true;
     if (!nextMuted) {
       await startBackgroundAudio();
@@ -1216,6 +1219,7 @@
 
   onMount(() => {
     let isDestroyed = false;
+    isAudioMuted = readAudioMutedPreference(isAudioMuted);
 
     void loadGsap().then((loadedGsap) => {
       if (isDestroyed) return;
@@ -1429,6 +1433,10 @@
       });
     }
     revealAudioGateCopyLetters();
+    if (shouldSkipIntro && !isAudioMuted) {
+      void startBackgroundAudio();
+      void unlockAmbientAudio();
+    }
     animations.addTicker(moveFloatingAssets);
     sceneResources.addEventListener(window, 'wheel', onWheel as EventListener, { passive: false });
     sceneResources.addEventListener(window, 'keydown', onKeydown as EventListener);
@@ -1450,7 +1458,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
   <link
-    href="https://fonts.googleapis.com/css2?family=DynaPuff:wght@400..700&family=Fasthand&family=JetBrains+Mono:ital,wght@0,400;0,800;1,700&family=Roboto:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=DynaPuff:wght@400..700&family=Fasthand&family=JetBrains+Mono:ital,wght@0,400;0,800;1,700;1,800&family=Roboto:wght@400;500&display=swap"
     rel="stylesheet"
   />
 </svelte:head>
@@ -1816,7 +1824,7 @@
           <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
             <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
           </span>
-          <span class="about-gate-title">PROGETTO</span>
+          <span class="about-gate-title">Progetto</span>
           <span class="about-gate-subtitle">Concept e team</span>
           <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
             <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
@@ -1826,7 +1834,7 @@
           <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
             <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
           </span>
-          <span class="about-gate-title">INTERVISTE</span>
+          <span class="about-gate-title">Interviste</span>
           <span class="about-gate-subtitle">Archivio dei contenuti</span>
           <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
             <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
@@ -2771,8 +2779,25 @@
     min-height: 0;
   }
 
+  .about-gate-grid::after {
+    position: absolute;
+    z-index: 4;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 2px;
+    background: var(--color-surface-page);
+    content: '';
+    pointer-events: none;
+    transform: translateX(-1px);
+  }
+
   .about-gate-section {
     --about-word-width: clamp(330px, 66%, 500px);
+    --about-section-stroke-top: 2px;
+    --about-section-stroke-right: 0px;
+    --about-section-stroke-bottom: 0px;
+    --about-section-stroke-left: 0px;
 
     position: relative;
     box-sizing: border-box;
@@ -2795,6 +2820,8 @@
 
   .about-gate-section[data-node-id='381:308'] {
     --about-word-width: clamp(372px, 74%, 558px);
+    --about-section-stroke-right: 0px;
+    --about-section-stroke-left: 0px;
   }
 
   .about-gate-section::before {
@@ -2807,6 +2834,21 @@
     transition:
       opacity 180ms ease,
       transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .about-gate-section::after {
+    position: absolute;
+    z-index: 3;
+    inset: 0;
+    border-color: var(--color-surface-page);
+    border-style: solid;
+    border-width:
+      var(--about-section-stroke-top)
+      var(--about-section-stroke-right)
+      var(--about-section-stroke-bottom)
+      var(--about-section-stroke-left);
+    content: '';
+    pointer-events: none;
   }
 
   .about-gate-section:hover::before,
@@ -2829,7 +2871,12 @@
     font-size: clamp(52px, 6.35vw, 96px);
     font-weight: 700;
     line-height: 1.08;
+    text-transform: lowercase;
     overflow-wrap: anywhere;
+  }
+
+  .about-gate-title::first-letter {
+    text-transform: uppercase;
   }
 
   .about-gate-subtitle {
@@ -3319,7 +3366,7 @@
   h1 .word { white-space: nowrap; }
   h1 .space { opacity: 1; transform: none; transition: none; width: 0.28em; }
 
-  .accent-letter { color: var(--color-interactive-hover); font-style: italic; font-weight: 700; }
+  .accent-letter { color: var(--color-text-primary); font-style: italic; font-weight: 800; }
 
   .reel-layer {
     position: absolute; z-index: 15; inset: 0;
@@ -3382,7 +3429,7 @@
     will-change: opacity, transform;
   }
   .next-message { font-size: 0; }
-  .next-message .accent-letter { color: var(--color-interactive-hover); font-style: italic; font-weight: 700; }
+  .next-message .accent-letter { color: var(--color-text-primary); font-style: italic; font-weight: 800; }
   .next-message .space { display: inline-block; opacity: 1; transform: none; transition: none; width: 0.28em; }
 
   /* Parte invisibile, sopra next-screen, solo opacity gestita da JS */
@@ -3806,7 +3853,7 @@
     margin: 0;
     font-family: var(--font-text);
     font-size: clamp(12px, 1.06vw, 15px);
-    font-weight: 600;
+    font-weight: 400;
     line-height: 1.5;
     letter-spacing: 0;
     text-align: center;
@@ -3835,18 +3882,22 @@
     margin: 0;
     font-family: var(--font-display);
     font-size: clamp(42px, 4.1vw, 60px);
-    font-weight: 600;
+    font-weight: 700;
     line-height: 1.5;
     letter-spacing: 0;
-    text-transform: uppercase;
+    text-transform: lowercase;
     font-variation-settings: "wdth" 100;
+  }
+
+  .role-card-copy h2::first-letter {
+    text-transform: uppercase;
   }
 
   .role-card-copy p {
     margin: -6px 0 0;
     font-family: var(--font-text);
     font-size: clamp(13px, 1.1vw, 16px);
-    font-weight: 500;
+    font-weight: 400;
     line-height: 1.5;
     letter-spacing: 0;
     transition: opacity 180ms ease;
@@ -4008,14 +4059,20 @@
       grid-template-columns: 1fr;
       grid-template-rows: repeat(2, minmax(0, 1fr));
     }
+    .about-gate-grid::after {
+      display: none;
+    }
     .about-gate-section {
       --about-word-width: clamp(258px, 74vw, 338px);
+      --about-section-stroke-right: 2px;
 
       gap: 8px;
       padding: 32px var(--layout-page-gutter-mobile);
     }
     .about-gate-section[data-node-id='381:308'] {
       --about-word-width: clamp(286px, 80vw, 364px);
+      --about-section-stroke-right: 0px;
+      --about-section-stroke-left: 2px;
     }
     .about-gate-title {
       font-size: clamp(42px, 14vw, 58px);

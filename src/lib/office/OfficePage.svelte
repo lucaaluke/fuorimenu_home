@@ -2,16 +2,20 @@
   import { onMount } from 'svelte';
   import VolumeMaxIcon from '$lib/VolumeMaxIcon.svelte';
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
+  import { readAudioMutedPreference, writeAudioMutedPreference } from '$lib/scene/audio-preference';
   import OfficeScene from './OfficeScene.svelte';
 
-  let isAudioMuted = $state(false);
+  let isAudioMuted = $state(true);
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
 
   function toggleAudioMuted() {
     isAudioMuted = !isAudioMuted;
+    writeAudioMutedPreference(isAudioMuted);
   }
 
   onMount(() => {
+    isAudioMuted = readAudioMutedPreference(false);
+
     const hadTransition =
       sessionStorage.getItem('role-card-transition') === '1' ||
       sessionStorage.getItem('kitchen-card-transition') === '1';
