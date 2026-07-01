@@ -24,6 +24,9 @@ export type SceneAssetBase = {
   zOffset?: number;
   opacity?: number;
   interactive?: boolean;
+  viewportBottomAligned?: boolean;
+  viewportTopAligned?: boolean;
+  overlapX?: number;
 
   isTail?: boolean;
 };

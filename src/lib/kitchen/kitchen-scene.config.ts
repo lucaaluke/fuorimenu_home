@@ -7,19 +7,19 @@ export const kitchenAssetVersion = '20260624-scene-assets-28';
 const kitchenTailHeight = 1117;
 const kitchenTailY = -137;
 export const kitchenConstructionSceneHeight = 1330;
+const kitchenConstructionChunkWidth = 2048;
+const kitchenConstructionChunkHeight = kitchenConstructionSceneHeight;
+const kitchenConstructionFloorHeight = 166.2;
 export const kitchenConstructionFloorTopY = 1801;
-const kitchenConstructionChunkHeight = 1330;
-const kitchenConstructionFloorHeight = 133.18;
 const kitchenConstructionFloorTileWidth = kitchenConstructionFloorHeight;
 const kitchenConstructionFloorY = 2106;
-const kitchenConstructionChunkVisibleBottomY = 1164;
-const kitchenConstructionChunkY = Number((kitchenConstructionFloorY - kitchenConstructionChunkVisibleBottomY).toFixed(2));
+const kitchenConstructionPositionScale = 0.5;
 const toolShedMessage =
   'li devi trattare bene, devi dargli dei pasti molto caldi, magari dargli anche il tè o il caffè 24 ore al giorno';
 
 export const kitchenSceneConfig = {
   sceneWidth: 46600,
-  sceneHeight: 875,
+  sceneHeight: 1330,
   assetWidth: 24268,
   foregroundSvgWidth: 24268,
   foregroundSvgHeight: 875,
@@ -228,26 +228,26 @@ export const kitchenConstructionChunks: SceneChunk[] = [
     layer: 'foreground',
     frameIndex: 0,
     figmaX: 0,
-    figmaY: kitchenConstructionChunkY,
-    figmaWidth: 2048,
+    figmaY: 0,
+    figmaWidth: kitchenConstructionChunkWidth,
     figmaHeight: kitchenConstructionChunkHeight,
     assetKey: 'fg-frame-00'
   },
   {
     layer: 'foreground',
     frameIndex: 1,
-    figmaX: 2048,
-    figmaY: kitchenConstructionChunkY,
-    figmaWidth: 2048,
+    figmaX: kitchenConstructionChunkWidth,
+    figmaY: 0,
+    figmaWidth: kitchenConstructionChunkWidth,
     figmaHeight: kitchenConstructionChunkHeight,
     assetKey: 'fg-frame-01'
   },
   {
     layer: 'foreground',
     frameIndex: 2,
-    figmaX: 4096,
-    figmaY: kitchenConstructionChunkY,
-    figmaWidth: 2048,
+    figmaX: kitchenConstructionChunkWidth * 2,
+    figmaY: 0,
+    figmaWidth: kitchenConstructionChunkWidth,
     figmaHeight: kitchenConstructionChunkHeight,
     assetKey: 'fg-frame-02'
   }
@@ -264,45 +264,57 @@ const kitchenConstructionFloorAssets: SceneAsset[] = Array.from(
     width: kitchenConstructionFloorTileWidth,
     height: kitchenConstructionFloorHeight,
     layer: 'foreground',
+    viewportBottomAligned: true,
+    overlapX: 2,
     zOffset: 1
   })
 );
 
+function kitchenConstructionObjectAsset(
+  id: string,
+  src: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  zOffset = 8
+): SceneAsset {
+  return {
+    id,
+    kind: 'static',
+    src,
+    x: x * kitchenConstructionPositionScale,
+    y: y * kitchenConstructionPositionScale,
+    width: width * kitchenConstructionPositionScale,
+    height: height * kitchenConstructionPositionScale,
+    layer: 'foreground',
+    viewportTopAligned: true,
+    zOffset
+  };
+}
+
+const kitchenConstructionPlacedAssets: SceneAsset[] = [
+  kitchenConstructionObjectAsset(
+    'cartello-cantiere',
+    'kitchen/objects/cartello-cantiere.png',
+    4415,
+    2080,
+    491,
+    654
+  ),
+  kitchenConstructionObjectAsset('cono-1', 'kitchen/objects/cono-cantiere.png', 5748, 2256, 223, 339, 9),
+  kitchenConstructionObjectAsset('transenna', 'kitchen/objects/transenna.png', 8478, 1891, 1157, 711, 7),
+  kitchenConstructionObjectAsset('cono-2', 'kitchen/objects/cono-cantiere.png', 9988, 2275, 223, 339, 9),
+  kitchenConstructionObjectAsset('cono-3', 'kitchen/objects/cono-cantiere.png', 10304, 2199, 223, 339, 9),
+  kitchenConstructionObjectAsset('cono-4', 'kitchen/objects/cono-cantiere.png', 10515, 2275, 223, 339, 9),
+  kitchenConstructionObjectAsset('sabbia-pala', 'kitchen/objects/sabbia-pala.png', 12793, 1961, 1520, 899),
+  kitchenConstructionObjectAsset('cariola', 'kitchen/objects/cariola.png', 16498, 2080, 1120, 691),
+  kitchenConstructionObjectAsset('mattoni-pila', 'kitchen/objects/mattoni-pila.png', 18887, 2470, 868, 243)
+];
+
 export const kitchenConstructionObjectAssets: SceneAsset[] = [
   ...kitchenConstructionFloorAssets,
-  {
-    id: 'cartello-stradale',
-    kind: 'static',
-    src: 'kitchen/objects/cartello-stradale.png',
-    x: 4504.66,
-    y: 1554.83,
-    width: 248,
-    height: 329.5,
-    layer: 'foreground',
-    zOffset: 8
-  },
-  {
-    id: 'cono',
-    kind: 'static',
-    src: 'kitchen/objects/cono.png',
-    x: 5837.38,
-    y: 1730.9,
-    width: 111.5,
-    height: 169.5,
-    layer: 'foreground',
-    zOffset: 9
-  },
-  {
-    id: 'sbarre',
-    kind: 'static',
-    src: 'kitchen/objects/sbarre.png',
-    x: 8567.8,
-    y: 1365.22,
-    width: 578.5,
-    height: 355.5,
-    layer: 'foreground',
-    zOffset: 7
-  }
+  ...kitchenConstructionPlacedAssets
 ];
 
 export const kitchenAssets: SceneAsset[] = [

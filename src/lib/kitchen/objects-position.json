@@ -1,6 +1,7 @@
 [
   {
     "name": "cartello-cantiere",
+    "type": "RECTANGLE",
     "x": 4415,
     "y": 2080,
     "width": 491,
@@ -8,6 +9,7 @@
   },
   {
     "name": "cono_1",
+    "type": "RECTANGLE",
     "x": 5748,
     "y": 2256,
     "width": 223,
@@ -15,6 +17,7 @@
   },
   {
     "name": "transenna",
+    "type": "RECTANGLE",
     "x": 8478,
     "y": 1891,
     "width": 1157,
@@ -22,6 +25,7 @@
   },
   {
     "name": "cono_2",
+    "type": "RECTANGLE",
     "x": 9988,
     "y": 2275,
     "width": 223,
@@ -29,6 +33,7 @@
   },
   {
     "name": "cono_3",
+    "type": "RECTANGLE",
     "x": 10304,
     "y": 2199,
     "width": 223,
@@ -36,6 +41,7 @@
   },
   {
     "name": "cono_4",
+    "type": "RECTANGLE",
     "x": 10515,
     "y": 2275,
     "width": 223,
@@ -43,6 +49,7 @@
   },
   {
     "name": "sabbia-pala",
+    "type": "RECTANGLE",
     "x": 12793,
     "y": 1961,
     "width": 1520,
@@ -50,6 +57,7 @@
   },
   {
     "name": "cariola",
+    "type": "RECTANGLE",
     "x": 16498,
     "y": 2080,
     "width": 1120,
@@ -57,6 +65,7 @@
   },
   {
     "name": "mattoni-pila",
+    "type": "RECTANGLE",
     "x": 18887,
     "y": 2470,
     "width": 868,

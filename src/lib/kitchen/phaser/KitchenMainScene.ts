@@ -9,7 +9,13 @@ import {
   TAIL_START_X,
   generateSceneChunks
 } from './chunk-config';
-import { figmaToWorldX, figmaToWorldY, tailAwareFigmaX } from './coordinate-utils';
+import {
+  figmaToWorldX,
+  figmaToWorldY,
+  figmaTopToWorldY,
+  tailAwareFigmaX,
+  viewportBottomAlignedWorldY
+} from './coordinate-utils';
 
 export type PhaserModule = typeof import('phaser');
 
@@ -163,18 +169,28 @@ export function createKitchenMainSceneClass(Phaser: PhaserModule, dependencies: 
         const chunkHeight = chunk.figmaHeight ?? (dependencies.sceneHeight ?? SCENE_HEIGHT_FIGMA);
         sprite.setPosition(
           figmaToWorldX(chunk.figmaX, this.sceneScale),
-          figmaToWorldY(chunk.figmaY ?? FLOOR_TOP_Y_FIGMA, this.sceneScale, height, dependencies.floorTopY ?? FLOOR_TOP_Y_FIGMA)
+          figmaTopToWorldY(chunk.figmaY ?? 0, this.sceneScale)
         );
         sprite.setDisplaySize(Math.round(chunk.figmaWidth * this.sceneScale), Math.round(chunkHeight * this.sceneScale));
       }
 
       for (const { asset, sprite } of this.assetSprites) {
         const figmaX = tailAwareFigmaX(asset.x, asset.isTail, dependencies.tailStartX ?? TAIL_START_X);
+        const displayWidth = Math.round(asset.width * this.sceneScale);
+        const displayHeight = Math.round(asset.height * this.sceneScale);
+        const overlapX = asset.overlapX === undefined ? 0 : Math.ceil(asset.overlapX * this.sceneScale);
+        const worldY =
+          asset.viewportBottomAligned === true
+            ? viewportBottomAlignedWorldY(asset.height, this.sceneScale, height)
+            : asset.viewportTopAligned === true
+              ? figmaTopToWorldY(asset.y, this.sceneScale)
+            : figmaToWorldY(asset.y, this.sceneScale, height, dependencies.floorTopY ?? FLOOR_TOP_Y_FIGMA);
+
         sprite.setPosition(
           figmaToWorldX(figmaX, this.sceneScale),
-          figmaToWorldY(asset.y, this.sceneScale, height, dependencies.floorTopY ?? FLOOR_TOP_Y_FIGMA)
+          worldY
         );
-        sprite.setDisplaySize(Math.round(asset.width * this.sceneScale), Math.round(asset.height * this.sceneScale));
+        sprite.setDisplaySize(displayWidth + overlapX, displayHeight);
       }
 
       this.updateChunkVisibility();

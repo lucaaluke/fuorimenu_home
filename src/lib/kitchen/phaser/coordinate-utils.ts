@@ -15,6 +15,14 @@ export function figmaToWorldY(
   return Math.round(viewportHeight - (floorTopY - figmaY) * sceneScale);
 }
 
+export function viewportBottomAlignedWorldY(
+  assetHeight: number,
+  sceneScale: number,
+  viewportHeight: number
+): number {
+  return viewportHeight - Math.round(assetHeight * sceneScale);
+}
+
 export function worldToScreenX(
   figmaX: number,
   cameraX: number,

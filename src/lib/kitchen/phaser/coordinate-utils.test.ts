@@ -5,6 +5,7 @@ import {
   figmaToWorldY,
   screenToFigmaY,
   tailAwareFigmaX,
+  viewportBottomAlignedWorldY,
   worldToScreenX,
   worldToScreenY
 } from './coordinate-utils';
@@ -27,6 +28,25 @@ describe('coordinate-utils', () => {
     expect(figmaToWorldY(1730.9, sceneScale, viewportHeight, FLOOR_TOP_Y_FIGMA)).toBe(897);
     expect(figmaToWorldY(1554.83, sceneScale, viewportHeight, FLOOR_TOP_Y_FIGMA)).toBe(699);
     expect(figmaToWorldY(1365.22, sceneScale, viewportHeight, FLOOR_TOP_Y_FIGMA)).toBe(486);
+  });
+
+  it('aligns asset bottoms to the viewport bottom', () => {
+    const assetHeight = 133.18;
+    const top = viewportBottomAlignedWorldY(assetHeight, sceneScale, viewportHeight);
+    const displayHeight = Math.round(assetHeight * sceneScale);
+
+    expect(top + displayHeight).toBe(viewportHeight);
+  });
+
+  it('documents the rounding drift that floor tile overlap absorbs', () => {
+    const tileWidth = 166.2;
+    const viewportHeight = 1330;
+    const sceneScale = viewportHeight / SCENE_HEIGHT_FIGMA;
+    const displayWidth = Math.round(tileWidth * sceneScale);
+    const thirdTileRight = Math.round(2 * tileWidth * sceneScale) + displayWidth;
+    const fourthTileLeft = Math.round(3 * tileWidth * sceneScale);
+
+    expect(fourthTileLeft - thirdTileRight).toBe(1);
   });
 
   it('converts world x into parallax screen x with integer output', () => {
