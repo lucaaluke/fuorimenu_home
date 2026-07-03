@@ -123,7 +123,7 @@
       maxTime: 0,
       targetVolume: 1,
       outputGain: 0.92,
-      fadeIn: false
+      fadeInDuration: 0.12
     }
   };
   const backgroundAudio: AudioCueConfig = {
@@ -466,6 +466,7 @@
     closeEase: 'power3.in'
   };
   const audioFadeMotion = { duration: 0.52, ease: 'power2.inOut' };
+  const sectionAudioFadeOutDuration = 0.46;
   const audioCues = createAudioCueManager<HomeAudioId>({ fade: audioFadeMotion });
   audioCues.registerAudioCue('background', backgroundAudio);
   audioRoles.forEach((role) => {
@@ -973,14 +974,14 @@
   function enterRoleCard(event: MouseEvent, item: RoleItem, index: number) {
     if (!item.href || cardEnterTween) return;
     event.preventDefault();
+    fadeOutHomeAudioForSectionTransition();
 
     const card = roleCards[index];
     if (!card) {
-      window.location.assign(item.href);
+      window.setTimeout(() => window.location.assign(item.href!), sectionAudioFadeOutDuration * 1000);
       return;
     }
 
-    stopAllRoleAudio();
     resetRoleCard(index);
 
     const rect = card.getBoundingClientRect();
@@ -1149,6 +1150,7 @@
 
   async function openAbout() {
     const transitionId = ++aboutTransitionId;
+    void startBackgroundAudio();
     animations.kill('about');
     isAboutClosing = false;
     aboutView = 'gate';
@@ -1208,6 +1210,7 @@
   }
 
   function openAboutInterviews() {
+    void startBackgroundAudio();
     aboutView = 'interviews';
     activeInterviewName = undefined;
   }
@@ -1297,12 +1300,16 @@
     await audioCues.play('background');
   }
 
-  function stopAllHomeAudio() {
-    audioCues.stopAll(homeAudioIds);
+  function stopAllHomeAudio(options: { duration?: number } = {}) {
+    audioCues.stopAll(homeAudioIds, options);
   }
 
-  function stopAllRoleAudio() {
-    audioCues.stopAll(audioRoles);
+  function stopAllRoleAudio(options: { duration?: number } = {}) {
+    audioCues.stopAll(audioRoles, options);
+  }
+
+  function fadeOutHomeAudioForSectionTransition() {
+    audioCues.stopAll(homeAudioIds, { duration: sectionAudioFadeOutDuration });
   }
 
   // ── Unica funzione che gestisce tutto — nessun conflitto ──

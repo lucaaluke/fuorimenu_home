@@ -55,6 +55,8 @@
   const tailStartX = 23600;
   const carloSpeech =
     "C'erano grosse difficoltà su Santa Giulia. Il 30 di gennaio era ancora un cantiere, quindi si entrava con l'elmetto col giubbotto catarifrangente; la situazione era veramente drammatica.\nDa dicembre 2025 abbiamo cambiato completamente la strategia per quel sito, perché era un sito che si sapeva che avrebbe avuto delle grosse difficoltà, perché a volte si faceva anche fino a 11.000 spettatori per tre gare al giorno.";
+  const kitchenAmbientFadeInDuration = 1.2;
+  const kitchenAmbientFadeOutDuration = 0.42;
   const faustoSecondAudioPauseMs = 700;
   const faustoSecondAudioStartTime = 25.9;
   const faustoSecondSpeech =
@@ -242,6 +244,7 @@
   let prefersReducedMotion = $state(false);
   let toolShedAudioContext: AudioContext | undefined;
   let toolShedAudioSource: MediaElementAudioSourceNode | undefined;
+  const fallbackAudioFadeFrames = new WeakMap<HTMLAudioElement, number>();
   let isDragging = $state(false);
   let isSceneLoaded = $state(false);
   let hasPointerScenePosition = $state(false);
@@ -963,36 +966,78 @@
     return clamp((fadeStartX - standMixerCenterX) / (fadeStartX - fadeEndX), 0, 1);
   }
 
-  function setAmbientAudioVolumes() {
+  function getKitchenAmbientTargetVolumes() {
     const mix = getKitchenAmbientMix();
     const voiceDuck = activeTestimonialAudioId ? 0.18 : 1;
-    const fadeDuration = activeTestimonialAudioId ? 0.36 : 0.72;
-    const constructionVolume = isAudioMuted ? 0 : 0.13 * (1 - mix) * voiceDuck;
-    const kitchenVolume = isAudioMuted ? 0 : 0.26 * mix * voiceDuck;
+
+    return {
+      construction: isAudioMuted ? 0 : 0.13 * (1 - mix) * voiceDuck,
+      kitchen: isAudioMuted ? 0 : 0.26 * mix * voiceDuck
+    };
+  }
+
+  function cancelFallbackAudioFade(audio: HTMLAudioElement | undefined) {
+    if (!audio) return;
+    const fallbackFrame = fallbackAudioFadeFrames.get(audio);
+    if (fallbackFrame) cancelAnimationFrame(fallbackFrame);
+    fallbackAudioFadeFrames.delete(audio);
+  }
+
+  function fadeAudioVolume(
+    audio: HTMLAudioElement,
+    volume: number,
+    duration: number,
+    onComplete?: () => void
+  ) {
+    cancelFallbackAudioFade(audio);
+
+    if (gsap && duration > 0) {
+      gsap.to(audio, {
+        volume,
+        duration,
+        ease: 'power2.out',
+        overwrite: true,
+        onComplete
+      });
+      return;
+    }
+
+    if (duration <= 0) {
+      audio.volume = volume;
+      onComplete?.();
+      return;
+    }
+
+    const initialVolume = audio.volume;
+    const startedAt = performance.now();
+    const durationMs = duration * 1000;
+
+    const step = (now: number) => {
+      const progress = Math.min((now - startedAt) / durationMs, 1);
+      audio.volume = initialVolume + (volume - initialVolume) * progress;
+
+      if (progress < 1) {
+        fallbackAudioFadeFrames.set(audio, requestAnimationFrame(step));
+        return;
+      }
+
+      audio.volume = volume;
+      fallbackAudioFadeFrames.delete(audio);
+      onComplete?.();
+    };
+
+    fallbackAudioFadeFrames.set(audio, requestAnimationFrame(step));
+  }
+
+  function setAmbientAudioVolumes(options: { duration?: number } = {}) {
+    const targetVolumes = getKitchenAmbientTargetVolumes();
+    const fadeDuration = options.duration ?? (activeTestimonialAudioId ? 0.36 : 0.72);
 
     if (constructionAudioEl) {
-      if (gsap) {
-        gsap.to(constructionAudioEl, {
-          volume: constructionVolume,
-          duration: fadeDuration,
-          ease: 'power2.out',
-          overwrite: true
-        });
-      } else {
-        constructionAudioEl.volume = constructionVolume;
-      }
+      fadeAudioVolume(constructionAudioEl, targetVolumes.construction, fadeDuration);
     }
     if (kitchenAmbientAudioEl) {
-      if (gsap) {
-        gsap.to(kitchenAmbientAudioEl, {
-          volume: kitchenVolume,
-          duration: fadeDuration,
-          ease: 'power2.out',
-          overwrite: true
-        });
-      } else {
-        kitchenAmbientAudioEl.volume = kitchenVolume;
-      }
+      fadeAudioVolume(kitchenAmbientAudioEl, targetVolumes.kitchen, fadeDuration);
     }
   }
 
@@ -1003,14 +1048,41 @@
 
     constructionAudioEl.loop = true;
     kitchenAmbientAudioEl.loop = true;
-    setAmbientAudioVolumes();
+    constructionAudioEl.volume = 0;
+    kitchenAmbientAudioEl.volume = 0;
 
     try {
       await Promise.all([constructionAudioEl.play(), kitchenAmbientAudioEl.play()]);
       isAmbientAudioStarted = true;
+      setAmbientAudioVolumes({ duration: kitchenAmbientFadeInDuration });
     } catch {
       isAmbientAudioStarted = false;
     }
+  }
+
+  function stopAmbientAudio(duration = kitchenAmbientFadeOutDuration) {
+    const ambientAudioEls = [constructionAudioEl, kitchenAmbientAudioEl].filter(
+      (audio): audio is HTMLAudioElement => Boolean(audio)
+    );
+
+    if (!ambientAudioEls.length) {
+      isAmbientAudioStarted = false;
+      return;
+    }
+
+    let pendingStops = ambientAudioEls.length;
+    const completeStop = () => {
+      pendingStops -= 1;
+      if (pendingStops > 0) return;
+      isAmbientAudioStarted = false;
+    };
+
+    ambientAudioEls.forEach((audio) => {
+      fadeAudioVolume(audio, 0, duration, () => {
+        audio.pause();
+        completeStop();
+      });
+    });
   }
 
   $effect(() => {
@@ -1020,10 +1092,9 @@
       hasTrackedAudioMuted = true;
     }
 
-    setAmbientAudioVolumes();
-
     if (!muted) {
       void startAmbientAudio();
+      if (isAmbientAudioStarted) setAmbientAudioVolumes();
       if (wasAudioMuted) resumeVisibleTestimonialAudioFromMutedPage();
       wasAudioMuted = muted;
       return;
@@ -1033,9 +1104,7 @@
     toolShedAudioEl?.pause();
     standMixerAudioEl?.pause();
     pauseAllTestimonialAudioForMute();
-    constructionAudioEl?.pause();
-    kitchenAmbientAudioEl?.pause();
-    isAmbientAudioStarted = false;
+    stopAmbientAudio();
     wasAudioMuted = muted;
   });
 
@@ -1119,7 +1188,7 @@
     return getTestimonialAudioEl(testimonial);
   }
 
-  function pauseAllTestimonialAudioForMute() {
+  function pauseAllTestimonialAudioForMute(duration = kitchenAmbientFadeOutDuration) {
     clearFaustoSecondAudioTimer();
     kitchenTestimonials.forEach((testimonial) => {
       const state = testimonialAudioState[testimonial.id];
@@ -1128,13 +1197,16 @@
 
       state.playbackToken += 1;
       state.isStarting = false;
-      state.isStopping = false;
+      state.isStopping = audioElements.some((audio) => audio && !audio.paused);
 
       audioElements.forEach((audio) => {
         if (!audio) return;
         gsap?.killTweensOf(audio);
-        audio.pause();
-        audio.volume = 1;
+        fadeAudioVolume(audio, 0, duration, () => {
+          audio.pause();
+          audio.volume = 1;
+          state.isStopping = false;
+        });
       });
     });
 
@@ -1485,6 +1557,8 @@
 
 	    return () => {
       if (phaserResizeTimer) clearTimeout(phaserResizeTimer);
+      cancelFallbackAudioFade(constructionAudioEl);
+      cancelFallbackAudioFade(kitchenAmbientAudioEl);
 	      constructionAudioEl?.pause();
       kitchenAmbientAudioEl?.pause();
       stopAllTestimonialAudio({ duration: 0, resetReplay: false });
