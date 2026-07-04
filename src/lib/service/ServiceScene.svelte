@@ -3,17 +3,21 @@
   import { clamp, ease, px } from '$lib/scene/math';
   import { loadGsapWithScrollTrigger } from '$lib/scene/gsap-loader';
   import { createViewportObserver } from '$lib/scene/viewport';
-  import type { SceneAsset, SceneChunk } from '$lib/scene/scene-asset.types';
-  import { getSceneAssetStyle } from '$lib/scene/scene-utils';
+  import type { SceneChunk } from '$lib/scene/scene-asset.types';
+  import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
+  import type { ParallaxPhaserGameHandle } from '$lib/scene/phaser/ParallaxPhaserGame';
   import {
     resolvedServiceSceneConfig,
     serviceBackgroundChunks,
     serviceBackgroundOffsetY,
+    serviceFloorAssets,
     serviceForegroundAssets,
     serviceMiddleAssets
   } from './service-scene.config';
 
   const { assetVersion, layerSpeed, sceneHeight, sceneWidth } = resolvedServiceSceneConfig;
+  const serviceBackgroundViewportOffsetY = 1;
+  const serviceMiddleViewportOffsetY = 8;
 
   let stageEl: HTMLElement;
   let viewportWidth = $state(0);
@@ -22,7 +26,12 @@
   let targetCameraX = 0;
   let isDragging = $state(false);
   let isSceneLoaded = $state(false);
+  let isPhaserReady = $state(false);
+  let phaserLoadingProgress = $state(0);
   let prefersReducedMotion = $state(false);
+  let servicePhaserContainerEl: HTMLElement;
+  let servicePhaserGame: ParallaxPhaserGameHandle | undefined;
+  let servicePhaserResizeTimer: number | undefined;
   let dragStartX = 0;
   let dragScrollStart = 0;
   let scrollTrigger:
@@ -38,6 +47,7 @@
   const resolvedLayerSpeed = $derived({
     background: prefersReducedMotion ? 1 : layerSpeed.background,
     middle: prefersReducedMotion ? 1 : layerSpeed.middle,
+    floor: prefersReducedMotion ? 1 : layerSpeed.floor,
     foreground: prefersReducedMotion ? 1 : layerSpeed.foreground,
     title: prefersReducedMotion ? 1 : layerSpeed.title
   });
@@ -45,6 +55,7 @@
   const worldWidth = $derived(Math.max(viewportWidth, sceneWidth * sceneScale));
   const maxScrollX = $derived(Math.max(0, worldWidth - viewportWidth));
   const progress = $derived(maxScrollX > 0 ? clamp(cameraX / maxScrollX, 0, 1) : 0);
+  const servicePhaserAssets = [...serviceFloorAssets, ...serviceMiddleAssets, ...serviceForegroundAssets];
   const scenePx = (value: number) => px(value, 2);
   const scrollSpaceStyle = $derived(
     `width: ${scenePx(worldWidth)}; height: ${scenePx(viewportHeight)}`
@@ -53,14 +64,8 @@
     `width: ${scenePx(viewportWidth)}; height: ${scenePx(viewportHeight)}`
   );
 
-  function versionedAsset(path: string) {
-    const normalized = path.startsWith('/') ? path : `/assets/${path}`;
-    const separator = normalized.includes('?') ? '&' : '?';
-    return `${normalized}${separator}v=${assetVersion}`;
-  }
-
-  function chunkAsset(chunk: SceneChunk) {
-    return versionedAsset(`servizio-figma/sfondo/Slice ${chunk.frameIndex + 1}.png`);
+  function serviceChunkPath(chunk: SceneChunk) {
+    return `servizio-figma/sfondo/Slice ${chunk.frameIndex + 1}.png`;
   }
 
   function syncViewport() {
@@ -69,7 +74,20 @@
     viewportHeight = Math.max(1, stageEl.clientHeight);
     targetCameraX = clamp(targetCameraX, 0, maxScrollX);
     cameraX = clamp(cameraX, 0, maxScrollX);
+    servicePhaserGame?.setCameraX(cameraX);
+    scheduleServicePhaserResize();
     scrollTrigger?.refresh();
+  }
+
+  function scheduleServicePhaserResize() {
+    if (!servicePhaserGame || !viewportWidth || !viewportHeight) return;
+    if (servicePhaserResizeTimer) window.clearTimeout(servicePhaserResizeTimer);
+
+    servicePhaserResizeTimer = window.setTimeout(() => {
+      servicePhaserResizeTimer = undefined;
+      servicePhaserGame?.resize(viewportWidth, viewportHeight);
+      servicePhaserGame?.setCameraX(cameraX);
+    }, 0);
   }
 
   function setTargetCameraX(value: number) {
@@ -89,6 +107,7 @@
     cameraX = Math.abs(distance) < 0.08 ? targetCameraX : cameraX + distance * stepAmount;
     cameraX = clamp(cameraX, 0, maxScrollX);
     targetCameraX = clamp(targetCameraX, 0, maxScrollX);
+    servicePhaserGame?.setCameraX(cameraX);
   }
 
   function onWheel(event: WheelEvent) {
@@ -137,23 +156,6 @@
     }
   }
 
-  function getChunkStyle(chunk: SceneChunk) {
-    const chunkHeight = chunk.figmaHeight ?? sceneHeight;
-    const translateX = chunk.figmaX * sceneScale - cameraX * resolvedLayerSpeed.background;
-    const bottom = viewportHeight - (chunkHeight + serviceBackgroundOffsetY) * sceneScale;
-
-    return [
-      `width: ${scenePx(chunk.figmaWidth * sceneScale + 1)}`,
-      `height: ${scenePx(chunkHeight * sceneScale)}`,
-      `bottom: ${scenePx(bottom)}`,
-      `transform: translate3d(${scenePx(translateX)}, 0, 0)`
-    ].join(';');
-  }
-
-  function getLayerAssetStyle(asset: SceneAsset) {
-    return getSceneAssetStyle(asset, cameraX, sceneHeight, sceneScale, resolvedLayerSpeed);
-  }
-
   function getTitleStyle() {
     const titleFontSize = Math.min(180 * sceneScale, Math.max(56, (viewportWidth - 48) / 3.9));
     const topbarGutter = viewportWidth <= 760 ? 24 : 80;
@@ -178,6 +180,44 @@
     syncReducedMotion();
     reducedMotionQuery.addEventListener('change', syncReducedMotion);
     window.addEventListener('keydown', onKeydown);
+    void import('$lib/scene/phaser/ParallaxPhaserGame').then(({ createParallaxPhaserGame }) => {
+      if (destroyed || !servicePhaserContainerEl) return;
+
+      createParallaxPhaserGame({
+        assetVersion,
+        assets: servicePhaserAssets,
+        chunks: serviceBackgroundChunks,
+        chunkOffsetY: serviceBackgroundOffsetY,
+        chunkViewportOffsetY: serviceBackgroundViewportOffsetY,
+        container: servicePhaserContainerEl,
+        getChunkPath: serviceChunkPath,
+        getViewport: () => ({
+          width: Math.max(1, viewportWidth || stageEl?.clientWidth || 1),
+          height: Math.max(1, viewportHeight || stageEl?.clientHeight || 1)
+        }),
+        layerSpeed,
+        onLoadingProgress: (progress) => {
+          phaserLoadingProgress = progress;
+        },
+        onReady: () => {
+          isPhaserReady = true;
+        },
+        sceneHeight,
+        sceneWidth,
+        viewportOffsetYByLayer: {
+          middle: serviceMiddleViewportOffsetY
+        }
+      }).then((game) => {
+        if (destroyed) {
+          game?.destroy();
+          return;
+        }
+
+        servicePhaserGame = game;
+        servicePhaserGame?.setCameraX(cameraX);
+        scheduleServicePhaserResize();
+      });
+    });
     void loadGsapWithScrollTrigger().then(({ gsap, ScrollTrigger }) => {
       if (destroyed) return;
 
@@ -218,6 +258,10 @@
       removeTicker();
       scrollTrigger?.kill();
       scrollTrigger = undefined;
+      if (servicePhaserResizeTimer) window.clearTimeout(servicePhaserResizeTimer);
+      servicePhaserGame?.destroy();
+      servicePhaserGame = undefined;
+      servicePhaserResizeTimer = undefined;
     };
   });
 </script>
@@ -226,7 +270,7 @@
   bind:this={stageEl}
   class="service-stage"
   class:is-dragging={isDragging}
-  class:is-loaded={isSceneLoaded}
+  class:is-loaded={isSceneLoaded && isPhaserReady}
   data-progress={progress.toFixed(3)}
   aria-label="Scena parallasse del servizio"
   onwheel={onWheel}
@@ -235,38 +279,13 @@
   onpointerup={endDrag}
   onpointercancel={endDrag}
 >
+  <div bind:this={servicePhaserContainerEl} class="service-phaser-layer" aria-hidden="true"></div>
+  {#if !isPhaserReady}
+    <SceneLoadingProgress progress={phaserLoadingProgress} />
+  {/if}
+
   <div class="service-scroll-space" style={scrollSpaceStyle}>
     <div class="service-world" style={worldStyle}>
-      {#each serviceBackgroundChunks as chunk (chunk.assetKey)}
-        <img
-          class="service-asset service-chunk reveal-layer background-layer"
-          src={chunkAsset(chunk)}
-          alt=""
-          draggable="false"
-          style={getChunkStyle(chunk)}
-        />
-      {/each}
-
-      {#each serviceMiddleAssets as item (item.id)}
-        <img
-          class="service-asset service-middle-asset reveal-layer middle-layer"
-          src={versionedAsset(item.src)}
-          alt=""
-          draggable="false"
-          style={getLayerAssetStyle(item)}
-        />
-      {/each}
-
-      {#each serviceForegroundAssets as item (item.id)}
-        <img
-          class="service-asset service-foreground-asset reveal-layer foreground-layer"
-          src={versionedAsset(item.src)}
-          alt=""
-          draggable="false"
-          style={getLayerAssetStyle(item)}
-        />
-      {/each}
-
       <h1 class="service-title" style={getTitleStyle()} aria-label="Servizio">Servizio</h1>
     </div>
   </div>
@@ -291,6 +310,23 @@
     display: none;
   }
 
+  .service-phaser-layer {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .service-phaser-layer :global(canvas) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
   .service-scroll-space {
     position: relative;
     min-width: 100%;
@@ -304,18 +340,6 @@
     min-width: 100%;
     min-height: 100svh;
     overflow: hidden;
-  }
-
-  .service-asset {
-    position: absolute;
-    left: 0;
-    display: block;
-    object-fit: fill;
-    pointer-events: none;
-    transform-origin: center center;
-    user-select: none;
-    will-change: transform;
-    z-index: var(--scene-layer-z, 0);
   }
 
   .service-title {
@@ -335,42 +359,12 @@
     will-change: transform;
   }
 
-  .reveal-layer,
   .service-title {
     opacity: 0;
   }
 
-  .service-stage.is-loaded .reveal-layer {
-    opacity: 1;
-    animation: serviceLayerIn 1ms step-end var(--reveal-delay, 0ms) forwards;
-  }
-
   .service-stage.is-loaded .service-title {
     animation: serviceTitleIn 420ms cubic-bezier(0.22, 1, 0.36, 1) 220ms forwards;
-  }
-
-  .background-layer {
-    --reveal-delay: 40ms;
-    --scene-layer-z: 2;
-  }
-
-  .middle-layer {
-    --reveal-delay: 60ms;
-    --scene-layer-z: 4;
-  }
-
-  .foreground-layer {
-    --reveal-delay: 80ms;
-    --scene-layer-z: 5;
-  }
-
-  @keyframes serviceLayerIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
   }
 
   @keyframes serviceTitleIn {
@@ -385,7 +379,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .service-stage.is-loaded .reveal-layer,
     .service-stage.is-loaded .service-title {
       animation-duration: 1ms;
     }

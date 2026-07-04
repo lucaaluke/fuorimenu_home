@@ -5,9 +5,12 @@ export const serviceChunkWidth = 2048;
 export const serviceSceneHeight = 1330;
 export const serviceBackgroundOffsetY = 4;
 const serviceExportScale = 0.5;
+const serviceFloorHeight = 166.2;
+const serviceFloorTileWidth = serviceFloorHeight;
 const serviceLayerSpeed = {
   background: 1,
   middle: 1.5,
+  floor: 1,
   foreground: 2,
   title: 0.8
 } as const;
@@ -93,8 +96,8 @@ export const serviceMiddleAssets: SceneAsset[] = [
   serviceLayerAsset('2_mobilecaffè', 11005, 328, 2753, 2203, 'secondopiano', 'middle'),
   serviceLayerAsset('2_banconecibo', 14619, 1255, 5893, 1136, 'secondopiano', 'middle'),
   serviceLayerAsset('2_spaghetti', 21970, 1373, 5232, 1024, 'secondopiano', 'middle'),
-  serviceLayerAsset('2_mascotte', 32250, 1284, 1263, 431, 'secondopiano', 'middle'),
   serviceLayerAsset('2_mobilemascotte', 31871, 1284, 5663, 1111, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_mascotte', 32250, 1284, 1263, 431, 'secondopiano', 'middle'),
   serviceLayerAsset('2_frigo', 39852, 839, 2446, 1554, 'secondopiano', 'middle'),
   serviceLayerAsset('2_carrellivassoi-1', 44225, 609, 1534, 1783, 'secondopiano', 'middle'),
   serviceLayerAsset('2_carrellivassoi', 49475, 609, 1534, 1783, 'secondopiano', 'middle'),
@@ -113,6 +116,23 @@ export const serviceSceneWidth = Math.ceil(
     ...serviceMiddleAssets.map((asset) => (asset.x + asset.width) / serviceLayerSpeed.middle),
     ...serviceForegroundAssets.map((asset) => (asset.x + asset.width) / serviceLayerSpeed.foreground)
   )
+);
+
+export const serviceFloorAssets: SceneAsset[] = Array.from(
+  { length: Math.ceil(serviceSceneWidth / serviceFloorTileWidth) + 2 },
+  (_, index) => ({
+    id: `service-floor-${index.toString().padStart(3, '0')}`,
+    kind: 'static',
+    src: 'kitchen/objects/pavimento.png',
+    x: Number((index * serviceFloorTileWidth).toFixed(2)),
+    y: 0,
+    width: serviceFloorTileWidth,
+    height: serviceFloorHeight,
+    layer: 'foreground',
+    viewportBottomAligned: true,
+    overlapX: 2,
+    zOffset: 1
+  })
 );
 
 export const resolvedServiceSceneConfig = {

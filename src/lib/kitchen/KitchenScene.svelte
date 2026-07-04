@@ -13,6 +13,7 @@
   import { createSceneController } from '$lib/scene/controller';
   import { loadGsap, type Gsap } from '$lib/scene/gsap-loader';
   import { clamp, px } from '$lib/scene/math';
+  import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
   import { getSceneAssetStyle } from '$lib/scene/scene-utils';
   import type { InteractiveSceneAsset, SceneAsset } from '$lib/scene/scene-asset.types';
   import { createViewportObserver } from '$lib/scene/viewport';
@@ -1575,7 +1576,7 @@
   bind:this={stageEl}
   class="kitchen-stage"
   class:is-dragging={isDragging}
-  class:is-loaded={isSceneLoaded}
+  class:is-loaded={isSceneLoaded && isPhaserReady}
   style={`--kitchen-cursor: ${cursorCss}; --kitchen-pointer-cursor: ${pointerCursorCss};`}
   data-active-chef={activeChefId ?? ''}
   data-narrative-progress={narrativeProgress.toFixed(3)}
@@ -1626,13 +1627,10 @@
 		  </aside>
 
   {#if browser}
-    <div bind:this={phaserContainerEl} class="kitchen-phaser-layer" aria-hidden="true">
-      {#if !isPhaserReady}
-        <div class="kitchen-phaser-loader">
-          {Math.round(phaserLoadingProgress * 100)}%
-        </div>
-      {/if}
-    </div>
+    <div bind:this={phaserContainerEl} class="kitchen-phaser-layer" aria-hidden="true"></div>
+    {#if !isPhaserReady}
+      <SceneLoadingProgress progress={phaserLoadingProgress} />
+    {/if}
   {/if}
 		
   {#if showLegacyKitchenOverlays}
@@ -1848,21 +1846,6 @@
     pointer-events: auto;
   }
 
-  .kitchen-phaser-loader {
-    position: absolute;
-    top: var(--layout-page-gutter);
-    left: var(--layout-page-gutter);
-    padding: 8px 10px;
-    border: 2px solid var(--color-border-primary);
-    border-radius: var(--radius-s);
-    background: rgb(248 243 233 / 0.9);
-    color: var(--color-text-primary);
-    font-family: var(--font-text);
-    font-size: 12px;
-    font-weight: 800;
-    line-height: 1;
-  }
-	
 	  .scene-coordinate-indicator {
     position: fixed;
     z-index: 130;

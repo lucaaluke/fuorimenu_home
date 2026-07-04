@@ -11,8 +11,10 @@
   import { clamp, ease, px } from '$lib/scene/math';
   import { loadGsapWithScrollTrigger, type Gsap } from '$lib/scene/gsap-loader';
   import type { InteractiveSceneAsset, SceneAsset, SceneChunk } from '$lib/scene/scene-asset.types';
+  import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
   import { getSceneAssetStyle } from '$lib/scene/scene-utils';
   import { createViewportObserver } from '$lib/scene/viewport';
+  import type { ParallaxPhaserGameHandle } from '$lib/scene/phaser/ParallaxPhaserGame';
 
   let { isAudioMuted = false } = $props<{ isAudioMuted?: boolean }>();
 
@@ -25,6 +27,8 @@
   let targetCameraX = 0;
   let isDragging = $state(false);
   let isSceneLoaded = $state(false);
+  let isPhaserReady = $state(false);
+  let phaserLoadingProgress = $state(0);
   let hasPointerScenePosition = $state(false);
   let pointerSceneY = $state(0);
   let pointerSceneX = $state({
@@ -55,6 +59,9 @@
   let officeAmbientFadeFrame: number | undefined;
   let carloOfficeFadeFrame: number | undefined;
   let faustoOfficeFadeFrame: number | undefined;
+  let officePhaserContainerEl: HTMLElement;
+  let officePhaserGame: ParallaxPhaserGameHandle | undefined;
+  let officePhaserResizeTimer: number | undefined;
   let dragStartX = 0;
   let dragScrollStart = 0;
   let scrollTrigger:
@@ -82,6 +89,7 @@
   const coord = (value: number) => Math.round(value).toString();
   const coordDecimal = (value: number) => value.toFixed(3);
   const officeCoordinateAssets = [...officeMiddleAssets, ...officeForegroundAssets];
+  const officePhaserAssets = [...officeFloorAssets, ...officeMiddleAssets, ...officeForegroundAssets];
   const scrollSpaceStyle = $derived(
     `width: ${scenePx(worldWidth)}; height: ${scenePx(viewportHeight)}`
   );
@@ -120,8 +128,8 @@
     return `${normalized}${separator}v=${assetVersion}`;
   }
 
-  function chunkAsset(chunk: SceneChunk) {
-    return versionedAsset(`office-figma/background/Slice ${chunk.frameIndex + 1}.png`);
+  function officeChunkPath(chunk: SceneChunk) {
+    return `office-figma/background/Slice ${chunk.frameIndex + 1}.png`;
   }
 
   function getCarloOfficeEnterCameraX() {
@@ -225,7 +233,20 @@
     viewportHeight = stageEl.clientHeight;
     targetCameraX = clamp(targetCameraX, 0, maxScrollX);
     cameraX = clamp(cameraX, 0, maxScrollX);
+    officePhaserGame?.setCameraX(cameraX);
+    scheduleOfficePhaserResize();
     scrollTrigger?.refresh();
+  }
+
+  function scheduleOfficePhaserResize() {
+    if (!officePhaserGame || !viewportWidth || !viewportHeight) return;
+    if (officePhaserResizeTimer) window.clearTimeout(officePhaserResizeTimer);
+
+    officePhaserResizeTimer = window.setTimeout(() => {
+      officePhaserResizeTimer = undefined;
+      officePhaserGame?.resize(viewportWidth, viewportHeight);
+      officePhaserGame?.setCameraX(cameraX);
+    }, 0);
   }
 
   function getScrollForCameraX(value: number) {
@@ -290,6 +311,7 @@
     cameraX = Math.abs(distance) < 0.08 ? targetCameraX : cameraX + distance * stepAmount;
     cameraX = clamp(cameraX, 0, maxScrollX);
     targetCameraX = clamp(targetCameraX, 0, maxScrollX);
+    officePhaserGame?.setCameraX(cameraX);
   }
 
   function onWheel(event: WheelEvent) {
@@ -767,19 +789,9 @@
     onComplete?: () => void
   ) {
     if (!carloOfficeAudioEl) return;
+    targetVolume = clamp(targetVolume, 0, 1);
     if (carloOfficeFadeFrame) cancelAnimationFrame(carloOfficeFadeFrame);
     carloOfficeFadeFrame = undefined;
-
-    if (gsap && duration > 0) {
-      gsap.to(carloOfficeAudioEl, {
-        volume: targetVolume,
-        duration,
-        ease: 'power2.out',
-        overwrite: true,
-        onComplete
-      });
-      return;
-    }
 
     if (duration <= 0) {
       carloOfficeAudioEl.volume = targetVolume;
@@ -787,14 +799,14 @@
       return;
     }
 
-    const initialVolume = carloOfficeAudioEl.volume;
+    const initialVolume = clamp(carloOfficeAudioEl.volume, 0, 1);
     const startedAt = performance.now();
     const durationMs = duration * 1000;
 
     const step = (now: number) => {
       if (!carloOfficeAudioEl) return;
       const progress = Math.min((now - startedAt) / durationMs, 1);
-      carloOfficeAudioEl.volume = initialVolume + (targetVolume - initialVolume) * progress;
+      carloOfficeAudioEl.volume = clamp(initialVolume + (targetVolume - initialVolume) * progress, 0, 1);
 
       if (progress < 1) {
         carloOfficeFadeFrame = requestAnimationFrame(step);
@@ -815,19 +827,9 @@
     onComplete?: () => void
   ) {
     if (!faustoOfficeAudioEl) return;
+    targetVolume = clamp(targetVolume, 0, 1);
     if (faustoOfficeFadeFrame) cancelAnimationFrame(faustoOfficeFadeFrame);
     faustoOfficeFadeFrame = undefined;
-
-    if (gsap && duration > 0) {
-      gsap.to(faustoOfficeAudioEl, {
-        volume: targetVolume,
-        duration,
-        ease: 'power2.out',
-        overwrite: true,
-        onComplete
-      });
-      return;
-    }
 
     if (duration <= 0) {
       faustoOfficeAudioEl.volume = targetVolume;
@@ -835,14 +837,14 @@
       return;
     }
 
-    const initialVolume = faustoOfficeAudioEl.volume;
+    const initialVolume = clamp(faustoOfficeAudioEl.volume, 0, 1);
     const startedAt = performance.now();
     const durationMs = duration * 1000;
 
     const step = (now: number) => {
       if (!faustoOfficeAudioEl) return;
       const progress = Math.min((now - startedAt) / durationMs, 1);
-      faustoOfficeAudioEl.volume = initialVolume + (targetVolume - initialVolume) * progress;
+      faustoOfficeAudioEl.volume = clamp(initialVolume + (targetVolume - initialVolume) * progress, 0, 1);
 
       if (progress < 1) {
         faustoOfficeFadeFrame = requestAnimationFrame(step);
@@ -863,22 +865,9 @@
     onComplete?: () => void
   ) {
     if (!officeAmbientAudioEl) return;
+    targetVolume = clamp(targetVolume, 0, 1);
     if (officeAmbientFadeFrame) cancelAnimationFrame(officeAmbientFadeFrame);
     officeAmbientFadeFrame = undefined;
-
-    if (gsap && duration > 0) {
-      gsap.to(officeAmbientAudioEl, {
-        volume: targetVolume,
-        duration,
-        ease: 'power2.out',
-        overwrite: true,
-        onComplete: () => {
-          officeAmbientAudioEl.volume = targetVolume;
-          onComplete?.();
-        }
-      });
-      return;
-    }
 
     if (duration <= 0) {
       officeAmbientAudioEl.volume = targetVolume;
@@ -886,14 +875,14 @@
       return;
     }
 
-    const initialVolume = officeAmbientAudioEl.volume;
+    const initialVolume = clamp(officeAmbientAudioEl.volume, 0, 1);
     const startedAt = performance.now();
     const durationMs = duration * 1000;
 
     const step = (now: number) => {
       if (!officeAmbientAudioEl) return;
       const progress = Math.min((now - startedAt) / durationMs, 1);
-      officeAmbientAudioEl.volume = initialVolume + (targetVolume - initialVolume) * progress;
+      officeAmbientAudioEl.volume = clamp(initialVolume + (targetVolume - initialVolume) * progress, 0, 1);
 
       if (progress < 1) {
         officeAmbientFadeFrame = requestAnimationFrame(step);
@@ -1132,6 +1121,40 @@
     syncReducedMotion();
     reducedMotionQuery.addEventListener('change', syncReducedMotion);
     window.addEventListener('keydown', onKeydown);
+    void import('$lib/scene/phaser/ParallaxPhaserGame').then(({ createParallaxPhaserGame }) => {
+      if (destroyed || !officePhaserContainerEl) return;
+
+      createParallaxPhaserGame({
+        assetVersion,
+        assets: officePhaserAssets,
+        chunks: officeBackgroundChunks,
+        chunkOffsetY: officeBackgroundOffsetY,
+        container: officePhaserContainerEl,
+        getChunkPath: officeChunkPath,
+        getViewport: () => ({
+          width: Math.max(1, viewportWidth || stageEl?.clientWidth || 1),
+          height: Math.max(1, viewportHeight || stageEl?.clientHeight || 1)
+        }),
+        layerSpeed,
+        onLoadingProgress: (progress) => {
+          phaserLoadingProgress = progress;
+        },
+        onReady: () => {
+          isPhaserReady = true;
+        },
+        sceneHeight,
+        sceneWidth
+      }).then((game) => {
+        if (destroyed) {
+          game?.destroy();
+          return;
+        }
+
+        officePhaserGame = game;
+        officePhaserGame?.setCameraX(cameraX);
+        scheduleOfficePhaserResize();
+      });
+    });
     void loadGsapWithScrollTrigger().then(({ gsap: loadedGsap, ScrollTrigger }) => {
       if (destroyed) return;
       gsap = loadedGsap;
@@ -1179,6 +1202,10 @@
       if (officeAmbientFadeFrame) cancelAnimationFrame(officeAmbientFadeFrame);
       if (carloOfficeFadeFrame) cancelAnimationFrame(carloOfficeFadeFrame);
       if (faustoOfficeFadeFrame) cancelAnimationFrame(faustoOfficeFadeFrame);
+      if (officePhaserResizeTimer) window.clearTimeout(officePhaserResizeTimer);
+      officePhaserGame?.destroy();
+      officePhaserGame = undefined;
+      officePhaserResizeTimer = undefined;
       officeAmbientFadeFrame = undefined;
       carloOfficeFadeFrame = undefined;
       faustoOfficeFadeFrame = undefined;
@@ -1196,7 +1223,7 @@
   bind:this={stageEl}
   class="office-stage"
   class:is-dragging={isDragging}
-  class:is-loaded={isSceneLoaded}
+  class:is-loaded={isSceneLoaded && isPhaserReady}
   data-audio-muted={isAudioMuted}
   data-progress={progress.toFixed(3)}
   aria-label="Scena parallasse dell'ufficio"
@@ -1207,6 +1234,11 @@
   onpointerup={endDrag}
   onpointercancel={endDrag}
 >
+  <div bind:this={officePhaserContainerEl} class="office-phaser-layer" aria-hidden="true"></div>
+  {#if !isPhaserReady}
+    <SceneLoadingProgress progress={phaserLoadingProgress} />
+  {/if}
+
   <aside class="scene-coordinate-indicator" aria-label="Coordinate scena per posizionamento asset">
     <div class="coordinate-indicator-title">coordinate scena</div>
     <dl>
@@ -1247,26 +1279,6 @@
 
   <div class="office-scroll-space" style={scrollSpaceStyle}>
     <div class="office-world" style={worldStyle}>
-      {#each officeBackgroundChunks as chunk (chunk.assetKey)}
-        <img
-          class="office-asset office-chunk reveal-layer background-layer"
-          src={chunkAsset(chunk)}
-          alt=""
-          draggable="false"
-          style={getChunkStyle(chunk)}
-        />
-      {/each}
-
-      {#each officeFloorAssets as item (item.id)}
-        <img
-          class="office-asset office-floor reveal-layer floor-layer"
-          src={versionedAsset(item.src)}
-          alt=""
-          draggable="false"
-          style={getFloorStyle(item)}
-        />
-      {/each}
-
       {#each officeMiddleAssets as item (item.id)}
         {#if isInteractiveAsset(item)}
           <button
@@ -1279,7 +1291,11 @@
             onpointerdown={(event) => event.stopPropagation()}
             onclick={(event) => event.stopPropagation()}
           >
-            <img src={versionedAsset(item.src)} alt="" draggable="false" />
+            <img
+              src={versionedAsset(item.src)}
+              alt=""
+              draggable="false"
+            />
             {#if item.shineEffect}
               <span
                 class="object-shine"
@@ -1288,14 +1304,6 @@
               ></span>
             {/if}
           </button>
-        {:else}
-          <img
-            class="office-asset office-middle-asset reveal-layer middle-layer"
-            src={versionedAsset(item.src)}
-            alt=""
-            draggable="false"
-            style={getForegroundStyle(item)}
-          />
         {/if}
       {/each}
 
@@ -1311,7 +1319,11 @@
             onpointerdown={(event) => event.stopPropagation()}
             onclick={(event) => event.stopPropagation()}
           >
-            <img src={versionedAsset(item.src)} alt="" draggable="false" />
+            <img
+              src={versionedAsset(item.src)}
+              alt=""
+              draggable="false"
+            />
             {#if item.shineEffect}
               <span
                 class="object-shine"
@@ -1320,14 +1332,6 @@
               ></span>
             {/if}
           </button>
-        {:else}
-          <img
-            class="office-asset office-foreground-asset reveal-layer foreground-layer"
-            src={versionedAsset(item.src)}
-            alt=""
-            draggable="false"
-            style={getForegroundStyle(item)}
-          />
         {/if}
       {/each}
 
@@ -1600,6 +1604,23 @@
 
   .office-stage::-webkit-scrollbar {
     display: none;
+  }
+
+  .office-phaser-layer {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .office-phaser-layer :global(canvas) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
   }
 
   .office-scroll-space {
@@ -2088,16 +2109,6 @@
 
   .office-stage.is-loaded .office-title {
     animation: officeTitleIn 420ms cubic-bezier(0.22, 1, 0.36, 1) 220ms forwards;
-  }
-
-  .background-layer {
-    --reveal-delay: 40ms;
-    --scene-layer-z: 2;
-  }
-
-  .floor-layer {
-    --reveal-delay: 40ms;
-    --scene-layer-z: 3;
   }
 
   .middle-layer {

@@ -1937,6 +1937,12 @@
       {/if}
     {/each}
   </p>
+  <div class="next-scroll-cue" aria-label="Scorri">
+    <span>Scorri</span>
+    <svg class="brand-scroll-arrow" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 5v12M7 12l5 5 5-5" />
+    </svg>
+  </div>
 </section>
 
 
@@ -2293,6 +2299,10 @@
 
 
 <style>
+  :global(:root) {
+    --home-scroll-cue-bottom: clamp(40px, 10svh, 96px);
+  }
+
   .svg-filter-defs {
     position: absolute;
     width: 0;
@@ -3938,7 +3948,7 @@
 
   .intro-scroll-cue {
     position: absolute;
-    bottom: clamp(28px, 6vh, 64px);
+    bottom: var(--home-scroll-cue-bottom);
     left: 50%;
     display: flex;
     flex-direction: column;
@@ -4050,6 +4060,30 @@
   .next-message { font-size: 0; }
   .next-message .accent-letter { color: var(--color-text-primary); font-style: italic; font-weight: 800; }
   .next-message .space { display: inline-block; opacity: 1; transform: none; transition: none; width: 0.28em; }
+
+  .next-scroll-cue {
+    position: absolute;
+    left: 50%;
+    bottom: var(--home-scroll-cue-bottom);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    color: var(--color-text-primary);
+    font-family: var(--font-text);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: normal;
+    text-align: center;
+    white-space: nowrap;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .next-scroll-cue span {
+    word-break: break-word;
+  }
 
   /* Parte invisibile, sopra next-screen, solo opacity gestita da JS */
   .brand-screen {
@@ -4182,9 +4216,9 @@
   }
 
   .brand-scroll-cue {
-    position: absolute;
-    top: calc(100% + clamp(72px, 14vh, 150px));
+    position: fixed;
     left: 50%;
+    bottom: clamp(24px, 6svh, 64px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -4642,6 +4676,10 @@
   }
 
   @media (max-width: 700px) {
+    :global(:root) {
+      --home-scroll-cue-bottom: clamp(24px, 6vh, 48px);
+    }
+
     .audio-gate-content {
       width: calc(100vw - var(--spacing-8));
     }
@@ -4749,7 +4787,6 @@
       font-size: 12px;
     }
     .intro        { padding: var(--layout-page-gutter-mobile); }
-    .intro-scroll-cue { bottom: clamp(24px, 6vh, 48px); }
     .persistent-top-audio { top: calc(var(--unit-24) + var(--unit-4)); }
     h1, .next-message { font-size: 24px; }
     .next-message span { font-size: 24px; }
@@ -4758,7 +4795,7 @@
     .brand-word   { font-size: clamp(40px, 10.5vw, 76px); }
     .brand-lockup { gap: 0; }
     .brand-subtitle { font-size: 24px; }
-    .brand-scroll-cue { top: calc(100% + clamp(58px, 11vh, 96px)); }
+    .brand-scroll-cue { bottom: clamp(16px, 4vh, 32px); }
     .floating-raviolo { width: clamp(86px, 28vw, 124px); }
     .floating-pizza { width: clamp(92px, 30vw, 132px); }
     .floating-fusillo { width: clamp(82px, 26vw, 118px); }
