@@ -15,6 +15,7 @@ import {
   tailAwareFigmaX,
   viewportBottomAlignedWorldY
 } from './coordinate-utils';
+import { startKitchenSceneAnimations } from './KitchenAnimationData';
 
 export type PhaserModule = typeof import('phaser');
 
@@ -60,6 +61,11 @@ const chunkPathPrefix = {
   foreground: 'fg'
 } as const satisfies Partial<Record<SceneLayer, string>>;
 
+const BACKGROUND_TILE_SCROLL_FACTOR = 1;
+const FLOOR_SCROLL_FACTOR = 1;
+const MIDDLEGROUND_OBJECT_SCROLL_FACTOR = 1.25;
+const FOREGROUND_OBJECT_SCROLL_FACTOR = 1.5;
+
 function resolveAssetPath(src: string, version: string) {
   const normalized = src.startsWith('/') ? src : `/assets/${src}`;
   const separator = normalized.includes('?') ? '&' : '?';
@@ -78,6 +84,14 @@ function isPhaserObjectAsset(asset: SceneAsset) {
   if (asset.id.startsWith('layer-')) return false;
 
   return asset.src.startsWith('kitchen/objects/') || asset.src.startsWith('/assets/kitchen/objects/');
+}
+
+function isFloorAsset(asset: SceneAsset) {
+  return asset.id.startsWith('pavimento-') || asset.src.endsWith('/pavimento.png') || asset.src.endsWith('pavimento.png');
+}
+
+function isMiddlegroundObjectAsset(asset: SceneAsset) {
+  return asset.id.startsWith('2-');
 }
 
 export function createKitchenMainSceneClass(Phaser: PhaserModule, dependencies: KitchenMainSceneDependencies) {
@@ -103,7 +117,10 @@ export function createKitchenMainSceneClass(Phaser: PhaserModule, dependencies: 
         dependencies.onLoadingProgress?.(progress);
       });
 
+      const loadedChunkKeys = new Set<string>();
       for (const chunk of this.chunks) {
+        if (loadedChunkKeys.has(chunk.assetKey)) continue;
+        loadedChunkKeys.add(chunk.assetKey);
         this.load.image(chunk.assetKey, resolveChunkPath(chunk, dependencies.assetVersion));
       }
 
@@ -130,7 +147,7 @@ export function createKitchenMainSceneClass(Phaser: PhaserModule, dependencies: 
         this.setTextureSmoothing(chunk.assetKey);
         const sprite = this.add.sprite(0, 0, chunk.assetKey);
         sprite.setOrigin(0, 0);
-        sprite.setScrollFactor(this.getLayerSpeed(chunk.layer), 0);
+        sprite.setScrollFactor(this.getChunkScrollFactor(), 0);
         sprite.setDepth(this.getLayerDepth(chunk.layer));
 
         return { chunk, sprite };
@@ -143,11 +160,12 @@ export function createKitchenMainSceneClass(Phaser: PhaserModule, dependencies: 
         this.setTextureSmoothing(assetKey);
         const sprite = this.add.sprite(0, 0, assetKey);
         sprite.setOrigin(0, 0);
-        sprite.setScrollFactor(this.getLayerSpeed(asset.layer), 0);
+        sprite.setScrollFactor(this.getAssetScrollFactor(asset), 0);
         sprite.setDepth(this.getLayerDepth(asset.layer) + (asset.zOffset ?? 0));
 
         return [{ asset, sprite }];
       });
+      startKitchenSceneAnimations(this, this.assetSprites, () => this.sceneScale);
 
       this.resize(this.viewport.width, this.viewport.height);
       dependencies.onReady?.();
@@ -242,13 +260,24 @@ export function createKitchenMainSceneClass(Phaser: PhaserModule, dependencies: 
 
       this.load.image(key, path);
     }
-
     private getLayerDepth(layer: SceneLayer) {
       return (dependencies.layerBaseDepth ?? LAYER_BASE_DEPTH)[layer] ?? 0;
     }
 
     private getLayerSpeed(layer: SceneLayer) {
       return (dependencies.layerSpeed ?? LAYER_SPEED)[layer] ?? 1;
+    }
+
+    private getChunkScrollFactor() {
+      return BACKGROUND_TILE_SCROLL_FACTOR;
+    }
+
+    private getAssetScrollFactor(asset: SceneAsset) {
+      if (isFloorAsset(asset)) return FLOOR_SCROLL_FACTOR;
+      if (isMiddlegroundObjectAsset(asset)) return MIDDLEGROUND_OBJECT_SCROLL_FACTOR;
+      if (asset.layer === 'foreground') return FOREGROUND_OBJECT_SCROLL_FACTOR;
+
+      return this.getLayerSpeed(asset.layer);
     }
 
     private getSceneScale() {
@@ -270,7 +299,7 @@ export function createKitchenMainSceneClass(Phaser: PhaserModule, dependencies: 
     private updateChunkVisibility() {
       for (const { chunk, sprite } of this.chunkSprites) {
         const width = Math.round(chunk.figmaWidth * this.sceneScale);
-        const screenX = sprite.x - this.getRenderCameraX() * this.getLayerSpeed(chunk.layer);
+        const screenX = sprite.x - this.getRenderCameraX() * this.getChunkScrollFactor();
 
         sprite.visible = screenX > -width && screenX < this.getRenderWidth() + width;
       }
