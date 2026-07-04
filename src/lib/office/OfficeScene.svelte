@@ -149,25 +149,14 @@
   }
 
   function getFaustoOfficeStartCameraX() {
-    return clamp(
-      getFaustoOfficeAnchorCameraX({
-        figmaX: 89178,
-        layer: 'middle'
-      }),
-      0,
-      maxScrollX
-    );
+    return clamp(11728, 0, maxScrollX);
   }
 
   function getFaustoOfficeEndCameraX() {
     const startCameraX = getFaustoOfficeStartCameraX();
-    const divanoCameraX = getFaustoOfficeAnchorCameraX({
-      figmaX: 111631,
-      layer: 'foreground'
-    });
 
     return clamp(
-      Math.max(divanoCameraX, startCameraX + viewportWidth * 0.42),
+      Math.max(14728, startCameraX + viewportWidth * 0.42),
       startCameraX + viewportWidth * 0.32,
       maxScrollX
     );

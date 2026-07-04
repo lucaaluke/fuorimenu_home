@@ -658,7 +658,8 @@
       speaker: 'Ken Frank',
       dialogue: 'il mio ruolo ... seguimi nella mensa per saperne di più',
       hoverText: 'io sono ken frank seguimi in sala',
-      personSrc: '/images/k.png'
+      personSrc: '/images/k.png',
+      href: '/servizio'
     }
   ];
 
