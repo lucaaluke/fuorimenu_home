@@ -363,8 +363,10 @@
   }
 
   function getTitleStyle() {
+    const topbarGutter = viewportWidth <= 760 ? 24 : 80;
+
     return [
-      `left: ${scenePx(92 * sceneScale - cameraX * resolvedLayerSpeed.title)}`,
+      `left: ${scenePx(topbarGutter - cameraX * resolvedLayerSpeed.title)}`,
       `top: ${scenePx(viewportHeight / 2 - 132 * sceneScale)}`,
       `font-size: ${scenePx(180 * sceneScale)}`
     ].join(';');

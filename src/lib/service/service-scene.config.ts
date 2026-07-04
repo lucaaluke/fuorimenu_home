@@ -7,6 +7,7 @@ export const serviceBackgroundOffsetY = 4;
 const serviceExportScale = 0.5;
 const serviceLayerSpeed = {
   background: 1,
+  middle: 1.5,
   foreground: 2,
   title: 0.8
 } as const;
@@ -23,17 +24,19 @@ function serviceLayerAsset(
   x: number,
   y: number,
   width: number,
-  height: number
+  height: number,
+  folder: 'primopiano' | 'secondopiano' = 'primopiano',
+  layer: 'middle' | 'foreground' = 'foreground'
 ): SceneAsset {
   return {
     id: name,
     kind: 'static',
-    src: `servizio-figma/primopiano/${name}.png`,
+    src: `servizio-figma/${folder}/${name}.png`,
     x: Number((x * serviceExportScale).toFixed(2)),
     y: Number((y * serviceExportScale).toFixed(2)),
     width: Number((width * serviceExportScale).toFixed(2)),
     height: Number((height * serviceExportScale).toFixed(2)),
-    layer: 'foreground'
+    layer
   };
 }
 
@@ -84,9 +87,30 @@ export const serviceForegroundAssets: SceneAsset[] = [
   serviceLayerAsset('1_furgone', 124418, 1043, 4182, 1696)
 ];
 
+export const serviceMiddleAssets: SceneAsset[] = [
+  serviceLayerAsset('2_mobileconlampada', 4745, 314, 1371, 2078, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_mobilepiatti', 7771, 1522, 1699, 873, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_mobilecaffè', 11005, 328, 2753, 2203, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_banconecibo', 14619, 1255, 5893, 1136, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_spaghetti', 21970, 1373, 5232, 1024, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_mascotte', 32250, 1284, 1263, 431, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_mobilemascotte', 31871, 1284, 5663, 1111, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_frigo', 39852, 839, 2446, 1554, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_carrellivassoi-1', 44225, 609, 1534, 1783, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_carrellivassoi', 49475, 609, 1534, 1783, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_mobilegrande', 58030, 1353, 5411, 1038, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_cibarie', 66314, 1100, 6694, 1293, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_mobilibarattoli', 75517, 581, 3546, 1813, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_vassoi', 80460, 1562, 1706, 829, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_carreliscatole', 84141, 1368, 2468, 1033, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_carrellivassoi2', 88522, 908, 3419, 1484, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_bancali', 94562, 1453, 1959, 946, 'secondopiano', 'middle')
+];
+
 export const serviceSceneWidth = Math.ceil(
   Math.max(
     serviceChunkCount * serviceChunkWidth,
+    ...serviceMiddleAssets.map((asset) => (asset.x + asset.width) / serviceLayerSpeed.middle),
     ...serviceForegroundAssets.map((asset) => (asset.x + asset.width) / serviceLayerSpeed.foreground)
   )
 );

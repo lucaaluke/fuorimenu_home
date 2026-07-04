@@ -407,7 +407,8 @@
 
   function getTitleStyle() {
     const titleFontSize = Math.min(180 * sceneScale, Math.max(56, (viewportWidth - 48) / 4.55));
-    const translateX = 92 * sceneScale - cameraX * resolvedLayerSpeed.title;
+    const topbarGutter = viewportWidth <= 760 ? 24 : 80;
+    const translateX = topbarGutter - cameraX * resolvedLayerSpeed.title;
 
     return [
       `left: ${scenePx(translateX)}`,

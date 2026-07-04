@@ -9,7 +9,8 @@
     resolvedServiceSceneConfig,
     serviceBackgroundChunks,
     serviceBackgroundOffsetY,
-    serviceForegroundAssets
+    serviceForegroundAssets,
+    serviceMiddleAssets
   } from './service-scene.config';
 
   const { assetVersion, layerSpeed, sceneHeight, sceneWidth } = resolvedServiceSceneConfig;
@@ -36,6 +37,7 @@
 
   const resolvedLayerSpeed = $derived({
     background: prefersReducedMotion ? 1 : layerSpeed.background,
+    middle: prefersReducedMotion ? 1 : layerSpeed.middle,
     foreground: prefersReducedMotion ? 1 : layerSpeed.foreground,
     title: prefersReducedMotion ? 1 : layerSpeed.title
   });
@@ -148,13 +150,14 @@
     ].join(';');
   }
 
-  function getForegroundStyle(asset: SceneAsset) {
+  function getLayerAssetStyle(asset: SceneAsset) {
     return getSceneAssetStyle(asset, cameraX, sceneHeight, sceneScale, resolvedLayerSpeed);
   }
 
   function getTitleStyle() {
     const titleFontSize = Math.min(180 * sceneScale, Math.max(56, (viewportWidth - 48) / 3.9));
-    const translateX = 92 * sceneScale - cameraX * resolvedLayerSpeed.title;
+    const topbarGutter = viewportWidth <= 760 ? 24 : 80;
+    const translateX = topbarGutter - cameraX * resolvedLayerSpeed.title;
 
     return [
       `left: ${scenePx(translateX)}`,
@@ -244,13 +247,23 @@
         />
       {/each}
 
+      {#each serviceMiddleAssets as item (item.id)}
+        <img
+          class="service-asset service-middle-asset reveal-layer middle-layer"
+          src={versionedAsset(item.src)}
+          alt=""
+          draggable="false"
+          style={getLayerAssetStyle(item)}
+        />
+      {/each}
+
       {#each serviceForegroundAssets as item (item.id)}
         <img
           class="service-asset service-foreground-asset reveal-layer foreground-layer"
           src={versionedAsset(item.src)}
           alt=""
           draggable="false"
-          style={getForegroundStyle(item)}
+          style={getLayerAssetStyle(item)}
         />
       {/each}
 
@@ -339,6 +352,11 @@
   .background-layer {
     --reveal-delay: 40ms;
     --scene-layer-z: 2;
+  }
+
+  .middle-layer {
+    --reveal-delay: 60ms;
+    --scene-layer-z: 4;
   }
 
   .foreground-layer {
