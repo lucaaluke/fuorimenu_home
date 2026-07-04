@@ -2,7 +2,13 @@
   import { goto } from '$app/navigation';
   import VolumeMaxIcon from '$lib/VolumeMaxIcon.svelte';
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
+  import {
+    createAboutProjectPhaserGame,
+    type AboutProjectPhaserAsset,
+    type AboutProjectPhaserGameHandle
+  } from '$lib/home/about-project-phaser';
   import { createAnimationCueManager } from '$lib/scene/animation-cues';
+  import { readAudioMutedPreference, writeAudioMutedPreference } from '$lib/scene/audio-preference';
   import { createAudioCueManager, type AudioCueConfig } from '$lib/scene/audio-cues';
   import { loadGsap, type Gsap } from '$lib/scene/gsap-loader';
   import { clamp, deg, ease, fixed, px, type CssVars, vh, vw } from '$lib/scene/math';
@@ -26,6 +32,7 @@
   let nextLetters: HTMLElement[] = [];
   let audioGateCopyLetters: HTMLElement[] = [];
   let introEl: HTMLElement;
+  let introScrollCueEl: HTMLElement;
   let audioGateButtonEl = $state<HTMLElement>();
   let isAudioGateVisible = $state(true);
   let isAudioGateOpening = $state(false);
@@ -33,7 +40,17 @@
   let audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
   let isBrandWordSharp = $state(false);
   let isAboutOpen = $state(false);
+  let isAboutClosing = $state(false);
+  let aboutView = $state<'gate' | 'project' | 'interviews'>('gate');
+  let activeInterviewName = $state<string>();
   let aboutScreenEl = $state<HTMLElement>();
+  let aboutProjectEl = $state<HTMLElement>();
+  let aboutProjectPhaserEl = $state<HTMLElement>();
+  let isAboutProjectTeamVisible = $state(false);
+  let aboutTransitionId = 0;
+  let aboutProjectPhaserHandle: AboutProjectPhaserGameHandle | undefined;
+  let aboutProjectResizeObserver: ResizeObserver | undefined;
+  let aboutProjectPhaserRequestId = 0;
   let gsap: Gsap;
   let flowTween: ReturnType<Gsap['to']> | undefined;
   let cardEnterTween: ReturnType<Gsap['timeline']> | undefined;
@@ -55,6 +72,46 @@
     personFillSrc?: string;
     personFillNodeId?: string;
     href?: string;
+  };
+  type InterviewFacePiece = {
+    src: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    maskSrc?: string;
+    maskX?: number;
+    maskY?: number;
+    maskSize?: number;
+  };
+  type InterviewChef = {
+    number: string;
+    name: string;
+    nameHeight: number;
+    faceWidth: number;
+    faceHeight: number;
+    portraitSrc: string;
+    portraitScale?: number;
+    portraitY?: number;
+    pieces: InterviewFacePiece[];
+    featuredHover?: {
+      role: string;
+      description: string;
+      bodySrc: string;
+    };
+  };
+  type InterviewDetail = {
+    name: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    description: string;
+    portraitSrc: string;
+    portraitX?: number;
+    portraitY?: number;
+    portraitHeight?: number;
+    firstNameX?: number;
+    lastNameX?: number;
   };
 
   const roleAudio: Record<AudioRole, AudioCueConfig> = {
@@ -78,7 +135,7 @@
       maxTime: 0,
       targetVolume: 1,
       outputGain: 0.92,
-      fadeIn: false
+      fadeInDuration: 0.12
     }
   };
   const backgroundAudio: AudioCueConfig = {
@@ -89,6 +146,219 @@
     loop: true
   };
   const roleAudioEntries = audioRoles.map((role) => ({ role, config: roleAudio[role] }));
+  const interviewAssetBase = '/assets/interviews/';
+  const aboutProjectAssets: AboutProjectPhaserAsset[] = ([
+    { name: 'mobile2', alt: '', x: 4294, y: 1643, width: 1647, height: 1021, isBackdrop: true },
+    { name: 'mobile1', alt: '', x: 5919, y: 1692, width: 1797, height: 972, isBackdrop: true },
+    { name: 'gerri', alt: 'Ritratto team Gerri', x: 4487, y: 1277, width: 482, height: 640 },
+    { name: 'luke', alt: 'Ritratto team Luke', x: 4926, y: 1263, width: 521, height: 655 },
+    { name: 'nicol', alt: 'Ritratto team Nicol', x: 5389, y: 1288, width: 475, height: 632 },
+    { name: 'alep', alt: 'Ritratto team Alep', x: 6044, y: 1273, width: 471, height: 649 },
+    { name: 'tama', alt: 'Ritratto team Tama', x: 6522, y: 1263, width: 513, height: 655 },
+    { name: 'vigex', alt: 'Ritratto team Vigex', x: 7051, y: 1299, width: 458, height: 620 }
+  ] satisfies Array<Omit<AboutProjectPhaserAsset, 'src'>>).map((asset) => ({
+    ...asset,
+    src: `/assets/about/${asset.name}.png`
+  }));
+  const interviewChefs: InterviewChef[] = [
+    {
+      number: '01',
+      name: 'Stefano Paganini',
+      nameHeight: 231,
+      faceWidth: 85,
+      faceHeight: 85,
+      portraitSrc: '/assets/interviews/nini.png',
+      featuredHover: {
+        role: 'Executive Chef',
+        description:
+          'Lo chef piemontese ha fatto parte del team incaricato della ristorazione olimpica internazionale a Livigno.',
+        bodySrc: '/assets/interviews-hover/stefano-paganini-figma.svg'
+      },
+      pieces: [
+        { src: 'stefano-ring.svg', x: -1.31, y: -1.31, width: 87.62, height: 87.62 },
+        { src: 'stefano-layer-1.svg', x: -16.75, y: 6.44, width: 104.62, height: 341.98, maskSrc: 'stefano-mask.svg', maskX: 18.67, maskY: -4.51, maskSize: 83.07 },
+        { src: 'stefano-layer-2.svg', x: -16.75, y: 23.42, width: 105.35, height: 325.36, maskSrc: 'stefano-mask.svg', maskX: 18.67, maskY: -21.48, maskSize: 83.07 }
+      ]
+    },
+    {
+      number: '02',
+      name: 'Carlo Zarri',
+      nameHeight: 231,
+      faceWidth: 86,
+      faceHeight: 87,
+      portraitSrc: '/assets/interviews/zarri.png',
+      portraitY: 8,
+      portraitScale: 1.15,
+      pieces: [
+        { src: 'zarri-ring.svg', x: -0.31, y: 0.69, width: 87.62, height: 87.62 },
+        { src: 'zarri-layer-1.svg', x: -3.0, y: 9.0, width: 113.98, height: 341.71, maskSrc: 'zarri-mask.svg', maskX: 1.69, maskY: -10.31, maskSize: 87.62 },
+        { src: 'zarri-layer-2.svg', x: -3.0, y: 9.02, width: 114.72, height: 342.37, maskSrc: 'zarri-mask.svg', maskX: 1.69, maskY: -10.33, maskSize: 87.62 }
+      ]
+    },
+    {
+      number: '03',
+      name: 'Elisabetta Salvadori',
+      nameHeight: 288,
+      faceWidth: 85,
+      faceHeight: 86,
+      portraitY: 14,
+      portraitScale: 1.14,
+      portraitSrc: '/assets/interviews/eli.png',
+      pieces: [
+        { src: 'salvadori-ring.svg', x: -1.31, y: -0.31, width: 87.62, height: 87.62 },
+        { src: 'salvadori-layer-1.svg', x: -5.0, y: 7.0, width: 100.93, height: 389.82, maskSrc: 'salvadori-mask.svg', maskX: 3.69, maskY: -8.31, maskSize: 87.62 },
+        { src: 'salvadori-layer-2.svg', x: -5.0, y: 7.04, width: 101.83, height: 390.59, maskSrc: 'salvadori-mask.svg', maskX: 3.69, maskY: -8.35, maskSize: 87.62 },
+        { src: 'salvadori-eye-1.svg', x: 37.53, y: 29.66, width: 10.17, height: 3.64, maskSrc: 'salvadori-mask.svg', maskX: -38.83, maskY: -30.97, maskSize: 87.62 },
+        { src: 'salvadori-eye-2.svg', x: 55.56, y: 28.57, width: 9.53, height: 2.62, maskSrc: 'salvadori-mask.svg', maskX: -56.86, maskY: -29.88, maskSize: 87.62 }
+      ]
+    },
+    {
+      number: '04',
+      name: 'Fausto Meli',
+      nameHeight: 288,
+      faceWidth: 85,
+      faceHeight: 87,
+      portraitY: 6,
+      portraitSrc: '/assets/interviews/fausto.png',
+      pieces: [
+        { src: 'meli-ring.svg', x: -1.31, y: 0.69, width: 87.62, height: 87.62 },
+        { src: 'meli-layer-1.svg', x: -14.0, y: 6.0, width: 113.98, height: 365.62, maskSrc: 'meli-mask.svg', maskX: 12.69, maskY: -7.31, maskSize: 87.62 },
+        { src: 'meli-layer-2.svg', x: -13.97, y: 6.0, width: 114.73, height: 366.36, maskSrc: 'meli-mask.svg', maskX: 12.66, maskY: -7.31, maskSize: 87.62 }
+      ]
+    },
+    {
+      number: '05',
+      name: 'Marco Frassante',
+      nameHeight: 288,
+      faceWidth: 85,
+      faceHeight: 85,
+      portraitSrc: '/assets/interviews/marco.png',
+      portraitScale: 1.38,
+      portraitY: 0,
+      pieces: [{ src: 'frassante-face.svg', x: -1.31, y: -1.41, width: 87.62, height: 87.62 }]
+    },
+    {
+      number: '06',
+      name: 'Carlo Cracco',
+      nameHeight: 288,
+      faceWidth: 85,
+      faceHeight: 87,
+      portraitSrc: '/assets/interviews/cracco.png',
+      portraitY: 14,
+      portraitScale: 1.28,
+      pieces: [{ src: 'cracco-face.svg', x: -1.31, y: 0, width: 87.62, height: 88.31 }]
+    },
+    {
+      number: '07',
+      name: 'Ken Frank',
+      nameHeight: 288,
+      faceWidth: 85,
+      faceHeight: 85,
+      portraitSrc: '/assets/interviews/ken.png',
+      portraitY: 22,
+      portraitScale: 1.2,
+      pieces: [
+        { src: 'frank-ring.svg', x: -1.31, y: 0.69, width: 87.62, height: 87.62 },
+        { src: 'frank-layer-1.svg', x: 1.41, y: 32.87, width: 59.45, height: 86.09, maskSrc: 'frank-mask.svg', maskX: -2.72, maskY: -34.18, maskSize: 87.62 },
+        { src: 'frank-layer-2.svg', x: -10.0, y: 5.47, width: 100.99, height: 329.54, maskSrc: 'frank-mask.svg', maskX: 8.69, maskY: -6.78, maskSize: 87.62 },
+        { src: 'frank-layer-3.svg', x: -9.98, y: 5.47, width: 100.98, height: 329.55, maskSrc: 'frank-mask.svg', maskX: 8.68, maskY: -6.78, maskSize: 87.62 }
+      ]
+    }
+  ];
+  const interviewDetails: Record<string, InterviewDetail> = {
+    'Stefano Paganini': {
+      name: 'Stefano Paganini',
+      firstName: 'Stefano',
+      lastName: 'Paganini',
+      role: 'Executive Chef',
+      description:
+        'Lo chef piemontese ha fatto parte del team incaricato della ristorazione olimpica internazionale a Livigno.',
+      portraitSrc: '/assets/interviews-hover/nini.png'
+    },
+    'Carlo Zarri': {
+      name: 'Carlo Zarri',
+      firstName: 'Carlo',
+      lastName: 'Zarri',
+      role: 'Chief Executive Chef',
+      description:
+        "Architetto iniziale del progetto gastronomico di Milano-Cortina 2026 ha gestito la ristorazione all'Arena di Santa Giulia.",
+      portraitSrc: '/assets/interviews-hover/zarri.png',
+      portraitX: 0,
+      portraitY: 0,
+      portraitHeight: 614
+    },
+    'Elisabetta Salvadori': {
+      name: 'Elisabetta Salvadori',
+      firstName: 'Elisabetta',
+      lastName: 'Salvadori',
+      role: 'Head Food and Beverage',
+      description:
+        "coordinatrice generale di tutta la strategia di ristorazione dell'evento, dalle Olimpiadi alle Paralimpiadi.",
+      portraitSrc: '/assets/interviews-hover/eli.png',
+      portraitX: 0,
+      portraitY: 0,
+      portraitHeight: 614,
+      firstNameX: -7,
+      lastNameX: 3
+    },
+    'Fausto Meli': {
+      name: 'Fausto Meli',
+      firstName: 'Fausto',
+      lastName: 'Meli',
+      role: 'Executive Chef',
+      description:
+        'Chef di grande esperienza ha fatto da ponte tra il mondo della scuola e la grande macchina olimpica.',
+      portraitSrc: '/assets/interviews-hover/fausto.png',
+      portraitX: 0,
+      portraitY: 0,
+      portraitHeight: 614,
+      firstNameX: 63,
+      lastNameX: 0
+    },
+    'Marco Frassante': {
+      name: 'Marco Frassante',
+      firstName: 'Marco',
+      lastName: 'Frassante',
+      role: 'Executive Chef',
+      description:
+        "ha ricoperto un ruolo di coordinamento e leadership all'interno del Villaggio Olimpico di Livigno.",
+      portraitSrc: '/assets/interviews-hover/marco.png',
+      portraitX: 0,
+      portraitY: 0,
+      portraitHeight: 614,
+      firstNameX: 74,
+      lastNameX: 5
+    },
+    'Carlo Cracco': {
+      name: 'Carlo Cracco',
+      firstName: 'Carlo',
+      lastName: 'Cracco',
+      role: 'Chef Ambassador',
+      description:
+        "Ambasciatore dell'eccellenza italiana, firmando un piatto iconico che è diventato uno dei simboli virali di questa edizione dei Giochi.",
+      portraitSrc: '/assets/interviews-hover/cracco.png',
+      portraitX: 0,
+      portraitY: 0,
+      portraitHeight: 614,
+      firstNameX: 92,
+      lastNameX: 5
+    },
+    'Ken Frank': {
+      name: 'Ken Frank',
+      firstName: 'Ken',
+      lastName: 'Frank',
+      role: 'Guest Chef International',
+      description:
+        'chef americano, ha avuto un ruolo speciale come chef internazionale nelle cucine di Milano-Cortina 2026',
+      portraitSrc: '/assets/interviews-hover/ken.png',
+      portraitX: 0,
+      portraitY: 0,
+      portraitHeight: 614,
+      firstNameX: 78,
+      lastNameX: 5
+    }
+  };
+  let activeInterviewDetail = $derived(activeInterviewName ? interviewDetails[activeInterviewName] : undefined);
   type LetterStyleOptions = { start: number; end: number; windowSize: number; invert: boolean; dy: number };
 
   function setCssVars(el: HTMLElement | undefined, vars: CssVars) {
@@ -118,6 +388,17 @@
       isSpace:  letter === ' ',
       isAccent: start >= 0 && i >= start && i < end
     }));
+  }
+
+  function interviewAsset(src: string) {
+    return `${interviewAssetBase}${src}`;
+  }
+
+  function facePieceStyle(piece: InterviewFacePiece) {
+    const mask = piece.maskSrc
+      ? `-webkit-mask-image:url('${interviewAsset(piece.maskSrc)}');mask-image:url('${interviewAsset(piece.maskSrc)}');-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-size:${piece.maskSize}px ${piece.maskSize}px;mask-size:${piece.maskSize}px ${piece.maskSize}px;-webkit-mask-position:${piece.maskX}px ${piece.maskY}px;mask-position:${piece.maskX}px ${piece.maskY}px;`
+      : '';
+    return `left:${piece.x}px;top:${piece.y}px;width:${piece.width}px;height:${piece.height}px;${mask}`;
   }
 
   function groupWords(characters: ReturnType<typeof parseMessage>) {
@@ -210,6 +491,7 @@
     closeEase: 'power3.in'
   };
   const audioFadeMotion = { duration: 0.52, ease: 'power2.inOut' };
+  const sectionAudioFadeOutDuration = 0.46;
   const audioCues = createAudioCueManager<HomeAudioId>({ fade: audioFadeMotion });
   audioCues.registerAudioCue('background', backgroundAudio);
   audioRoles.forEach((role) => {
@@ -354,7 +636,7 @@
   const roleItems: RoleItem[] = [
     {
       title: 'ufficio',
-      description: 'descrizione testo',
+      description: 'Coordinamento e amministrazione',
       speaker: 'Carlo Zarri',
       dialogue: "il mio ruolo ... seguimi nell'ufficio per saperne di più",
       hoverText: "io sono carlo zarri seguimi nell'ufficio",
@@ -363,7 +645,7 @@
     },
     {
       title: 'cucina',
-      description: 'descrizione testo',
+      description: 'Preparazione dei pasti',
       speaker: 'Stefano Paganini',
       dialogue: 'il mio ruolo ... seguimi nella cucina per saperne di più',
       hoverText: 'io sono stefano paganini seguimi in cucina',
@@ -372,7 +654,7 @@
     },
     {
       title: 'servizio',
-      description: 'descrizione testo',
+      description: 'Distribuzione e assistenza',
       speaker: 'Ken Frank',
       dialogue: 'il mio ruolo ... seguimi nella mensa per saperne di più',
       hoverText: 'io sono ken frank seguimi in sala',
@@ -717,17 +999,24 @@
   function enterRoleCard(event: MouseEvent, item: RoleItem, index: number) {
     if (!item.href || cardEnterTween) return;
     event.preventDefault();
+    fadeOutHomeAudioForSectionTransition();
 
     const card = roleCards[index];
     if (!card) {
-      window.location.assign(item.href);
+      window.setTimeout(() => window.location.assign(item.href!), sectionAudioFadeOutDuration * 1000);
       return;
     }
 
-    stopAllRoleAudio();
     resetRoleCard(index);
 
     const rect = card.getBoundingClientRect();
+    const roleCardTop = card.querySelector<HTMLElement>('.role-card-top');
+    const roleCardRadius = roleCardTop
+      ? getComputedStyle(roleCardTop).borderTopLeftRadius
+      : getComputedStyle(card).borderTopLeftRadius;
+    const viewportOverscan = 80;
+    const horizontalTop = rect.top - 4;
+    const horizontalHeight = rect.height + 8;
     const clone = card.cloneNode(true) as HTMLElement;
     clone.removeAttribute('href');
     clone.setAttribute('aria-hidden', 'true');
@@ -772,7 +1061,8 @@
       '--role-dialogue-x': '0px',
       '--role-dialogue-y': '0px',
       '--role-person-x': '0px',
-      '--role-person-y': '0px'
+      '--role-person-y': '0px',
+      '--role-card-radius': roleCardRadius
     });
     gsap.set(bg, { opacity: 1, filter: 'grayscale(1) opacity(0.42)', scale: 1.04 });
     gsap.set([copy, hoverPanel, person], { opacity: 0 });
@@ -792,21 +1082,42 @@
     );
 
     cardEnterTween
-      .to(pageFade, { opacity: 1, duration: 0.16, ease: 'power2.out' }, 0)
+      .to(pageFade, { opacity: 1, duration: 0.18, ease: 'power2.out' }, 0)
       .set([bg, copy, hoverPanel, person], { opacity: 0 }, 0.02)
       .to(
         clone,
         {
-          left: -96,
-          top: -96,
-          width: window.innerWidth + 192,
-          height: window.innerHeight + 192,
-          borderRadius: 0,
-          duration: 0.62
+          y: -12,
+          scale: 1.012,
+          duration: 0.18,
+          ease: 'back.out(1.25)'
         },
         0
       )
-      .to(clone, { boxShadow: '0 0 0 rgb(42 68 132 / 0)', duration: 0.32 }, 0);
+      .to(clone, { y: 0, scale: 1, duration: 0.16, ease: 'power2.out' }, 0.16)
+      .to(
+        clone,
+        {
+          left: -viewportOverscan,
+          top: horizontalTop,
+          width: window.innerWidth + viewportOverscan * 2,
+          height: horizontalHeight,
+          duration: 0.56,
+          ease: 'power4.inOut'
+        },
+        0.18
+      )
+      .to(
+        clone,
+        {
+          top: -viewportOverscan,
+          height: window.innerHeight + viewportOverscan * 2,
+          duration: 0.58,
+          ease: 'power4.inOut'
+        },
+        0.68
+      )
+      .to(clone, { boxShadow: '0 0 0 rgb(42 68 132 / 0)', duration: 0.34 }, 0);
   }
 
   function revealIntroLetters() {
@@ -863,10 +1174,20 @@
   }
 
   async function openAbout() {
+    const transitionId = ++aboutTransitionId;
+    void startBackgroundAudio();
     animations.kill('about');
+    destroyAboutProjectPhaser();
+    isAboutClosing = false;
+    aboutView = 'gate';
+    activeInterviewName = undefined;
     isAboutOpen = true;
     await tick();
-    if (!aboutScreenEl) return;
+    if (transitionId !== aboutTransitionId) return;
+    if (!aboutScreenEl) {
+      isAboutOpen = false;
+      return;
+    }
     animations.registerAnimationCue(
       'about',
       gsap.fromTo(aboutScreenEl, aboutClosedVars, {
@@ -878,9 +1199,23 @@
     );
   }
 
+  async function openTemporaryAboutShortcut() {
+    if (isAboutOpen) return;
+    isAudioGateVisible = false;
+    isAudioGateOpening = false;
+    await openAbout();
+  }
+
   function closeAbout() {
+    if (isAboutClosing) return;
+    const transitionId = ++aboutTransitionId;
+    isAboutClosing = true;
+    destroyAboutProjectPhaser();
     if (!aboutScreenEl) {
       isAboutOpen = false;
+      isAboutClosing = false;
+      aboutView = 'gate';
+      activeInterviewName = undefined;
       return;
     }
     animations.kill('about');
@@ -891,10 +1226,112 @@
         duration: aboutMotion.closeDuration,
         ease: aboutMotion.closeEase,
         onComplete: () => {
+          if (transitionId !== aboutTransitionId) return;
           isAboutOpen = false;
+          isAboutClosing = false;
+          aboutView = 'gate';
+          activeInterviewName = undefined;
         }
       })
     );
+  }
+
+  function handleAboutCloseClick() {
+    if (aboutView !== 'gate') {
+      if (aboutView === 'project') destroyAboutProjectPhaser();
+      aboutView = 'gate';
+      activeInterviewName = undefined;
+      return;
+    }
+
+    closeAbout();
+  }
+
+  function openAboutInterviews() {
+    void startBackgroundAudio();
+    destroyAboutProjectPhaser();
+    aboutView = 'interviews';
+    activeInterviewName = undefined;
+  }
+
+  function destroyAboutProjectPhaser() {
+    aboutProjectPhaserRequestId += 1;
+    aboutProjectResizeObserver?.disconnect();
+    aboutProjectResizeObserver = undefined;
+    aboutProjectPhaserHandle?.destroy();
+    aboutProjectPhaserHandle = undefined;
+  }
+
+  async function ensureAboutProjectPhaser() {
+    const requestId = ++aboutProjectPhaserRequestId;
+    await tick();
+    const container = aboutProjectPhaserEl;
+    if (!container || aboutProjectPhaserHandle) return;
+
+    const handle = await createAboutProjectPhaserGame({
+      assets: aboutProjectAssets,
+      container
+    });
+    if (requestId !== aboutProjectPhaserRequestId || aboutView !== 'project' || !handle) {
+      handle?.destroy();
+      return;
+    }
+
+    aboutProjectPhaserHandle = handle;
+    aboutProjectResizeObserver = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      aboutProjectPhaserHandle?.resize(Math.max(1, width), Math.max(1, height));
+    });
+    aboutProjectResizeObserver.observe(container);
+  }
+
+  async function openAboutProject() {
+    void startBackgroundAudio();
+    aboutView = 'project';
+    activeInterviewName = undefined;
+    isAboutProjectTeamVisible = false;
+    await tick();
+    aboutProjectEl?.scrollTo({ left: 0, behavior: 'auto' });
+    void ensureAboutProjectPhaser();
+  }
+
+  function openInterviewDetail(chef: InterviewChef) {
+    if (!interviewDetails[chef.name]) return;
+    activeInterviewName = chef.name;
+  }
+
+  function closeInterviewDetail() {
+    activeInterviewName = undefined;
+  }
+
+  function handleInterviewsWheel(event: WheelEvent) {
+    if (activeInterviewName) return;
+    const scroller = event.currentTarget as HTMLElement;
+    if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+    if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+    event.preventDefault();
+    scroller.scrollLeft += event.deltaY;
+  }
+
+  function handleProjectScroll(event: Event) {
+    const scroller = event.currentTarget as HTMLElement;
+    if (!scroller) return;
+    isAboutProjectTeamVisible = scroller.scrollLeft >= scroller.clientWidth * 0.42;
+    if (isAboutProjectTeamVisible) void ensureAboutProjectPhaser();
+  }
+
+  function handleProjectWheel(event: WheelEvent) {
+    const scroller = event.currentTarget as HTMLElement;
+    if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+    if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+      event.stopPropagation();
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+
+    const targetLeft = event.deltaY > 0 ? scroller.clientWidth : 0;
+    scroller.scrollTo({ left: targetLeft, behavior: 'smooth' });
   }
 
   async function startRoleAudio(role: AudioRole) {
@@ -907,6 +1344,7 @@
   }
 
   function setAudioMuted(nextMuted: boolean) {
+    writeAudioMutedPreference(nextMuted);
     if (isAudioMuted === nextMuted) return;
     isAudioMuted = nextMuted;
     if (isAudioMuted) {
@@ -942,6 +1380,7 @@
     if (isAudioGateOpening) return;
     setAudioGateButtonTransitionVars();
     isAudioMuted = nextMuted;
+    writeAudioMutedPreference(nextMuted);
     isAudioGateOpening = true;
     if (!nextMuted) {
       await startBackgroundAudio();
@@ -962,12 +1401,16 @@
     await audioCues.play('background');
   }
 
-  function stopAllHomeAudio() {
-    audioCues.stopAll(homeAudioIds);
+  function stopAllHomeAudio(options: { duration?: number } = {}) {
+    audioCues.stopAll(homeAudioIds, options);
   }
 
-  function stopAllRoleAudio() {
-    audioCues.stopAll(audioRoles);
+  function stopAllRoleAudio(options: { duration?: number } = {}) {
+    audioCues.stopAll(audioRoles, options);
+  }
+
+  function fadeOutHomeAudioForSectionTransition() {
+    audioCues.stopAll(homeAudioIds, { duration: sectionAudioFadeOutDuration });
   }
 
   // ── Unica funzione che gestisce tutto — nessun conflitto ──
@@ -977,6 +1420,10 @@
     const brandReveal   = clamp(brandProgress);
     const epBrand       = ease(brandReveal);
     setCssVars(homeScreen, { '--page-y': `${(-100 * epPage).toFixed(2)}svh` });
+    setCssVars(introScrollCueEl, {
+      '--intro-scroll-cue-opacity': fixed(1 - epPage),
+      '--intro-scroll-cue-y': px(epPage * 10)
+    });
 
     // 2. next-screen: appare con pageProgress, sparisce con brandProgress
     //    opacity finale = pageProgress-driven * (1 - brandProgress-driven)
@@ -1049,6 +1496,7 @@
 
   onMount(() => {
     let isDestroyed = false;
+    isAudioMuted = readAudioMutedPreference(isAudioMuted);
 
     void loadGsap().then((loadedGsap) => {
       if (isDestroyed) return;
@@ -1262,6 +1710,10 @@
       });
     }
     revealAudioGateCopyLetters();
+    if (shouldSkipIntro && !isAudioMuted) {
+      void startBackgroundAudio();
+      void unlockAmbientAudio();
+    }
     animations.addTicker(moveFloatingAssets);
     sceneResources.addEventListener(window, 'wheel', onWheel as EventListener, { passive: false });
     sceneResources.addEventListener(window, 'keydown', onKeydown as EventListener);
@@ -1271,6 +1723,7 @@
     return () => {
       isDestroyed = true;
       flowTween?.kill();
+      destroyAboutProjectPhaser();
       animations.destroy();
       audioCues.destroy();
       sceneResources.destroy();
@@ -1283,10 +1736,32 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
   <link
-    href="https://fonts.googleapis.com/css2?family=DynaPuff:wght@400..700&family=JetBrains+Mono:ital,wght@0,400;1,700&family=Roboto:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=DynaPuff:wght@400..700&family=Fasthand&family=JetBrains+Mono:ital,wght@0,400;0,800;1,700;1,800&family=Roboto:wght@400;500&display=swap"
     rel="stylesheet"
   />
 </svelte:head>
+
+<svg class="svg-filter-defs" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs>
+    <filter
+      id="interview-selected-chef-outline"
+      x="-18%"
+      y="-18%"
+      width="136%"
+      height="136%"
+      color-interpolation-filters="sRGB"
+    >
+      <feMorphology in="SourceAlpha" operator="dilate" radius="1.8" result="dilated" />
+      <feComposite in="dilated" in2="SourceAlpha" operator="out" result="outline" />
+      <feFlood flood-color="#f8f3e9" result="outline-color" />
+      <feComposite in="outline-color" in2="outline" operator="in" result="colored-outline" />
+      <feMerge>
+        <feMergeNode in="colored-outline" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+</svg>
 
 {#if isAudioGateVisible}
   <section
@@ -1373,6 +1848,17 @@
   </section>
 {/if}
 
+{#if !isAboutOpen}
+  <button
+    class="temporary-about-shortcut"
+    type="button"
+    aria-label="Apri about"
+    onclick={openTemporaryAboutShortcut}
+  >
+    about
+  </button>
+{/if}
+
 {#if !isAudioGateVisible && !isAboutOpen}
   <button
     class="icon-button persistent-top-audio"
@@ -1411,6 +1897,12 @@
           {/if}
         {/each}
       </h1>
+    </div>
+    <div bind:this={introScrollCueEl} class="intro-scroll-cue" aria-label="Scorri">
+      <span>Scorri</span>
+      <svg class="brand-scroll-arrow" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 5v12M7 12l5 5 5-5" />
+      </svg>
     </div>
   </section>
 
@@ -1607,6 +2099,8 @@
   <section
     bind:this={aboutScreenEl}
     class="about-screen"
+    class:is-project={aboutView === 'project'}
+    class:is-interviews={aboutView === 'interviews'}
     aria-labelledby="about-title"
     data-node-id="256:1827"
   >
@@ -1632,40 +2126,180 @@
       <button
         class="icon-button top-bar-menu about-close"
         type="button"
-        aria-label="Chiudi sezione about"
-        onclick={closeAbout}
+        aria-label={aboutView === 'gate' ? 'Chiudi sezione about' : 'Torna agli argomenti about'}
+        onclick={handleAboutCloseClick}
       >
         <span class="topbar-control-content" aria-hidden="true">
-          <span class="close-icon"></span>
+          <span
+            class:menu-icon={aboutView === 'gate'}
+            class:close-icon={aboutView !== 'gate'}
+          ></span>
         </span>
       </button>
     </header>
 
-    <div class="about-copy" data-node-id="256:1831">
-      <h2 id="about-title" class="visually-hidden">About Fuorimenù</h2>
-      <p>
-        Questo progetto nasce nel corso di Web Design del Politecnico di Milano con l'obiettivo di raccontare il ruolo delle persone che, attraverso la cultura alimentare italiana, hanno contribuito a Milano Cortina 2026.
-      </p>
-      <p>
-        In un'esperienza digitale immersiva, il progetto esplora il lavoro di chi ha operato dietro le quinte dei Giochi Olimpici - chef, organizzatori e team di ristorazione - mettendo in luce il legame profondo tra tradizione culinaria italiana e performance sportiva.
-      </p>
-      <p>
-        Il racconto si basa sulle testimonianze e le storie reali delle persone che hanno preso parte alla cucina olimpica, portando ogni giorno sulle tavole degli atleti il meglio della gastronomia italiana.
-      </p>
-    </div>
-
-    <img
-      class="polimi-logo"
-      src="/images/politecnico-bianco.png"
-      alt="Politecnico Milano 1863"
-      data-node-id="256:1835"
-      draggable="false"
-    />
+    <h2 id="about-title" class="visually-hidden">About Fuorimenù</h2>
+    {#if aboutView === 'gate'}
+      <div class="about-gate-grid" aria-label="Argomenti about" data-node-id="381:155">
+        <button class="about-gate-section" type="button" data-node-id="381:277" onclick={openAboutProject}>
+          <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
+            <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
+          </span>
+          <span class="about-gate-title">Progetto</span>
+          <span class="about-gate-subtitle">Concept e team</span>
+          <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
+            <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
+          </span>
+        </button>
+        <button class="about-gate-section" type="button" data-node-id="381:308" onclick={openAboutInterviews}>
+          <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
+            <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
+          </span>
+          <span class="about-gate-title">Interviste</span>
+          <span class="about-gate-subtitle">Archivio dei contenuti</span>
+          <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
+            <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
+          </span>
+        </button>
+      </div>
+    {:else if aboutView === 'project'}
+      <section
+        bind:this={aboutProjectEl}
+        class="about-project"
+        class:is-team-visible={isAboutProjectTeamVisible}
+        aria-labelledby="about-project-title"
+        onscroll={handleProjectScroll}
+        onwheel={handleProjectWheel}
+      >
+        <h3 id="about-project-title" class="visually-hidden">Progetto Fuorimenù</h3>
+        <div class="about-project-track">
+          <section class="about-project-slide about-project-copy-slide" aria-label="Introduzione al progetto">
+            <div class="about-project-intro" data-node-id="541:1585">
+              <div class="about-project-intro-copy">
+                <h3>Progetto</h3>
+                <p>
+                  Questo progetto digitale, nato al Politecnico di Milano, raccoglie le testimonianze di chef
+                  e addetti alla ristorazione che hanno lavorato dietro le quinte di Milano Cortina 2026.
+                  L'obiettivo è mostrare, attraverso un'esperienza immersiva, come la tradizione culinaria
+                  italiana abbia supportato le performance degli atleti durante i Giochi Olimpici.
+                </p>
+              </div>
+              <img
+                class="about-project-politecnico"
+                src="/assets/about/politecnico-project.png"
+                alt="Politecnico Milano 1863"
+                draggable="false"
+              />
+            </div>
+            <div class="about-project-scroll-cue" data-node-id="541:1675">
+              <span>Scorri per vedere il team</span>
+              <svg class="brand-scroll-arrow about-project-scroll-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v12M7 12l5 5 5-5" />
+              </svg>
+            </div>
+          </section>
+          <section class="about-project-slide about-project-team-slide" aria-label="Team Fuorimenù">
+            <div bind:this={aboutProjectPhaserEl} class="about-project-phaser" aria-hidden="true"></div>
+          </section>
+        </div>
+      </section>
+    {:else}
+      <section
+        class="about-interviews"
+        aria-labelledby={activeInterviewDetail ? 'about-interview-detail-title' : 'about-interviews-title'}
+        data-node-id="381:464"
+        onwheel={handleInterviewsWheel}
+      >
+        <div class="about-interviews-rail" aria-label="Interviste agli chef">
+          <div class="about-interviews-list">
+            {#each interviewChefs as chef (chef.name)}
+              <button
+                class="interview-mini-card"
+                type="button"
+                aria-label={`Apri intervista ${chef.number}: ${chef.name}`}
+                aria-current={activeInterviewName === chef.name ? 'true' : undefined}
+                style={`--interview-name-width:${chef.nameHeight}px;--interview-face-width:${chef.faceWidth}px;--interview-face-height:${chef.faceHeight}px;--interview-portrait-src:url("${chef.portraitSrc}");--interview-portrait-scale:${chef.portraitScale ?? 1};--interview-portrait-y:${chef.portraitY ?? 0}px;`}
+                onclick={() => openInterviewDetail(chef)}
+              >
+                <span class="interview-face" aria-hidden="true">
+                  <img src={chef.portraitSrc} alt="" draggable="false" />
+                </span>
+                <span class="interview-mini-name">{chef.name}</span>
+                <span class="interview-mini-number">{chef.number}</span>
+              </button>
+            {/each}
+          </div>
+          {#if activeInterviewDetail}
+            {#key activeInterviewDetail.name}
+              <section
+                class="about-interview-detail"
+                aria-labelledby="about-interview-detail-title"
+                data-node-id="428:16941"
+              >
+                <div class="about-interview-detail-portrait" aria-hidden="true" data-node-id="428:16953">
+                  <img
+                    src={activeInterviewDetail.portraitSrc}
+                    alt=""
+                    draggable="false"
+                    style={`--detail-portrait-x:${activeInterviewDetail.portraitX ?? 0}px;--detail-portrait-y:${activeInterviewDetail.portraitY ?? 0}px;--detail-portrait-height:${activeInterviewDetail.portraitHeight ?? 614}px;`}
+                  />
+                </div>
+                <div class="about-interview-detail-content" data-node-id="428:17268">
+                  <h3
+                    id="about-interview-detail-title"
+                    class="about-interview-detail-name"
+                    data-node-id="428:16942"
+                    style={`--detail-first-name-x:${activeInterviewDetail.firstNameX ?? 71}px;--detail-last-name-x:${activeInterviewDetail.lastNameX ?? 0}px;`}
+                  >
+                    <span class="about-interview-detail-first" data-node-id="428:16943">{activeInterviewDetail.firstName}</span>
+                    <span class="about-interview-detail-last" data-node-id="428:16944">{activeInterviewDetail.lastName}</span>
+                  </h3>
+                  <div class="about-interview-detail-card-text" data-node-id="428:16945">
+                    <p class="about-interview-detail-role" data-node-id="428:16947">
+                      {activeInterviewDetail.role}
+                    </p>
+                    <div class="about-interview-detail-info-and-button" data-node-id="428:16948">
+                      <p class="about-interview-detail-description" data-node-id="428:16951">
+                        {activeInterviewDetail.description}
+                      </p>
+                      <button class="about-interview-detail-cta" type="button" aria-label={`Vai all’intervista di ${activeInterviewDetail.name}`}>
+                        <span>Vai all’intervista</span>
+                        <span class="about-interview-detail-cta-icon" aria-hidden="true">→</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            {/key}
+          {:else}
+            <div class="about-interviews-copy" data-node-id="381:2073">
+              <div class="about-interviews-copy-inner">
+                <h3 id="about-interviews-title">INTERVISTE</h3>
+                <p>
+                  Qui troverai le 7 interviste complete:<br />
+                  le 5 con audio presenti nelle altre<br />
+                  pagine, più altre 2 testimonianze<br />
+                  aggiuntive esclusivamente scritte.
+                </p>
+              </div>
+            </div>
+          {/if}
+        </div>
+      </section>
+    {/if}
   </section>
 {/if}
 
 
 <style>
+  .svg-filter-defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
   :global(html), :global(body) {
     width: 100%; height: 100%;
     margin: 0; overflow: hidden;
@@ -2204,6 +2838,33 @@
     transform: translateX(-50%) translate(var(--button-lift-x, 0px), var(--button-lift-y, 0px));
   }
 
+  .temporary-about-shortcut {
+    position: fixed;
+    z-index: 140;
+    right: 14px;
+    bottom: 14px;
+    box-sizing: border-box;
+    min-width: 58px;
+    height: 28px;
+    padding: 0 10px;
+    border: 2px solid var(--color-text-primary);
+    border-radius: var(--radius-full);
+    background: var(--color-surface-page);
+    color: var(--color-text-primary);
+    font-family: var(--font-text);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    text-transform: uppercase;
+    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, pointer;
+  }
+
+  .temporary-about-shortcut:hover,
+  .temporary-about-shortcut:focus-visible {
+    background: var(--color-text-primary);
+    color: var(--color-surface-page);
+  }
+
   .roles-top-bar a {
     color: var(--color-interactive-primary);
     font-family: var(--font-display);
@@ -2451,6 +3112,12 @@
     will-change: clip-path, transform;
   }
 
+  .about-screen.is-project,
+  .about-screen.is-interviews {
+    background: var(--color-surface-page);
+    color: var(--color-text-primary);
+  }
+
   .about-top-bar {
     position: absolute;
     z-index: 3;
@@ -2461,14 +3128,28 @@
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     width: 100%;
-    height: var(--layout-topbar-height);
-    padding: var(--layout-topbar-padding);
+    height: 136px;
+    padding: 0 var(--layout-page-gutter);
   }
 
-  .about-logo,
-  .about-audio,
-  .about-close {
-    color: var(--color-text-primary);
+  .about-top-bar .logo,
+  .about-top-bar .icon-button {
+    --topbar-control-bg: var(--color-text-primary);
+    --topbar-control-fg: var(--color-surface-page);
+    --topbar-control-hover-bg: var(--color-text-primary);
+    --topbar-control-hover-fg: var(--color-surface-page);
+    --topbar-control-depth: var(--color-surface-page);
+  }
+
+  .about-screen.is-project .about-top-bar .logo,
+  .about-screen.is-project .about-top-bar .icon-button,
+  .about-screen.is-interviews .about-top-bar .logo,
+  .about-screen.is-interviews .about-top-bar .icon-button {
+    --topbar-control-bg: var(--color-surface-page);
+    --topbar-control-fg: var(--color-text-primary);
+    --topbar-control-hover-bg: var(--color-surface-page);
+    --topbar-control-hover-fg: var(--color-text-primary);
+    --topbar-control-depth: var(--color-text-primary);
   }
 
   .about-logo {
@@ -2481,6 +3162,21 @@
   .about-audio:focus-visible,
   .about-close:hover,
   .about-close:focus-visible {
+    color: var(--color-surface-page);
+  }
+
+  .about-screen.is-project .about-logo:hover,
+  .about-screen.is-project .about-logo:focus-visible,
+  .about-screen.is-project .about-audio:hover,
+  .about-screen.is-project .about-audio:focus-visible,
+  .about-screen.is-project .about-close:hover,
+  .about-screen.is-project .about-close:focus-visible,
+  .about-screen.is-interviews .about-logo:hover,
+  .about-screen.is-interviews .about-logo:focus-visible,
+  .about-screen.is-interviews .about-audio:hover,
+  .about-screen.is-interviews .about-audio:focus-visible,
+  .about-screen.is-interviews .about-close:hover,
+  .about-screen.is-interviews .about-close:focus-visible {
     color: var(--color-text-primary);
   }
 
@@ -2492,33 +3188,722 @@
     justify-self: end;
   }
 
-  .about-copy {
+  .about-gate-grid {
     position: absolute;
-    top: 132px;
-    left: var(--layout-page-gutter);
+    inset: 136px 0 0;
     box-sizing: border-box;
-    width: min(779px, calc(100vw - var(--spacing-13)));
-    max-height: calc(100svh - 250px);
-    overflow: hidden;
-    color: var(--color-text-inverse);
-    font-family: var(--font-text);
-    font-size: clamp(18px, 1.45vw, 21px);
-    font-weight: 400;
-    line-height: 1.42;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-height: 0;
   }
 
-  .about-copy p {
-    margin: 0 0 1.12em;
-  }
-
-  .polimi-logo {
+  .about-gate-grid::after {
     position: absolute;
-    left: var(--layout-page-gutter);
-    bottom: var(--spacing-8);
-    width: min(250px, 36vw);
+    z-index: 4;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 2px;
+    background: var(--color-surface-page);
+    content: '';
+    pointer-events: none;
+    transform: translateX(-1px);
+  }
+
+  .about-gate-section {
+    --about-word-width: clamp(330px, 66%, 500px);
+    --about-section-stroke-top: 2px;
+    --about-section-stroke-right: 0px;
+    --about-section-stroke-bottom: 0px;
+    --about-section-stroke-left: 0px;
+
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-width: 0;
+    min-height: 0;
+    padding: clamp(64px, 9vw, 128px) 28px;
+    border: 0;
+    background: transparent;
+    color: var(--color-surface-page);
+    text-align: center;
+    cursor: url('/cursors/retrogusto-cursor-light.svg') 5 5, pointer;
+    isolation: isolate;
+    overflow: hidden;
+  }
+
+  .about-gate-section[data-node-id='381:308'] {
+    --about-word-width: clamp(372px, 74%, 558px);
+    --about-section-stroke-right: 0px;
+    --about-section-stroke-left: 0px;
+  }
+
+  .about-gate-section::before {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--brand-700);
+    content: '';
+    opacity: 0;
+    transition:
+      opacity 180ms ease,
+      transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .about-gate-section::after {
+    position: absolute;
+    z-index: 3;
+    inset: 0;
+    border-color: var(--color-surface-page);
+    border-style: solid;
+    border-width:
+      var(--about-section-stroke-top)
+      var(--about-section-stroke-right)
+      var(--about-section-stroke-bottom)
+      var(--about-section-stroke-left);
+    content: '';
+    pointer-events: none;
+  }
+
+  .about-gate-section:hover::before,
+  .about-gate-section:focus-visible::before {
+    opacity: 1;
+  }
+
+  .about-gate-section:focus-visible {
+    outline: 2px solid var(--color-surface-page);
+    outline-offset: -10px;
+  }
+
+  .about-gate-title {
+    position: relative;
+    z-index: 2;
+    display: block;
+    max-width: 100%;
+    color: currentColor;
+    font-family: var(--font-display);
+    font-size: clamp(52px, 6.35vw, 96px);
+    font-weight: 700;
+    line-height: 1.08;
+    text-transform: lowercase;
+    overflow-wrap: anywhere;
+  }
+
+  .about-gate-title::first-letter {
+    text-transform: uppercase;
+  }
+
+  .about-gate-subtitle {
+    position: relative;
+    z-index: 2;
+    display: block;
+    color: currentColor;
+    font-family: var(--font-text);
+    font-size: clamp(16px, 1.58vw, 24px);
+    font-weight: 400;
+    line-height: 1.34;
+  }
+
+  .about-gate-utensil {
+    position: absolute;
+    z-index: 1;
+    display: block;
+    opacity: 0;
+    user-select: none;
+    pointer-events: none;
+    transition:
+      opacity 220ms ease,
+      transform 560ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+  }
+
+  .about-gate-utensil img {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    display: block;
+    object-fit: contain;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .about-gate-fork {
+    --about-utensil-length: clamp(470px, 52.5vw, 760px);
+
+    top: clamp(50px, 8vh, 86px);
+    left: calc(50% + var(--about-word-width) / 2);
+    width: var(--about-utensil-length);
+    height: calc(var(--about-utensil-length) * 150.086 / 844.959);
+    transform: translate3d(-200%, 0, 0) scaleX(0.96);
+    transform-origin: 100% 50%;
+  }
+
+  .about-gate-fork img {
+    width: calc(var(--about-utensil-length) * 150.086 / 844.959);
+    height: var(--about-utensil-length);
+    transform:
+      translate3d(-50%, -50%, 0)
+      rotate(90deg);
+  }
+
+  .about-gate-knife {
+    --about-utensil-length: clamp(532px, 57vw, 855px);
+
+    left: calc(50% - var(--about-word-width) / 2);
+    bottom: clamp(52px, 8vh, 88px);
+    width: var(--about-utensil-length);
+    height: calc(var(--about-utensil-length) * 134.155 / 1130.78);
+    transform: translate3d(100%, 0, 0) scaleX(0.96);
+    transform-origin: 0 50%;
+  }
+
+  .about-gate-knife img {
+    width: calc(var(--about-utensil-length) * 134.155 / 1130.78);
+    height: var(--about-utensil-length);
+    transform:
+      translate3d(-50%, -50%, 0)
+      rotate(-90deg);
+  }
+
+  .about-gate-section:hover .about-gate-fork,
+  .about-gate-section:focus-visible .about-gate-fork {
+    opacity: 1;
+    transform: translate3d(-100%, 0, 0) scaleX(0.96);
+  }
+
+  .about-gate-section:hover .about-gate-knife,
+  .about-gate-section:focus-visible .about-gate-knife {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scaleX(0.96);
+  }
+
+  .about-project {
+    position: absolute;
+    inset: 136px 0 0;
+    box-sizing: border-box;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: var(--color-surface-page);
+    color: var(--color-text-primary);
+    scrollbar-width: none;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+  }
+
+  .about-project::-webkit-scrollbar {
+    display: none;
+  }
+
+  .about-project-track {
+    position: relative;
+    display: flex;
+    width: 200%;
+    min-width: 200%;
+    height: 100%;
+  }
+
+  .about-project-slide {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex: 0 0 50%;
+    width: 50%;
+    height: 100%;
+    padding: clamp(34px, 5svh, 62px) var(--layout-page-gutter);
+    overflow: hidden;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  .about-project-copy-slide {
+    --about-project-slide-padding-y: clamp(34px, 5svh, 62px);
+    --about-project-title-size: clamp(68px, 8.2vw, 124px);
+    --about-project-copy-gap: clamp(40px, 6svh, 102px);
+
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
+  .about-project-team-slide {
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: var(--color-surface-page);
+    color: var(--color-text-primary);
+  }
+
+  .about-project-intro {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    width: clamp(340px, 47vw, 760px);
+    color: var(--brand-500);
+    pointer-events: none;
+  }
+
+  .about-project-intro-copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--about-project-copy-gap);
+    align-items: flex-start;
+  }
+
+  .about-project-intro h3 {
+    margin: 0;
+    color: var(--brand-500);
+    font-family: var(--font-display);
+    font-size: var(--about-project-title-size);
+    font-weight: 700;
+    line-height: 0.96;
+    letter-spacing: 0;
+  }
+
+  .about-project-intro p {
+    width: min(690px, 100%);
+    margin: 0;
+    color: var(--brand-500);
+    font-family: var(--font-text);
+    font-size: clamp(14px, 1.28vw, 19px);
+    font-weight: 400;
+    line-height: 1.34;
+  }
+
+  .about-project-politecnico {
+    display: block;
+    width: clamp(158px, 15.2vw, 230px);
     height: auto;
     user-select: none;
     pointer-events: none;
+  }
+
+  .about-project-scroll-cue {
+    position: absolute;
+    z-index: 4;
+    top: calc(var(--about-project-slide-padding-y) + var(--about-project-title-size) * 0.96 + var(--about-project-copy-gap));
+    right: var(--layout-page-gutter);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 18px;
+    max-width: min(360px, calc(50vw - var(--layout-page-gutter)));
+    color: var(--brand-500);
+    font-family: var(--font-text);
+    font-size: clamp(15px, 1.32vw, 20px);
+    font-weight: 400;
+    line-height: 1.2;
+    text-align: right;
+    transform: translateY(-50%);
+    transition:
+      opacity 220ms ease,
+      transform 220ms ease;
+    pointer-events: none;
+  }
+
+  .about-project-scroll-arrow {
+    flex: 0 0 auto;
+    transform: rotate(-90deg);
+  }
+
+  .about-project.is-team-visible .about-project-scroll-cue {
+    opacity: 0;
+    transform: translate3d(0, -34%, 0);
+  }
+
+  .about-project-phaser {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    opacity: 1;
+  }
+
+  :global(.about-project-phaser canvas) {
+    position: absolute;
+    inset: 0;
+  }
+
+  .about-interviews {
+    position: absolute;
+    inset: 136px 0 0;
+    box-sizing: border-box;
+    overflow-x: auto;
+    overflow-y: hidden;
+    color: var(--color-text-primary);
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+
+  .about-interviews::-webkit-scrollbar {
+    display: none;
+  }
+
+  .about-interviews-rail {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    width: 1512px;
+    min-width: 1512px;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .about-interviews-list,
+  .about-interviews-copy {
+    box-sizing: border-box;
+    flex: 0 0 50%;
+    width: 756px;
+    min-width: 0;
+    height: 100%;
+    background: var(--color-surface-page);
+  }
+
+  .about-interviews-list {
+    position: relative;
+    display: grid;
+    grid-template-rows: repeat(7, minmax(0, 1fr));
+    border-right: 2px solid var(--color-text-primary);
+  }
+
+  .about-interviews-copy {
+    display: flex;
+    align-items: flex-start;
+    padding: 0 80px;
+    border-top: 2px solid var(--color-text-primary);
+  }
+
+  .about-interviews-copy-inner {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    width: 548px;
+    height: fit-content;
+    padding: 40px 0;
+  }
+
+  .about-interviews-copy h3 {
+    width: 548px;
+    margin: 0;
+    color: var(--color-text-primary);
+    font-family: var(--font-display);
+    font-size: 96px;
+    font-weight: 700;
+    line-height: normal;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .about-interviews-copy p {
+    width: 509px;
+    margin: 0;
+    color: var(--color-text-primary);
+    font-family: var(--font-text);
+    font-size: 20px;
+    font-weight: 400;
+    line-height: normal;
+  }
+
+  .about-interview-detail {
+    position: relative;
+    box-sizing: border-box;
+    flex: 0 0 756px;
+    width: 756px;
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
+    border-top: 2px solid var(--color-text-primary);
+    background: var(--color-surface-page);
+    color: var(--color-text-primary);
+  }
+
+  .about-interview-detail-portrait {
+    position: absolute;
+    top: 1px;
+    left: 0;
+    width: 271px;
+    height: 737px;
+    overflow: hidden;
+    pointer-events: none;
+    animation: interviewChefIn 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .about-interview-detail-portrait img {
+    position: absolute;
+    top: var(--detail-portrait-y, 0px);
+    left: var(--detail-portrait-x, 0px);
+    display: block;
+    width: auto;
+    height: var(--detail-portrait-height, 614px);
+    user-select: none;
+  }
+
+  .about-interview-detail-content {
+    position: absolute;
+    top: 0;
+    left: 272px;
+    width: 484px;
+    height: 738px;
+  }
+
+  .about-interview-detail-name {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 484px;
+    height: 277px;
+    margin: 0;
+    color: var(--color-text-primary);
+    font-family: "Fasthand", cursive;
+    font-size: 120px;
+    font-weight: 400;
+    line-height: normal;
+    animation: interviewCopyIn 520ms cubic-bezier(0.16, 1, 0.3, 1) 80ms both;
+  }
+
+  .about-interview-detail-name span {
+    position: absolute;
+    display: block;
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .about-interview-detail-first {
+    top: 0;
+    left: var(--detail-first-name-x, 71px);
+    width: 413px;
+  }
+
+  .about-interview-detail-last {
+    top: 100px;
+    left: var(--detail-last-name-x, 0px);
+    width: 484px;
+  }
+
+  .about-interview-detail-card-text {
+    position: absolute;
+    top: 277px;
+    left: 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 484px;
+    height: 344px;
+    padding: 56px 0;
+    animation: interviewCopyIn 540ms cubic-bezier(0.16, 1, 0.3, 1) 160ms both;
+  }
+
+  @keyframes interviewChefIn {
+    from {
+      opacity: 0;
+      transform: translate3d(-88px, 0, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @keyframes interviewCopyIn {
+    from {
+      opacity: 0;
+      transform: translate3d(92px, 0, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .about-interview-detail-portrait,
+    .about-interview-detail-name,
+    .about-interview-detail-card-text {
+      animation: none;
+    }
+  }
+
+  .about-interview-detail-role {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: fit-content;
+    height: 32px;
+    margin: 0;
+    color: var(--color-text-primary);
+    font-family: var(--font-text);
+    font-size: 24px;
+    font-weight: 800;
+    line-height: normal;
+    white-space: nowrap;
+  }
+
+  .about-interview-detail-info-and-button {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+    width: 383px;
+    height: fit-content;
+  }
+
+  .about-interview-detail-description {
+    display: block;
+    flex: 0 0 auto;
+    width: 372px;
+    height: fit-content;
+    margin: 0;
+    color: var(--color-text-primary);
+    font-family: var(--font-text);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: normal;
+  }
+
+  .about-interview-detail-cta {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 244px;
+    height: 47px;
+    padding: 8px 16px;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--color-surface-page);
+    font-family: var(--font-text);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: normal;
+    appearance: none;
+    overflow: hidden;
+  }
+
+  .about-interview-detail-cta::before {
+    position: absolute;
+    z-index: 0;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 40px;
+    border-radius: var(--radius-full);
+    background: var(--color-text-primary);
+    content: '';
+  }
+
+  .about-interview-detail-cta span {
+    position: relative;
+    z-index: 1;
+  }
+
+  .about-interview-detail-cta-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-left: 10px;
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .interview-mini-card {
+    box-sizing: border-box;
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 17px;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    padding: 0 80px;
+    border: 0;
+    border-top: 2px solid var(--color-text-primary);
+    border-radius: 0;
+    background: var(--color-surface-page);
+    color: var(--color-text-primary);
+    appearance: none;
+    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, pointer;
+    overflow: hidden;
+    text-align: center;
+  }
+
+  .interview-mini-card:last-child {
+    border-bottom: 2px solid var(--color-text-primary);
+  }
+
+  .interview-mini-card[aria-current='true'] {
+    background: var(--color-text-primary);
+    color: var(--color-surface-page);
+  }
+
+  .interview-mini-number,
+  .interview-mini-name {
+    color: currentColor;
+    font-family: var(--font-text);
+    font-size: var(--unit-24);
+    font-weight: 400;
+    line-height: normal;
+  }
+
+  .interview-mini-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 115px;
+    width: 115px;
+    height: 100%;
+    text-align: center;
+  }
+
+  .interview-mini-name {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 var(--interview-name-width);
+    width: var(--interview-name-width);
+    height: 115px;
+    white-space: nowrap;
+  }
+
+  .interview-face {
+    position: relative;
+    display: block;
+    align-self: flex-end;
+    flex: 0 0 auto;
+    width: 80px;
+    height: 80px;
+  }
+
+  .interview-face img {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center bottom;
+    transform: translateY(var(--interview-portrait-y, 0px)) scale(var(--interview-portrait-scale, 1));
+    transform-origin: center bottom;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .interview-mini-card[aria-current='true'] .interview-face img {
+    filter: url('#interview-selected-chef-outline');
   }
 
   .visually-hidden {
@@ -2550,6 +3935,31 @@
     gap: 22px;
   }
 
+  .intro-scroll-cue {
+    position: absolute;
+    bottom: clamp(28px, 6vh, 64px);
+    left: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-primary);
+    font-family: var(--font-text);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: normal;
+    text-align: center;
+    white-space: nowrap;
+    opacity: var(--intro-scroll-cue-opacity, 1);
+    transform: translate(-50%, var(--intro-scroll-cue-y, 0px));
+    transition: opacity 120ms linear, transform 140ms ease-out;
+    will-change: opacity, transform;
+  }/*a*/
+
+  .intro-scroll-cue span {
+    word-break: break-word;
+  }
+
   h1, .next-message {
     width: min(434px, 100%); margin: 0; color: var(--color-text-primary);
     font-family: var(--font-text);
@@ -2574,7 +3984,7 @@
   h1 .word { white-space: nowrap; }
   h1 .space { opacity: 1; transform: none; transition: none; width: 0.28em; }
 
-  .accent-letter { color: var(--color-interactive-hover); font-style: italic; font-weight: 700; }
+  .accent-letter { color: var(--color-text-primary); font-style: italic; font-weight: 800; }
 
   .reel-layer {
     position: absolute; z-index: 15; inset: 0;
@@ -2637,7 +4047,7 @@
     will-change: opacity, transform;
   }
   .next-message { font-size: 0; }
-  .next-message .accent-letter { color: var(--color-interactive-hover); font-style: italic; font-weight: 700; }
+  .next-message .accent-letter { color: var(--color-text-primary); font-style: italic; font-weight: 800; }
   .next-message .space { display: inline-block; opacity: 1; transform: none; transition: none; width: 0.28em; }
 
   /* Parte invisibile, sopra next-screen, solo opacity gestita da JS */
@@ -3061,7 +4471,7 @@
     margin: 0;
     font-family: var(--font-text);
     font-size: clamp(12px, 1.06vw, 15px);
-    font-weight: 600;
+    font-weight: 400;
     line-height: 1.5;
     letter-spacing: 0;
     text-align: center;
@@ -3090,18 +4500,22 @@
     margin: 0;
     font-family: var(--font-display);
     font-size: clamp(42px, 4.1vw, 60px);
-    font-weight: 600;
+    font-weight: 700;
     line-height: 1.5;
     letter-spacing: 0;
-    text-transform: uppercase;
+    text-transform: lowercase;
     font-variation-settings: "wdth" 100;
+  }
+
+  .role-card-copy h2::first-letter {
+    text-transform: uppercase;
   }
 
   .role-card-copy p {
     margin: -6px 0 0;
     font-family: var(--font-text);
     font-size: clamp(13px, 1.1vw, 16px);
-    font-weight: 500;
+    font-weight: 400;
     line-height: 1.5;
     letter-spacing: 0;
     transition: opacity 180ms ease;
@@ -3248,25 +4662,93 @@
     .audio-gate-button-frame {
       min-width: 132px;
     }
-    .about-top-bar { height: var(--layout-topbar-height-mobile); padding: var(--layout-topbar-padding-mobile); }
+    .about-top-bar {
+      height: var(--layout-topbar-height-mobile);
+      padding: var(--layout-topbar-padding-mobile);
+    }
+    .about-top-bar .logo {
+      font-size: 24px;
+    }
     .logo         { font-size: 34px; }
     .close-icon,
     .close-icon::before { width: 22px; }
-    .about-copy {
-      top: 132px;
-      left: var(--layout-page-gutter-mobile);
-      width: calc(100vw - var(--spacing-8));
-      max-height: calc(100svh - 220px);
-      font-size: 13px;
-      line-height: 1.35;
+    .about-gate-grid {
+      inset: var(--layout-topbar-height-mobile) 0 0;
+      grid-template-columns: 1fr;
+      grid-template-rows: repeat(2, minmax(0, 1fr));
     }
-    .about-copy p { margin-bottom: 0.95em; }
-    .polimi-logo {
-      left: var(--layout-page-gutter-mobile);
-      bottom: var(--spacing-5);
-      width: min(180px, 48vw);
+    .about-gate-grid::after {
+      display: none;
+    }
+    .about-gate-section {
+      --about-word-width: clamp(258px, 74vw, 338px);
+      --about-section-stroke-right: 2px;
+
+      gap: 8px;
+      padding: 32px var(--layout-page-gutter-mobile);
+    }
+    .about-gate-section[data-node-id='381:308'] {
+      --about-word-width: clamp(286px, 80vw, 364px);
+      --about-section-stroke-right: 0px;
+      --about-section-stroke-left: 2px;
+    }
+    .about-gate-title {
+      font-size: clamp(42px, 14vw, 58px);
+    }
+    .about-gate-subtitle {
+      font-size: 15px;
+    }
+    .about-gate-fork {
+      --about-utensil-length: clamp(288px, 82vw, 470px);
+      top: clamp(20px, 4.5vh, 38px);
+    }
+    .about-gate-knife {
+      --about-utensil-length: clamp(322px, 91vw, 532px);
+      bottom: clamp(18px, 4.5vh, 38px);
+    }
+    .about-interviews {
+      inset: var(--layout-topbar-height-mobile) 0 0;
+    }
+    .about-project {
+      inset: var(--layout-topbar-height-mobile) 0 0;
+    }
+    .about-project-slide {
+      padding: 28px var(--layout-page-gutter-mobile);
+    }
+    .about-project-copy-slide {
+      --about-project-slide-padding-y: 28px;
+      --about-project-title-size: clamp(44px, 13vw, 62px);
+      --about-project-copy-gap: 30px;
+    }
+    .about-project-team-slide {
+      padding: 0;
+    }
+    .about-project-intro {
+      height: 100%;
+      width: min(336px, calc(100vw - var(--spacing-8)));
+    }
+    .about-project-intro-copy {
+      gap: var(--about-project-copy-gap);
+    }
+    .about-project-intro h3 {
+      font-size: var(--about-project-title-size);
+    }
+    .about-project-intro p {
+      width: min(310px, 100%);
+      font-size: 13px;
+      line-height: 1.22;
+    }
+    .about-project-politecnico {
+      width: clamp(128px, 34vw, 160px);
+    }
+    .about-project-scroll-cue {
+      right: var(--layout-page-gutter-mobile);
+      gap: 10px;
+      max-width: 172px;
+      font-size: 12px;
     }
     .intro        { padding: var(--layout-page-gutter-mobile); }
+    .intro-scroll-cue { bottom: clamp(24px, 6vh, 48px); }
     .persistent-top-audio { top: calc(var(--unit-24) + var(--unit-4)); }
     h1, .next-message { font-size: 24px; }
     .next-message span { font-size: 24px; }

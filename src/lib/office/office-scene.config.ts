@@ -1,88 +1,173 @@
-import type { SceneAsset } from '$lib/scene/scene-asset.types';
+import type { InteractiveSceneAsset, SceneAsset, SceneChunk } from '$lib/scene/scene-asset.types';
+
+const officeChunkCount = 16;
+export const officeChunkWidth = 2048;
+export const officeSceneHeight = 1330;
+export const officeBackgroundOffsetY = 4;
+const officeExportScale = 0.5;
+const officeFloorHeight = 166.2;
+const officeFloorTileWidth = officeFloorHeight;
+
+function getAssetEndX(asset: Pick<SceneAsset, 'x' | 'width'>) {
+  return asset.x + asset.width;
+}
+
+function getLayerSceneWidth(assets: SceneAsset[], speed: number) {
+  return assets.reduce((width, asset) => Math.max(width, getAssetEndX(asset) / speed), 0);
+}
 
 export const officeSceneConfig = {
-  sceneWidth: 31800,
-  sceneHeight: 982,
-  assetVersion: '20260618-scene-assets-1',
+  sceneWidth: 33068,
+  sceneHeight: officeSceneHeight,
+  assetVersion: '20260703-office-slices-1',
   layerSpeed: {
-    background: 0.42,
-    middle: 0.74,
-    title: 0.82,
-    floor: 0.96,
-    foreground: 1
+    background: 1,
+    middle: 1.5,
+    title: 0.8,
+    floor: 1,
+    foreground: 2
   }
 } as const;
 
-export const officeAssets: SceneAsset[] = [
-  { id: 'bg-plant-1489', kind: 'static', src: 'bg-plant.svg', x: 1489, y: 455, width: 99, height: 409, layer: 'background' },
-  { id: 'bg-shelf-1892', kind: 'static', src: 'bg-shelf.svg', x: 1892, y: 310, width: 213, height: 166, layer: 'background' },
-  { id: 'bg-frame-1-2479', kind: 'static', src: 'bg-frame-1.svg', x: 2479, y: 223, width: 109, height: 174, layer: 'background' },
-  { id: 'bg-frame-2-2685', kind: 'static', src: 'bg-frame-2.svg', x: 2685, y: 325, width: 109, height: 174, layer: 'background' },
-  { id: 'bg-board-small-3137', kind: 'static', src: 'bg-board-small.svg', x: 3137, y: 351, width: 231, height: 166, layer: 'background' },
-  { id: 'bg-mirror-3838', kind: 'static', src: 'bg-mirror.svg', x: 3838, y: 250, width: 126, height: 126, layer: 'background' },
-  { id: 'bg-long-cabinet-1-4325', kind: 'static', src: 'bg-long-cabinet-1.svg', x: 4325, y: 575, width: 972, height: 291, layer: 'background' },
-  { id: 'bg-frame-3-4999', kind: 'static', src: 'bg-frame-3.svg', x: 4999, y: 251, width: 129, height: 186, layer: 'background' },
-  { id: 'bg-shelf-2-5411', kind: 'static', src: 'bg-shelf-2.svg', x: 5411, y: 317, width: 254, height: 129, layer: 'background' },
-  { id: 'bg-closed-cabinet-6359', kind: 'static', src: 'bg-closed-cabinet.svg', x: 6359, y: 670, width: 234, height: 195, layer: 'background' },
-  { id: 'bg-car-window-frame-6593', kind: 'static', src: 'bg-car-window-frame.svg', x: 6593, y: 218, width: 520, height: 391, layer: 'background' },
-  { id: 'bg-car-window-car-6625', kind: 'static', src: 'bg-car-window-car.svg', x: 6625, y: 371, width: 475, height: 185, layer: 'background' },
-  { id: 'bg-shelf-plant-7621', kind: 'static', src: 'bg-shelf-plant.svg', x: 7621, y: 363, width: 411, height: 100, layer: 'background' },
-  { id: 'bg-door-8214', kind: 'static', src: 'bg-door.svg', x: 8214, y: 211, width: 300, height: 656, layer: 'background' },
-  { id: 'bg-magazine-rack-9001', kind: 'static', src: 'bg-magazine-rack.svg', x: 9001, y: 748, width: 136, height: 123, layer: 'background' },
-  { id: 'bg-bookcase-9322', kind: 'static', src: 'bg-bookcase.svg', x: 9322, y: 208, width: 219, height: 658, layer: 'background' },
-  { id: 'bg-boxes-9725', kind: 'static', src: 'bg-boxes.svg', x: 9725, y: 673, width: 129, height: 193, layer: 'background' },
-  { id: 'bg-boxes-10312', kind: 'static', src: 'bg-boxes.svg', x: 10312, y: 673, width: 129, height: 193, layer: 'background' },
-  { id: 'bg-long-cabinet-2-12255', kind: 'static', src: 'bg-long-cabinet-2.svg', x: 12255, y: 650, width: 691, height: 207, layer: 'background' },
-  { id: 'bg-desk-monitor-13502', kind: 'static', src: 'bg-desk-monitor.svg', x: 13502, y: 568, width: 609, height: 414, layer: 'background' },
-  { id: 'bg-chair-front-13564', kind: 'static', src: 'bg-chair-front.svg', x: 13564, y: 617, width: 187, height: 365, layer: 'background' },
-  { id: 'bg-long-cabinet-3-18270', kind: 'static', src: 'bg-long-cabinet-3.svg', x: 18270, y: 651, width: 691, height: 207, layer: 'background' },
+function officeLayerAsset(
+  folder: 'primopiano' | 'secondopiano',
+  name: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): SceneAsset {
+  return {
+    id: name,
+    kind: 'static',
+    src: `office-figma/${folder}/${name}.png`,
+    x: Number((x * officeExportScale).toFixed(2)),
+    y: Number((y * officeExportScale).toFixed(2)),
+    width: Number((width * officeExportScale).toFixed(2)),
+    height: Number((height * officeExportScale).toFixed(2)),
+    layer: folder === 'primopiano' ? 'foreground' : 'middle'
+  };
+}
 
-  { id: 'mid-printer-cabinet-1819', kind: 'static', src: 'mid-printer-cabinet.svg', x: 1819, y: 537, width: 546, height: 346, layer: 'middle' },
-  { id: 'mid-printer-detail-1899', kind: 'static', src: 'mid-printer-detail.svg', x: 1899, y: 791, width: 85, height: 80, layer: 'middle' },
-  { id: 'mid-bin-3401', kind: 'static', src: 'mid-bin.svg', x: 3401, y: 780, width: 87, height: 102, layer: 'middle' },
-  { id: 'mid-desk-3535', kind: 'static', src: 'mid-desk.svg', x: 3535, y: 464, width: 814, height: 418, layer: 'middle' },
-  { id: 'mid-open-cabinet-5907', kind: 'static', src: 'mid-open-cabinet.svg', x: 5907, y: 213, width: 259, height: 682, layer: 'middle' },
-  { id: 'mid-water-7360', kind: 'static', src: 'mid-water.svg', x: 7360, y: 310, width: 127, height: 574, layer: 'middle' },
-  { id: 'mid-coffee-8805', kind: 'static', src: 'mid-coffee.svg', x: 8805, y: 447, width: 261, height: 454, layer: 'middle' },
-  { id: 'mid-chair-front-9320', kind: 'static', src: 'mid-chair-front.svg', x: 9320, y: 563, width: 164, height: 321, layer: 'middle' },
-  { id: 'mid-chair-front-9717', kind: 'static', src: 'mid-chair-front.svg', x: 9717, y: 563, width: 164, height: 321, layer: 'middle' },
-  { id: 'mid-cabinet-doors-10701', kind: 'static', src: 'mid-cabinet-doors.svg', x: 10701, y: 594, width: 344, height: 290, layer: 'middle' },
-  { id: 'mid-table-2-11498', kind: 'static', src: 'mid-table-2.svg', x: 11498, y: 413.687, width: 480.632, height: 378.313, layer: 'middle' },
-  { id: 'mid-chair-profile-2-11999', kind: 'static', src: 'mid-chair-profile-2.svg', x: 11999, y: 543, width: 198, height: 341, layer: 'middle', flipX: true },
-  { id: 'mid-table-12915', kind: 'static', src: 'mid-table.svg', x: 12915, y: 484, width: 323, height: 264, layer: 'middle' },
-  { id: 'mid-chair-profile-13283', kind: 'static', src: 'mid-chair-profile.svg', x: 13283, y: 538, width: 202, height: 346, layer: 'middle', flipX: true },
-  { id: 'mid-desk-low-14413', kind: 'static', src: 'mid-desk-low.svg', x: 14413, y: 578, width: 732, height: 306, layer: 'middle' },
-  { id: 'mid-desk-low-left-14483', kind: 'static', src: 'mid-desk-low-left.svg', x: 14483, y: 657, width: 125, height: 226, layer: 'middle' },
-  { id: 'mid-desk-low-right-14948', kind: 'static', src: 'mid-desk-low-right.svg', x: 14948, y: 658, width: 125, height: 226, layer: 'middle' },
+function officeInteractiveAsset(
+  folder: 'primopiano' | 'secondopiano',
+  name: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  ariaLabel: string
+): InteractiveSceneAsset {
+  return {
+    ...officeLayerAsset(folder, name, x, y, width, height),
+    kind: 'interactive',
+    ariaLabel,
+    shineEffect: true
+  };
+}
 
-  { id: 'front-drawer-2591', kind: 'static', src: 'front-drawer.svg', x: 2591, y: 702, width: 210, height: 280, layer: 'foreground' },
-  { id: 'front-drawer-2814', kind: 'static', src: 'front-drawer.svg', x: 2814, y: 702, width: 210, height: 280, layer: 'foreground' },
-  { id: 'front-folder-1-2640', kind: 'static', src: 'front-folder-1.svg', x: 2640, y: 592, width: 26, height: 110, layer: 'foreground' },
-  { id: 'front-folder-2-2667', kind: 'static', src: 'front-folder-2.svg', x: 2667, y: 592, width: 26, height: 110, layer: 'foreground' },
-  { id: 'front-folder-3-2901', kind: 'static', src: 'front-folder-3.svg', x: 2901, y: 592, width: 26, height: 110, layer: 'foreground' },
-  { id: 'front-folder-4-2928', kind: 'static', src: 'front-folder-4.svg', x: 2928, y: 592, width: 26, height: 110, layer: 'foreground' },
-  { id: 'front-chair-profile-4869', kind: 'static', src: 'front-chair-profile.svg', x: 4869, y: 567, width: 241, height: 415, layer: 'foreground' },
-  { id: 'front-long-table-5117', kind: 'static', src: 'front-long-table.svg', x: 5117, y: 600, width: 1095, height: 380, layer: 'foreground' },
-  { id: 'front-chair-profile-flip-6186', kind: 'static', src: 'front-chair-profile-flip.svg', x: 6186, y: 567, width: 241, height: 415, layer: 'foreground', flipX: true },
-  { id: 'front-magazine-rack-6490', kind: 'static', src: 'front-magazine-rack.svg', x: 6490, y: 805, width: 184, height: 166, layer: 'foreground' },
-  { id: 'front-low-table-7921', kind: 'static', src: 'front-low-table.svg', x: 7921, y: 740, width: 570, height: 242, layer: 'foreground' },
-  { id: 'front-curved-chair-7619', kind: 'static', src: 'front-curved-chair.svg', x: 7619, y: 616, width: 229, height: 366, layer: 'foreground' },
-  { id: 'front-curved-chair-flip-8564', kind: 'static', src: 'front-curved-chair-flip.svg', x: 8564, y: 616, width: 230, height: 366, layer: 'foreground', flipX: true },
-  { id: 'front-lamp-8098', kind: 'static', src: 'front-lamp.svg', x: 8098, y: 600, width: 79, height: 183, layer: 'foreground', flipX: true },
-  { id: 'front-lamp-8206', kind: 'static', src: 'front-lamp.svg', x: 8206, y: 600, width: 79, height: 183, layer: 'foreground', flipX: true },
-  { id: 'front-cabinet-doors-9997', kind: 'static', src: 'front-cabinet-doors.svg', x: 9997, y: 632, width: 415, height: 350, layer: 'foreground' },
-  { id: 'front-curved-chair-2-11772', kind: 'static', src: 'front-curved-chair-2.svg', x: 11772, y: 603, width: 236, height: 378, layer: 'foreground' },
-  { id: 'front-table-long-11937', kind: 'static', src: 'front-table-long.svg', x: 11937, y: 687, width: 1024, height: 293, layer: 'foreground' },
-  { id: 'front-curved-chair-flip-13101', kind: 'static', src: 'front-curved-chair-flip.svg', x: 13101, y: 616, width: 230, height: 366, layer: 'foreground', flipX: true },
-  { id: 'fg-map-base-16158', kind: 'static', src: 'fg-map-base.svg', x: 16158, y: 390, width: 509, height: 334, layer: 'foreground' },
-  { id: 'fg-map-lines-16224', kind: 'static', src: 'fg-map-lines.svg', x: 16224, y: 455, width: 358, height: 264, layer: 'foreground' },
-  { id: 'fg-desk-monitor-17208', kind: 'static', src: 'fg-desk-monitor.svg', x: 17208, y: 510, width: 694, height: 472, layer: 'foreground' },
-  { id: 'fg-desk-monitor-chair-17279', kind: 'static', src: 'fg-desk-monitor-chair.svg', x: 17279, y: 566, width: 213, height: 416, layer: 'foreground' },
-  { id: 'front-cabinet-19056', kind: 'static', src: 'front-cabinet.svg', x: 19056, y: 682, width: 593, height: 300, layer: 'foreground' },
-  { id: 'front-cabinet-detail-19175', kind: 'static', src: 'front-cabinet-detail.svg', x: 19175, y: 830, width: 90, height: 82, layer: 'foreground' },
-  { id: 'fg-desk-low-20726', kind: 'static', src: 'fg-desk-low.svg', x: 20726, y: 726, width: 378, height: 158, layer: 'foreground' },
-  { id: 'fg-desk-low-cabinet-21002', kind: 'static', src: 'fg-desk-low-cabinet.svg', x: 21002, y: 767, width: 65, height: 117, layer: 'foreground' },
-  { id: 'fg-phone-20751', kind: 'static', src: 'fg-phone.svg', x: 20751, y: 659, width: 93, height: 77, layer: 'foreground' },
-  { id: 'fg-chair-20862', kind: 'static', src: 'fg-chair.svg', x: 20862, y: 700, width: 106, height: 207, layer: 'foreground' },
-  { id: 'fg-printer-30394', kind: 'static', src: 'fg-printer.svg', x: 30394, y: 515, width: 377, height: 368, layer: 'foreground' }
+export const officeBackgroundChunks: SceneChunk[] = Array.from(
+  { length: officeChunkCount },
+  (_, index) => ({
+    layer: 'background',
+    frameIndex: index,
+    figmaX: index * officeChunkWidth,
+    figmaY: 0,
+    figmaWidth: officeChunkWidth,
+    figmaHeight: officeSceneHeight,
+    assetKey: `office-slice-${index + 1}`
+  })
+);
+
+export const officeForegroundAssets: SceneAsset[] = [
+  officeLayerAsset('primopiano', '1_raccoglitori', 6998, 1733, 1173, 924),
+  officeInteractiveAsset('primopiano', '1_cio', 14428, 1634, 443, 268, 'Elemento interattivo CIO ufficio'),
+  officeLayerAsset('primopiano', '1_tavolosedielibri', 13189, 1667, 4889, 988),
+  officeLayerAsset('primopiano', '1_sediedesign', 20637, 1765, 3183, 903),
+  officeLayerAsset('primopiano', '1_attaccapannibidoni', 26066, 782, 2138, 1878),
+  officeLayerAsset('primopiano', '1_tavolosediedesign', 31887, 1772, 3595, 889),
+  officeInteractiveAsset('primopiano', '1_mappa', 43749, 1033, 1418, 1627, 'Mappa interattiva ufficio'),
+  officeLayerAsset('primopiano', '1_scrivaniamonitor', 36573, 1662, 1656, 997),
+  officeInteractiveAsset('primopiano', '1_chiavi', 38010, 2136, 269, 234, 'Chiavi interattive ufficio'),
+  officeLayerAsset('primopiano', '1_carrellino', 41208, 1805, 678, 854),
+  officeLayerAsset('primopiano', '1_scrivaniamonitor2', 46612, 1381, 1886, 1276),
+  officeLayerAsset('primopiano', '1_tavolosedia', 51396, 1772, 1620, 890),
+  officeLayerAsset('primopiano', '1_mobilemedaglie', 55508, 1671, 1130, 992),
+  officeLayerAsset('primopiano', '1_poltroncinatavolo', 58571, 1920, 1786, 740),
+  officeLayerAsset('primopiano', '1_mobiletelefono', 61961, 1795, 1612, 878),
+  officeLayerAsset('primopiano', '1_cartelli', 66379, 1495, 3094, 1165),
+  officeLayerAsset('primopiano', '1_faldoni', 74808, 1666, 995, 995),
+  officeLayerAsset('primopiano', '1_cassetti', 81219, 2069, 1355, 621),
+  officeLayerAsset('primopiano', '1_postazione1', 83817, 1744, 1829, 916),
+  officeLayerAsset('primopiano', '1_postazione2', 85915, 1769, 1830, 891),
+  officeLayerAsset('primopiano', '1_poltroncine', 92587, 2018, 2861, 653),
+  officeLayerAsset('primopiano', '1_megatavolo', 99371, 297, 5723, 2375),
+  officeLayerAsset('primopiano', '1_mobiletv', 105482, 579, 759, 2081),
+  officeLayerAsset('primopiano', '1_divano-1', 108060, 1956, 1620, 705),
+  officeLayerAsset('primopiano', '1_tavolinopianta', 110232, 1921, 846, 740),
+  officeLayerAsset('primopiano', '1_divano', 111631, 1955, 1618, 705),
+  officeLayerAsset('primopiano', '1_scrivaniacomodini', 115623, 1528, 1983, 1133),
+  officeLayerAsset('primopiano', '1_scrivaniacomodini2', 117492, 1526, 1983, 1133),
+  officeLayerAsset('primopiano', '1_scrivaniacomodini3', 119592, 1531, 1983, 1133),
+  officeLayerAsset('primopiano', '1_acqua', 121927, 1331, 315, 1333),
+  officeLayerAsset('primopiano', '1_tavolotazza', 124717, 1335, 2725, 1330),
+  officeLayerAsset('primopiano', '1_carrellinofaldoni2', 129031, 1655, 816, 1016),
+  officeLayerAsset('primopiano', '1_carrellinofaldoni3', 131443, 1658, 827, 1014)
 ];
+
+export const officeMiddleAssets: SceneAsset[] = [
+  officeLayerAsset('secondopiano', '2_mobilestampa', 4927, 1456, 1485, 940),
+  officeLayerAsset('secondopiano', '2_scrivaniacestino', 9209, 1257, 2571, 1138),
+  officeLayerAsset('secondopiano', '2_pianta', 12399, 870, 805, 1536),
+  officeLayerAsset('secondopiano', '2_mobilescomparto', 16001, 577, 702, 1848),
+  officeLayerAsset('secondopiano', '2_acqua', 19931, 837, 355, 1555),
+  officeLayerAsset('secondopiano', '2_mobilecaffe', 23851, 1211, 707, 1230),
+  officeLayerAsset('secondopiano', '2_sedie', 25246, 1525, 1526, 875),
+  officeLayerAsset('secondopiano', '2_mobilino', 28983, 1610, 938, 791),
+  officeLayerAsset('secondopiano', '2_postazione', 31142, 1678, 1314, 718),
+  officeLayerAsset('secondopiano', '2_postazione2', 35095, 1640, 1072, 755),
+  officeLayerAsset('secondopiano', '2_tavolocassetti', 39291, 1804, 1404, 591),
+  officeLayerAsset('secondopiano', '2_stampante', 42107, 1391, 1022, 1001),
+  officeLayerAsset('secondopiano', '2_3cassetti', 46152, 1515, 382, 878),
+  officeLayerAsset('secondopiano', '2_libreria', 48742, 967, 483, 1428),
+  officeLayerAsset('secondopiano', '2_postazione3', 49963, 1735, 1187, 666),
+  officeLayerAsset('secondopiano', '2_postazionetelefono', 57469, 1736, 1133, 743),
+  officeLayerAsset('secondopiano', '2_faldoni', 60933, 1682, 567, 726),
+  officeLayerAsset('secondopiano', '2_stampacestino', 65590, 1587, 732, 808),
+  officeLayerAsset('secondopiano', '2_mobilozzi', 67683, 1860, 1905, 535),
+  officeLayerAsset('secondopiano', '2_postazionecestino2', 70321, 1576, 1653, 821),
+  officeLayerAsset('secondopiano', '2_acqua2', 73608, 1238, 265, 1155),
+  officeLayerAsset('secondopiano', '2_scrivanie', 76366, 1437, 4166, 1023),
+  officeInteractiveAsset('secondopiano', '2_computerint', 78765, 1658, 970, 301, 'Computer interattivo ufficio'),
+  officeLayerAsset('secondopiano', '2_stampacestino2', 89178, 1321, 1290, 1084),
+  officeLayerAsset('secondopiano', '2_scrivaniacomodini3', 91366, 1392, 1222, 1057),
+  officeLayerAsset('secondopiano', '2_scrivaniacomodini2', 92945, 1392, 1222, 1057),
+  officeLayerAsset('secondopiano', '2_scrivaniacomodini', 94524, 1389, 1222, 1057),
+  officeLayerAsset('secondopiano', '2_cassetti', 96348, 1839, 1241, 550),
+  officeLayerAsset('secondopiano', '2_piantalibreria', 98073, 1010, 1111, 1398)
+];
+
+export const officeSceneWidth = Math.ceil(
+  Math.max(
+    officeChunkCount * officeChunkWidth,
+    getLayerSceneWidth(officeMiddleAssets, officeSceneConfig.layerSpeed.middle),
+    getLayerSceneWidth(officeForegroundAssets, officeSceneConfig.layerSpeed.foreground)
+  )
+);
+
+export const officeFloorAssets: SceneAsset[] = Array.from(
+  { length: Math.ceil(officeSceneWidth / officeFloorTileWidth) + 2 },
+  (_, index) => ({
+    id: `office-floor-${index.toString().padStart(3, '0')}`,
+    kind: 'static',
+    src: 'kitchen/objects/pavimento.png',
+    x: Number((index * officeFloorTileWidth).toFixed(2)),
+    y: 0,
+    width: officeFloorTileWidth,
+    height: officeFloorHeight,
+    layer: 'foreground',
+    viewportBottomAligned: true,
+    overlapX: 2,
+    zOffset: 1
+  })
+);

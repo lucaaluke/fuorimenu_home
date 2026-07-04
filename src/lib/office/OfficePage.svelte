@@ -1,17 +1,36 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import VolumeMaxIcon from '$lib/VolumeMaxIcon.svelte';
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
+  import { readAudioMutedPreference, writeAudioMutedPreference } from '$lib/scene/audio-preference';
   import OfficeScene from './OfficeScene.svelte';
 
-  let isAudioMuted = $state(false);
+  let isAudioMuted = $state(true);
+  let isLeavingSection = false;
+  const sectionAudioFadeOutMs = 460;
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
 
   function toggleAudioMuted() {
     isAudioMuted = !isAudioMuted;
+    writeAudioMutedPreference(isAudioMuted);
+  }
+
+  function navigateWithAudioFade(event: MouseEvent, href: string) {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+    event.preventDefault();
+    if (isLeavingSection) return;
+
+    isLeavingSection = true;
+    isAudioMuted = true;
+    window.setTimeout(() => {
+      void goto(href);
+    }, sectionAudioFadeOutMs);
   }
 
   onMount(() => {
+    isAudioMuted = readAudioMutedPreference(false);
+
     const hadTransition =
       sessionStorage.getItem('role-card-transition') === '1' ||
       sessionStorage.getItem('kitchen-card-transition') === '1';
@@ -52,7 +71,12 @@
 
 <main class="office-page">
   <header class="office-topbar" aria-label="Navigazione ufficio">
-    <a class="logo" href="/?view=brand" aria-label="Vai al brand screen Fuorimenu">
+    <a
+      class="logo"
+      href="/?view=brand"
+      aria-label="Vai al brand screen Fuorimenu"
+      onclick={(event) => navigateWithAudioFade(event, '/?view=brand')}
+    >
       <span class="topbar-control-content">FM</span>
     </a>
     <button
@@ -70,7 +94,12 @@
         {/if}
       </span>
     </button>
-    <a class="home-link" href="/?view=cards" aria-label="Torna alle card">
+    <a
+      class="home-link"
+      href="/?view=cards"
+      aria-label="Torna alle card"
+      onclick={(event) => navigateWithAudioFade(event, '/?view=cards')}
+    >
       <span class="topbar-control-content" aria-hidden="true">
         <span class="close-icon"></span>
       </span>
@@ -141,54 +170,156 @@
     font: inherit;
   }
 
-  .logo,
-  .icon-button,
-  .home-link {
+  .office-topbar .logo,
+  .office-topbar .icon-button,
+  .office-topbar .home-link {
+    --button-depth-x: 0px;
+    --button-depth-y: 6px;
+    --button-lift-x: 0px;
+    --button-lift-y: 0px;
+    --button-hover-scale: 1;
+    --topbar-lift-ease: cubic-bezier(0.18, 1.35, 0.28, 1);
+    --topbar-control-bg: var(--color-surface-page);
+    --topbar-control-fg: var(--color-text-primary);
+    --topbar-control-hover-bg: var(--color-surface-page);
+    --topbar-control-hover-fg: var(--color-text-primary);
+    --topbar-control-depth: var(--color-text-primary);
+
     position: relative;
-    display: inline-grid;
-    min-width: 44px;
-    min-height: 44px;
-    border: 0;
-    color: var(--color-text-primary);
-    background: transparent;
-    cursor: pointer;
+    display: grid;
+    width: 56px;
+    height: 56px;
+    box-sizing: border-box;
     place-items: center;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--topbar-control-fg);
+    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, pointer;
+    isolation: isolate;
+    transform: scale(var(--button-hover-scale));
+    transition:
+      color 160ms ease,
+      opacity 0.2s ease,
+      transform 210ms var(--topbar-lift-ease);
+    will-change: transform;
+  }
+
+  .office-topbar .logo::before,
+  .office-topbar .icon-button::before,
+  .office-topbar .home-link::before {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    border: 2px solid var(--topbar-control-fg);
+    border-radius: var(--radius-full);
+    background: var(--topbar-control-depth);
+    content: '';
+    opacity: 0;
+    transition: opacity 90ms ease;
+  }
+
+  .office-topbar .logo::after,
+  .office-topbar .icon-button::after,
+  .office-topbar .home-link::after {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    border: 2px solid var(--topbar-control-fg);
+    border-radius: var(--radius-full);
+    background: var(--topbar-control-bg);
+    content: '';
+    transform: translate(var(--button-lift-x), var(--button-lift-y));
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      transform 210ms var(--topbar-lift-ease);
   }
 
   .topbar-control-content {
     position: relative;
-    z-index: 1;
-    display: inline-grid;
+    z-index: 2;
+    display: grid;
     place-items: center;
-  }
-
-  .logo::before,
-  .icon-button::before,
-  .home-link::before {
-    position: absolute;
-    inset: 2px;
-    content: '';
-    border: 2px solid transparent;
-    border-radius: 999px;
+    color: currentColor;
+    transform: translate(var(--button-lift-x), var(--button-lift-y));
     transition:
-      border-color 160ms ease,
-      background-color 160ms ease;
+      color 160ms ease,
+      transform 210ms var(--topbar-lift-ease);
+    will-change: transform;
   }
 
-  .logo:hover::before,
-  .logo:focus-visible::before,
-  .icon-button:hover::before,
-  .icon-button:focus-visible::before,
-  .home-link:hover::before,
-  .home-link:focus-visible::before {
-    border-color: currentColor;
-    background: rgb(247 243 234 / 0.72);
+  .close-icon,
+  .close-icon::before {
+    display: block;
+    width: 24px;
+    height: 2.4px;
+    background: currentColor;
+    border-radius: var(--radius-full);
+  }
+
+  .close-icon {
+    position: relative;
+    transform: rotate(45deg);
+  }
+
+  .close-icon::before {
+    position: absolute;
+    left: 0;
+    content: '';
+    transform: rotate(90deg);
+  }
+
+  .office-topbar .logo:hover,
+  .office-topbar .logo:focus-visible,
+  .office-topbar .icon-button:hover,
+  .office-topbar .icon-button:focus-visible,
+  .office-topbar .home-link:hover,
+  .office-topbar .home-link:focus-visible {
+    --button-lift-x: 0px;
+    --button-lift-y: calc(var(--button-depth-y) * -1);
+    --button-hover-scale: 1;
+    color: var(--topbar-control-hover-fg);
+  }
+
+  .office-topbar .logo:hover::after,
+  .office-topbar .logo:focus-visible::after,
+  .office-topbar .icon-button:hover::after,
+  .office-topbar .icon-button:focus-visible::after,
+  .office-topbar .home-link:hover::after,
+  .office-topbar .home-link:focus-visible::after {
+    border-color: var(--topbar-control-fg);
+    background: var(--topbar-control-hover-bg);
+  }
+
+  .office-topbar .logo:hover::before,
+  .office-topbar .logo:focus-visible::before,
+  .office-topbar .icon-button:hover::before,
+  .office-topbar .icon-button:focus-visible::before,
+  .office-topbar .home-link:hover::before,
+  .office-topbar .home-link:focus-visible::before {
+    opacity: 1;
+  }
+
+  .office-topbar .logo:active,
+  .office-topbar .icon-button:active,
+  .office-topbar .home-link:active {
+    --button-lift-x: 0px;
+    --button-lift-y: -1px;
+    --button-hover-scale: 1;
+  }
+
+  .office-topbar .logo:active::before,
+  .office-topbar .icon-button:active::before,
+  .office-topbar .home-link:active::before {
+    opacity: 1;
   }
 
   .logo:focus-visible,
   .icon-button:focus-visible,
   .home-link:focus-visible {
-    outline: none;
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: var(--unit-4);
   }
 
   :global(.volume-icon) {
@@ -209,36 +340,19 @@
     stroke-width: 2.8;
   }
 
-  .close-icon {
-    position: relative;
-    display: block;
-    width: 30px;
-    height: 30px;
-  }
-
-  .close-icon::before,
-  .close-icon::after {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 30px;
-    height: 3px;
-    content: '';
-    background: currentColor;
-    border-radius: 999px;
-    transform-origin: 50% 50%;
-  }
-
-  .close-icon::before {
-    transform: translate(-50%, -50%) rotate(45deg);
-  }
-
-  .close-icon::after {
-    transform: translate(-50%, -50%) rotate(-45deg);
-  }
-
   .office-shell {
     position: relative;
-    min-height: 100svh;
+    height: 100svh;
+  }
+
+  @media (max-width: 760px) {
+    .office-topbar {
+      height: var(--layout-topbar-height-mobile);
+      padding: var(--layout-topbar-padding-mobile);
+    }
+
+    .logo {
+      font-size: 24px;
+    }
   }
 </style>

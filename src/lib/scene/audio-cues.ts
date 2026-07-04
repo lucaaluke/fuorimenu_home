@@ -28,6 +28,7 @@ const defaultFade = {
 export function createAudioCueManager<Id extends string>(options: AudioCueManagerOptions = {}) {
   const cues = new Map<Id, AudioCueConfig>();
   const fadeTweens = new Map<Id, ReturnType<Gsap['to']>>();
+  const fallbackFadeFrames = new Map<Id, number>();
   const loopFrames = new Map<Id, number>();
   const fadeMotion = { ...defaultFade, ...options.fade };
   let gsap = options.gsap;
@@ -58,6 +59,9 @@ export function createAudioCueManager<Id extends string>(options: AudioCueManage
   function cancelFade(id: Id) {
     fadeTweens.get(id)?.kill();
     fadeTweens.delete(id);
+    const frame = fallbackFadeFrames.get(id);
+    if (frame) cancelAnimationFrame(frame);
+    fallbackFadeFrames.delete(id);
   }
 
   function watchLoop(id: Id) {
@@ -87,8 +91,25 @@ export function createAudioCueManager<Id extends string>(options: AudioCueManage
     }
 
     if (!gsap) {
-      audio.volume = targetVolume;
-      afterFade?.();
+      const initialVolume = audio.volume;
+      const startedAt = performance.now();
+      const durationMs = duration * 1000;
+
+      const step = (now: number) => {
+        const progress = Math.min((now - startedAt) / durationMs, 1);
+        audio.volume = initialVolume + (targetVolume - initialVolume) * progress;
+
+        if (progress < 1) {
+          fallbackFadeFrames.set(id, requestAnimationFrame(step));
+          return;
+        }
+
+        audio.volume = targetVolume;
+        fallbackFadeFrames.delete(id);
+        afterFade?.();
+      };
+
+      fallbackFadeFrames.set(id, requestAnimationFrame(step));
       return;
     }
 
@@ -159,8 +180,8 @@ export function createAudioCueManager<Id extends string>(options: AudioCueManage
     );
   }
 
-  function stopAll(ids: readonly Id[] = Array.from(cues.keys())) {
-    ids.forEach((id) => stop(id));
+  function stopAll(ids: readonly Id[] = Array.from(cues.keys()), options: { duration?: number } = {}) {
+    ids.forEach((id) => stop(id, options));
   }
 
   async function unlock(ids: readonly Id[] = Array.from(cues.keys())) {

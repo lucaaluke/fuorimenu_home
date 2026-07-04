@@ -1,17 +1,36 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import VolumeMaxIcon from '$lib/VolumeMaxIcon.svelte';
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
+  import { readAudioMutedPreference, writeAudioMutedPreference } from '$lib/scene/audio-preference';
   import KitchenScene from './KitchenScene.svelte';
 
-  let isAudioMuted = $state(false);
+  let isAudioMuted = $state(true);
+  let isLeavingSection = false;
+  const sectionAudioFadeOutMs = 460;
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
 
   function toggleAudioMuted() {
     isAudioMuted = !isAudioMuted;
+    writeAudioMutedPreference(isAudioMuted);
+  }
+
+  function navigateWithAudioFade(event: MouseEvent, href: string) {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+    event.preventDefault();
+    if (isLeavingSection) return;
+
+    isLeavingSection = true;
+    isAudioMuted = true;
+    window.setTimeout(() => {
+      void goto(href);
+    }, sectionAudioFadeOutMs);
   }
 
   onMount(() => {
+    isAudioMuted = readAudioMutedPreference(false);
+
     if (sessionStorage.getItem('kitchen-card-transition') !== '1') return;
     sessionStorage.removeItem('kitchen-card-transition');
 
@@ -50,7 +69,12 @@
 
 <main class="game-page">
   <header class="kitchen-topbar" aria-label="Navigazione cucina">
-    <a class="logo" href="/?view=brand" aria-label="Vai al brand screen Fuorimenù">
+    <a
+      class="logo"
+      href="/?view=brand"
+      aria-label="Vai al brand screen Fuorimenù"
+      onclick={(event) => navigateWithAudioFade(event, '/?view=brand')}
+    >
       <span class="topbar-control-content">FM</span>
     </a>
     <button
@@ -68,7 +92,12 @@
         {/if}
       </span>
     </button>
-    <a class="home-link" href="/?view=cards" aria-label="Torna alle card">
+    <a
+      class="home-link"
+      href="/?view=cards"
+      aria-label="Torna alle card"
+      onclick={(event) => navigateWithAudioFade(event, '/?view=cards')}
+    >
       <span class="topbar-control-content" aria-hidden="true">
         <span class="close-icon"></span>
       </span>
