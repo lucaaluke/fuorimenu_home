@@ -44,7 +44,6 @@ const kitchenConstructionExistingObjectNames = new Set([
 ]);
 
 const kitchenConstructionObjectSourceByName: Record<string, string> = {
-  '2-S-fornelli-pentole': 'kitchen/objects/2_S_fornelli-pentole.png',
   '2-cappe-fornelli': 'kitchen/objects/2_cappe-fornelli.png',
   '2-carrello-brocche': 'kitchen/objects/2_carrello-brocche.png',
   '2-carrello-pentole': 'kitchen/objects/2_carrello-pentole.png',
