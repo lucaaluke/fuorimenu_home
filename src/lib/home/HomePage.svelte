@@ -2,6 +2,11 @@
   import { goto } from '$app/navigation';
   import VolumeMaxIcon from '$lib/VolumeMaxIcon.svelte';
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
+  import {
+    createAboutProjectPhaserGame,
+    type AboutProjectPhaserAsset,
+    type AboutProjectPhaserGameHandle
+  } from '$lib/home/about-project-phaser';
   import { createAnimationCueManager } from '$lib/scene/animation-cues';
   import { readAudioMutedPreference, writeAudioMutedPreference } from '$lib/scene/audio-preference';
   import { createAudioCueManager, type AudioCueConfig } from '$lib/scene/audio-cues';
@@ -27,6 +32,7 @@
   let nextLetters: HTMLElement[] = [];
   let audioGateCopyLetters: HTMLElement[] = [];
   let introEl: HTMLElement;
+  let introScrollCueEl: HTMLElement;
   let audioGateButtonEl = $state<HTMLElement>();
   let isAudioGateVisible = $state(true);
   let isAudioGateOpening = $state(false);
@@ -39,7 +45,12 @@
   let activeInterviewName = $state<string>();
   let aboutScreenEl = $state<HTMLElement>();
   let aboutProjectEl = $state<HTMLElement>();
+  let aboutProjectPhaserEl = $state<HTMLElement>();
+  let isAboutProjectTeamVisible = $state(false);
   let aboutTransitionId = 0;
+  let aboutProjectPhaserHandle: AboutProjectPhaserGameHandle | undefined;
+  let aboutProjectResizeObserver: ResizeObserver | undefined;
+  let aboutProjectPhaserRequestId = 0;
   let gsap: Gsap;
   let flowTween: ReturnType<Gsap['to']> | undefined;
   let cardEnterTween: ReturnType<Gsap['timeline']> | undefined;
@@ -102,23 +113,6 @@
     firstNameX?: number;
     lastNameX?: number;
   };
-  type AboutProjectAsset = {
-    name: string;
-    src: string;
-    alt: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    style: string;
-    isBackdrop?: boolean;
-  };
-  type AboutProjectRawAsset = Omit<AboutProjectAsset, 'src' | 'style'>;
-  type AboutProjectBackgroundTile = {
-    name: string;
-    src: string;
-    style: string;
-  };
 
   const roleAudio: Record<AudioRole, AudioCueConfig> = {
     ufficio: {
@@ -153,78 +147,19 @@
   };
   const roleAudioEntries = audioRoles.map((role) => ({ role, config: roleAudio[role] }));
   const interviewAssetBase = '/assets/interviews/';
-  const aboutProjectPositionScale = 0.5;
-  const aboutProjectBackgroundTileWidth = 4096 * aboutProjectPositionScale;
-  const aboutProjectBackgroundTileHeight = 2660 * aboutProjectPositionScale;
-  const aboutProjectBackgroundSlices = ['Slice 17.png', 'Slice 17.png', 'Slice 18.png'] as const;
-  const aboutProjectTranslateX = aboutProjectBackgroundTileWidth;
-  const aboutProjectRawAssets: AboutProjectRawAsset[] = [
+  const aboutProjectAssets: AboutProjectPhaserAsset[] = ([
     { name: 'mobile2', alt: '', x: 4294, y: 1643, width: 1647, height: 1021, isBackdrop: true },
-    { name: 'mobile1', alt: '', x: 5919, y: 1688, width: 1797, height: 972, isBackdrop: true },
+    { name: 'mobile1', alt: '', x: 5919, y: 1692, width: 1797, height: 972, isBackdrop: true },
     { name: 'gerri', alt: 'Ritratto team Gerri', x: 4487, y: 1277, width: 482, height: 640 },
     { name: 'luke', alt: 'Ritratto team Luke', x: 4926, y: 1263, width: 521, height: 655 },
     { name: 'nicol', alt: 'Ritratto team Nicol', x: 5389, y: 1288, width: 475, height: 632 },
-    { name: 'alep', alt: 'Ritratto team Alep', x: 6044, y: 1269, width: 471, height: 649 },
-    { name: 'tama', alt: 'Ritratto team Tama', x: 6522, y: 1259, width: 513, height: 655 },
-    { name: 'vigex', alt: 'Ritratto team Vigex', x: 7051, y: 1295, width: 458, height: 620 }
-  ];
-  const aboutProjectLogicalAssets = aboutProjectRawAssets.map((asset) => {
-    const x = asset.x * aboutProjectPositionScale + aboutProjectTranslateX;
-    const y = asset.y * aboutProjectPositionScale;
-    const width = asset.width * aboutProjectPositionScale;
-    const height = asset.height * aboutProjectPositionScale;
-
-    return {
-      name: asset.name,
-      src: `/assets/about/${asset.name}.png`,
-      alt: asset.alt,
-      x,
-      y,
-      width,
-      height,
-      isBackdrop: asset.isBackdrop
-    };
-  });
-  const aboutProjectSceneWidth = Math.max(
-    aboutProjectBackgroundTileWidth * aboutProjectBackgroundSlices.length,
-    ...aboutProjectLogicalAssets.map((asset) => asset.x + asset.width)
-  );
-  const aboutProjectSceneHeight = Math.max(
-    aboutProjectBackgroundTileHeight,
-    ...aboutProjectLogicalAssets.map((asset) => asset.y + asset.height)
-  );
-  const aboutProjectTeamBounds = aboutProjectLogicalAssets.reduce(
-    (bounds, asset) => ({
-      left: Math.min(bounds.left, asset.x),
-      right: Math.max(bounds.right, asset.x + asset.width)
-    }),
-    { left: Number.POSITIVE_INFINITY, right: Number.NEGATIVE_INFINITY }
-  );
-  const aboutProjectTeamCenterX = (aboutProjectTeamBounds.left + aboutProjectTeamBounds.right) / 2;
-  const aboutProjectBackgroundTiles: AboutProjectBackgroundTile[] = aboutProjectBackgroundSlices.map(
-    (slice, index) => ({
-      name: `${slice}-${index}`,
-      src: `/assets/about/${slice}`,
-      style: [
-        `--project-bg-x:${fixed(((index * aboutProjectBackgroundTileWidth) / aboutProjectSceneWidth) * 100, 4)}%`,
-        `--project-bg-width:${fixed((aboutProjectBackgroundTileWidth / aboutProjectSceneWidth) * 100, 4)}%`,
-        '--project-bg-height:100%'
-      ].join(';')
-    })
-  );
-  const aboutProjectAssets: AboutProjectAsset[] = aboutProjectLogicalAssets.map((asset) => ({
+    { name: 'alep', alt: 'Ritratto team Alep', x: 6044, y: 1273, width: 471, height: 649 },
+    { name: 'tama', alt: 'Ritratto team Tama', x: 6522, y: 1263, width: 513, height: 655 },
+    { name: 'vigex', alt: 'Ritratto team Vigex', x: 7051, y: 1299, width: 458, height: 620 }
+  ] satisfies Array<Omit<AboutProjectPhaserAsset, 'src'>>).map((asset) => ({
     ...asset,
-    style: [
-      `--project-x:${fixed((asset.x / aboutProjectSceneWidth) * 100, 4)}%`,
-      `--project-y:${fixed((asset.y / aboutProjectSceneHeight) * 100, 4)}%`,
-      `--project-width:${fixed((asset.width / aboutProjectSceneWidth) * 100, 4)}%`,
-      `--project-height:${fixed((asset.height / aboutProjectSceneHeight) * 100, 4)}%`
-    ].join(';')
+    src: `/assets/about/${asset.name}.png`
   }));
-  const aboutProjectStageStyle = [
-    `--project-scene-width:${fixed(aboutProjectSceneWidth, 2)}`,
-    `--project-scene-height:${fixed(aboutProjectSceneHeight, 2)}`
-  ].join(';');
   const interviewChefs: InterviewChef[] = [
     {
       number: '01',
@@ -1242,6 +1177,7 @@
     const transitionId = ++aboutTransitionId;
     void startBackgroundAudio();
     animations.kill('about');
+    destroyAboutProjectPhaser();
     isAboutClosing = false;
     aboutView = 'gate';
     activeInterviewName = undefined;
@@ -1274,6 +1210,7 @@
     if (isAboutClosing) return;
     const transitionId = ++aboutTransitionId;
     isAboutClosing = true;
+    destroyAboutProjectPhaser();
     if (!aboutScreenEl) {
       isAboutOpen = false;
       isAboutClosing = false;
@@ -1301,6 +1238,7 @@
 
   function handleAboutCloseClick() {
     if (aboutView !== 'gate') {
+      if (aboutView === 'project') destroyAboutProjectPhaser();
       aboutView = 'gate';
       activeInterviewName = undefined;
       return;
@@ -1311,16 +1249,50 @@
 
   function openAboutInterviews() {
     void startBackgroundAudio();
+    destroyAboutProjectPhaser();
     aboutView = 'interviews';
     activeInterviewName = undefined;
+  }
+
+  function destroyAboutProjectPhaser() {
+    aboutProjectPhaserRequestId += 1;
+    aboutProjectResizeObserver?.disconnect();
+    aboutProjectResizeObserver = undefined;
+    aboutProjectPhaserHandle?.destroy();
+    aboutProjectPhaserHandle = undefined;
+  }
+
+  async function ensureAboutProjectPhaser() {
+    const requestId = ++aboutProjectPhaserRequestId;
+    await tick();
+    const container = aboutProjectPhaserEl;
+    if (!container || aboutProjectPhaserHandle) return;
+
+    const handle = await createAboutProjectPhaserGame({
+      assets: aboutProjectAssets,
+      container
+    });
+    if (requestId !== aboutProjectPhaserRequestId || aboutView !== 'project' || !handle) {
+      handle?.destroy();
+      return;
+    }
+
+    aboutProjectPhaserHandle = handle;
+    aboutProjectResizeObserver = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      aboutProjectPhaserHandle?.resize(Math.max(1, width), Math.max(1, height));
+    });
+    aboutProjectResizeObserver.observe(container);
   }
 
   async function openAboutProject() {
     void startBackgroundAudio();
     aboutView = 'project';
     activeInterviewName = undefined;
+    isAboutProjectTeamVisible = false;
     await tick();
     aboutProjectEl?.scrollTo({ left: 0, behavior: 'auto' });
+    void ensureAboutProjectPhaser();
   }
 
   function openInterviewDetail(chef: InterviewChef) {
@@ -1341,24 +1313,25 @@
     scroller.scrollLeft += event.deltaY;
   }
 
+  function handleProjectScroll(event: Event) {
+    const scroller = event.currentTarget as HTMLElement;
+    if (!scroller) return;
+    isAboutProjectTeamVisible = scroller.scrollLeft >= scroller.clientWidth * 0.42;
+    if (isAboutProjectTeamVisible) void ensureAboutProjectPhaser();
+  }
+
   function handleProjectWheel(event: WheelEvent) {
     const scroller = event.currentTarget as HTMLElement;
     if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+    if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+      event.stopPropagation();
+      return;
+    }
     event.preventDefault();
-    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
-    if (Math.abs(delta) < 1) return;
+    event.stopPropagation();
 
-    const targetLeft = delta > 0 ? getAboutProjectTeamScrollLeft(scroller) : 0;
+    const targetLeft = event.deltaY > 0 ? scroller.clientWidth : 0;
     scroller.scrollTo({ left: targetLeft, behavior: 'smooth' });
-  }
-
-  function getAboutProjectTeamScrollLeft(scroller: HTMLElement) {
-    const stageEl = scroller.querySelector<HTMLElement>('.about-project-stage');
-    if (!stageEl) return scroller.scrollLeft;
-
-    const stageWidth = stageEl.getBoundingClientRect().width;
-    const teamCenterX = stageWidth * (aboutProjectTeamCenterX / aboutProjectSceneWidth);
-    return clamp(teamCenterX - scroller.clientWidth / 2, 0, scroller.scrollWidth - scroller.clientWidth);
   }
 
   async function startRoleAudio(role: AudioRole) {
@@ -1447,6 +1420,10 @@
     const brandReveal   = clamp(brandProgress);
     const epBrand       = ease(brandReveal);
     setCssVars(homeScreen, { '--page-y': `${(-100 * epPage).toFixed(2)}svh` });
+    setCssVars(introScrollCueEl, {
+      '--intro-scroll-cue-opacity': fixed(1 - epPage),
+      '--intro-scroll-cue-y': px(epPage * 10)
+    });
 
     // 2. next-screen: appare con pageProgress, sparisce con brandProgress
     //    opacity finale = pageProgress-driven * (1 - brandProgress-driven)
@@ -1746,6 +1723,7 @@
     return () => {
       isDestroyed = true;
       flowTween?.kill();
+      destroyAboutProjectPhaser();
       animations.destroy();
       audioCues.destroy();
       sceneResources.destroy();
@@ -1919,6 +1897,12 @@
           {/if}
         {/each}
       </h1>
+    </div>
+    <div bind:this={introScrollCueEl} class="intro-scroll-cue" aria-label="Scorri">
+      <span>Scorri</span>
+      <svg class="brand-scroll-arrow" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 5v12M7 12l5 5 5-5" />
+      </svg>
     </div>
   </section>
 
@@ -2182,16 +2166,14 @@
       <section
         bind:this={aboutProjectEl}
         class="about-project"
+        class:is-team-visible={isAboutProjectTeamVisible}
         aria-labelledby="about-project-title"
+        onscroll={handleProjectScroll}
         onwheel={handleProjectWheel}
       >
         <h3 id="about-project-title" class="visually-hidden">Progetto Fuorimenù</h3>
-        <div class="about-project-rail">
-          <div
-            class="about-project-stage"
-            aria-label="Team e progetto Fuorimenù"
-            style={aboutProjectStageStyle}
-          >
+        <div class="about-project-track">
+          <section class="about-project-slide about-project-copy-slide" aria-label="Introduzione al progetto">
             <div class="about-project-intro" data-node-id="541:1585">
               <div class="about-project-intro-copy">
                 <h3>Progetto</h3>
@@ -2209,30 +2191,16 @@
                 draggable="false"
               />
             </div>
-            {#each aboutProjectBackgroundTiles as tile (tile.name)}
-              <img
-                class="about-project-background-tile"
-                src={tile.src}
-                alt=""
-                style={tile.style}
-                draggable="false"
-              />
-            {/each}
-            {#each aboutProjectAssets as asset (asset.name)}
-              <img
-                class="about-project-asset"
-                class:is-backdrop={asset.isBackdrop}
-                src={asset.src}
-                alt={asset.alt}
-                style={asset.style}
-                draggable="false"
-              />
-            {/each}
-          </div>
-        </div>
-        <div class="about-project-scroll-cue" data-node-id="541:1675">
-          <span>Scorri per vedere il Team</span>
-          <img src="/assets/about/project-arrow.svg" alt="" draggable="false" />
+            <div class="about-project-scroll-cue" data-node-id="541:1675">
+              <span>Scorri per vedere il team</span>
+              <svg class="brand-scroll-arrow about-project-scroll-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v12M7 12l5 5 5-5" />
+              </svg>
+            </div>
+          </section>
+          <section class="about-project-slide about-project-team-slide" aria-label="Team Fuorimenù">
+            <div bind:this={aboutProjectPhaserEl} class="about-project-phaser" aria-hidden="true"></div>
+          </section>
         </div>
       </section>
     {:else}
@@ -3422,6 +3390,7 @@
     background: var(--color-surface-page);
     color: var(--color-text-primary);
     scrollbar-width: none;
+    scroll-snap-type: x mandatory;
     overscroll-behavior-x: contain;
   }
 
@@ -3429,30 +3398,51 @@
     display: none;
   }
 
-  .about-project-rail {
+  .about-project-track {
     position: relative;
-    width: max-content;
-    min-width: 100%;
+    display: flex;
+    width: 200%;
+    min-width: 200%;
     height: 100%;
   }
 
-  .about-project-stage {
+  .about-project-slide {
     position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex: 0 0 50%;
+    width: 50%;
     height: 100%;
-    aspect-ratio: var(--project-scene-width) / var(--project-scene-height);
+    padding: clamp(34px, 5svh, 62px) var(--layout-page-gutter);
     overflow: hidden;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  .about-project-copy-slide {
+    --about-project-slide-padding-y: clamp(34px, 5svh, 62px);
+    --about-project-title-size: clamp(68px, 8.2vw, 124px);
+    --about-project-copy-gap: clamp(40px, 6svh, 102px);
+
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
+  .about-project-team-slide {
+    align-items: center;
+    justify-content: center;
+    padding: 0;
     background: var(--color-surface-page);
+    color: var(--color-text-primary);
   }
 
   .about-project-intro {
-    position: absolute;
-    z-index: 3;
-    top: clamp(30px, 5.7svh, 76px);
-    bottom: clamp(34px, 6.6svh, 88px);
-    left: var(--layout-page-gutter);
+    position: relative;
+    z-index: 2;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    height: 100%;
     width: clamp(340px, 47vw, 760px);
     color: var(--brand-500);
     pointer-events: none;
@@ -3461,7 +3451,7 @@
   .about-project-intro-copy {
     display: flex;
     flex-direction: column;
-    gap: clamp(22px, 4.4svh, 56px);
+    gap: var(--about-project-copy-gap);
     align-items: flex-start;
   }
 
@@ -3469,7 +3459,7 @@
     margin: 0;
     color: var(--brand-500);
     font-family: var(--font-display);
-    font-size: clamp(68px, 7.8vw, 118px);
+    font-size: var(--about-project-title-size);
     font-weight: 700;
     line-height: 0.96;
     letter-spacing: 0;
@@ -3480,9 +3470,9 @@
     margin: 0;
     color: var(--brand-500);
     font-family: var(--font-text);
-    font-size: clamp(17px, 1.66vw, 25px);
+    font-size: clamp(14px, 1.28vw, 19px);
     font-weight: 400;
-    line-height: 1.28;
+    line-height: 1.34;
   }
 
   .about-project-politecnico {
@@ -3496,7 +3486,7 @@
   .about-project-scroll-cue {
     position: absolute;
     z-index: 4;
-    top: 50%;
+    top: calc(var(--about-project-slide-padding-y) + var(--about-project-title-size) * 0.96 + var(--about-project-copy-gap));
     right: var(--layout-page-gutter);
     display: flex;
     align-items: center;
@@ -3509,50 +3499,33 @@
     font-weight: 400;
     line-height: 1.2;
     text-align: right;
-    pointer-events: none;
     transform: translateY(-50%);
+    transition:
+      opacity 220ms ease,
+      transform 220ms ease;
+    pointer-events: none;
   }
 
-  .about-project-scroll-cue img {
-    --project-arrow-size: clamp(34px, 4vw, 54px);
-
-    display: block;
+  .about-project-scroll-arrow {
     flex: 0 0 auto;
-    width: calc(var(--project-arrow-size) * 1.03);
-    height: var(--project-arrow-size);
-    object-fit: contain;
-    user-select: none;
-    pointer-events: none;
+    transform: rotate(-90deg);
   }
 
-  .about-project-background-tile {
+  .about-project.is-team-visible .about-project-scroll-cue {
+    opacity: 0;
+    transform: translate3d(0, -34%, 0);
+  }
+
+  .about-project-phaser {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    opacity: 1;
+  }
+
+  :global(.about-project-phaser canvas) {
     position: absolute;
-    z-index: 0;
-    top: 0;
-    left: var(--project-bg-x);
-    display: block;
-    width: var(--project-bg-width);
-    height: var(--project-bg-height);
-    object-fit: fill;
-    user-select: none;
-    pointer-events: none;
-  }
-
-  .about-project-asset {
-    position: absolute;
-    z-index: 1;
-    left: var(--project-x);
-    top: var(--project-y);
-    display: block;
-    width: var(--project-width);
-    height: var(--project-height);
-    object-fit: contain;
-    user-select: none;
-    pointer-events: none;
-  }
-
-  .about-project-asset.is-backdrop {
-    z-index: 2;
+    inset: 0;
   }
 
   .about-interviews {
@@ -3960,6 +3933,31 @@
     display: grid;
     justify-items: center;
     gap: 22px;
+  }
+
+  .intro-scroll-cue {
+    position: absolute;
+    bottom: clamp(28px, 6vh, 64px);
+    left: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-primary);
+    font-family: var(--font-text);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: normal;
+    text-align: center;
+    white-space: nowrap;
+    opacity: var(--intro-scroll-cue-opacity, 1);
+    transform: translate(-50%, var(--intro-scroll-cue-y, 0px));
+    transition: opacity 120ms linear, transform 140ms ease-out;
+    will-change: opacity, transform;
+  }
+
+  .intro-scroll-cue span {
+    word-break: break-word;
   }
 
   h1, .next-message {
@@ -4714,17 +4712,26 @@
     .about-project {
       inset: var(--layout-topbar-height-mobile) 0 0;
     }
+    .about-project-slide {
+      padding: 28px var(--layout-page-gutter-mobile);
+    }
+    .about-project-copy-slide {
+      --about-project-slide-padding-y: 28px;
+      --about-project-title-size: clamp(44px, 13vw, 62px);
+      --about-project-copy-gap: 30px;
+    }
+    .about-project-team-slide {
+      padding: 0;
+    }
     .about-project-intro {
-      top: 24px;
-      bottom: 28px;
-      left: var(--layout-page-gutter-mobile);
+      height: 100%;
       width: min(336px, calc(100vw - var(--spacing-8)));
     }
     .about-project-intro-copy {
-      gap: 18px;
+      gap: var(--about-project-copy-gap);
     }
     .about-project-intro h3 {
-      font-size: clamp(44px, 13vw, 62px);
+      font-size: var(--about-project-title-size);
     }
     .about-project-intro p {
       width: min(310px, 100%);
@@ -4740,10 +4747,8 @@
       max-width: 172px;
       font-size: 12px;
     }
-    .about-project-scroll-cue img {
-      --project-arrow-size: 30px;
-    }
     .intro        { padding: var(--layout-page-gutter-mobile); }
+    .intro-scroll-cue { bottom: clamp(24px, 6vh, 48px); }
     .persistent-top-audio { top: calc(var(--unit-24) + var(--unit-4)); }
     h1, .next-message { font-size: 24px; }
     .next-message span { font-size: 24px; }
