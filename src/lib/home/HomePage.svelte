@@ -67,6 +67,7 @@
     speaker: string;
     dialogue: string;
     hoverText: string;
+    backgroundSrc?: string;
     personSrc: string;
     personNodeId?: string;
     personFillSrc?: string;
@@ -640,6 +641,7 @@
       speaker: 'Carlo Zarri',
       dialogue: "il mio ruolo ... seguimi nell'ufficio per saperne di più",
       hoverText: "io sono carlo zarri seguimi nell'ufficio",
+      backgroundSrc: '/assets/cardsbackground/sfondoufficio.png',
       personSrc: '/images/carlo-zarri-figma.png',
       href: '/ufficio'
     },
@@ -2001,7 +2003,12 @@
   <div class="role-grid">
     {#snippet roleCardBody(item: RoleItem)}
       <div class="role-card-top">
-        <img class="role-card-bg" src="/images/figma-kitchen-scene.png" alt="" draggable="false" />
+        <img
+          class="role-card-bg"
+          src={item.backgroundSrc ?? '/images/figma-kitchen-scene.png'}
+          alt=""
+          draggable="false"
+        />
         <span class="role-card-bg-overlay" aria-hidden="true"></span>
         <div class="role-hover-panel">
           <svg
