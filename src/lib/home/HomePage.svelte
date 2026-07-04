@@ -3954,7 +3954,7 @@
     transform: translate(-50%, var(--intro-scroll-cue-y, 0px));
     transition: opacity 120ms linear, transform 140ms ease-out;
     will-change: opacity, transform;
-  }
+  }/*a*/
 
   .intro-scroll-cue span {
     word-break: break-word;
