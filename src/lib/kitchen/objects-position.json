@@ -370,6 +370,22 @@
     "height": 310
   },
   {
+    "name": "S_kit-pulizie-a",
+    "type": "RECTANGLE",
+    "x": 75237,
+    "y": 1403,
+    "width": 365,
+    "height": 297
+  },
+  {
+    "name": "S_kit-pulizie-b",
+    "type": "RECTANGLE",
+    "x": 75233,
+    "y": 1607,
+    "width": 416,
+    "height": 106
+  },
+  {
     "name": "S_macchinetta-caffe",
     "type": "RECTANGLE",
     "x": 70038,

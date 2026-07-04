@@ -65,7 +65,8 @@ const kitchenConstructionObjectSourceByName: Record<string, string> = {
   '2-tavolo-tupperware': 'kitchen/objects/2_tavolo-tupperware.png',
   'S-cassetta-attrezzi': 'kitchen/objects/S_cassetta-attrezzi.png',
   'S-cono': 'kitchen/objects/S_cono.png',
-  'S-kit-pulizie': 'kitchen/objects/S_kit-pulizie.png',
+  'S-kit-pulizie-a': 'kitchen/objects/S_kit-pulizie-a.png',
+  'S-kit-pulizie-b': 'kitchen/objects/S_kit-pulizie-b.png',
   'S-macchinetta-caffe': 'kitchen/objects/S_macchinetta-caffe.png',
   'S-planetaria': 'kitchen/objects/S_planetaria.png',
   'S-sveglia': 'kitchen/objects/S_sveglia.png',
@@ -423,6 +424,12 @@ const kitchenConstructionPlacedAssets: SceneAsset[] = [
   kitchenConstructionObjectAsset('mattoni-pila', 'kitchen/objects/mattoni-pila.png', 18887, 2470, 868, 243)
 ];
 
+function kitchenConstructionObjectZOffset(id: string, fallback: number) {
+  if (id === 'S-kit-pulizie-a') return fallback - 1;
+
+  return fallback;
+}
+
 const kitchenConstructionAdditionalPlacedAssets: SceneAsset[] = [];
 let isReadingMiddlegroundObjects = false;
 
@@ -440,7 +447,10 @@ for (const position of objectsPosition as unknown[]) {
     isReadingMiddlegroundObjects || normalizedName.startsWith('2-')
       ? kitchenConstructionMiddlegroundObjectZOffset
       : kitchenConstructionForegroundObjectZOffset;
-  const asset = kitchenConstructionUnscaledObjectAsset(position, zOffset);
+  const asset = kitchenConstructionUnscaledObjectAsset(
+    position,
+    kitchenConstructionObjectZOffset(normalizedName, zOffset)
+  );
   if (asset) kitchenConstructionAdditionalPlacedAssets.push(asset);
 }
 
