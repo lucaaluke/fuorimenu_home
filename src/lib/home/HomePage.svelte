@@ -35,9 +35,10 @@
   let isBrandWordSharp = $state(false);
   let isAboutOpen = $state(false);
   let isAboutClosing = $state(false);
-  let aboutView = $state<'gate' | 'interviews'>('gate');
+  let aboutView = $state<'gate' | 'project' | 'interviews'>('gate');
   let activeInterviewName = $state<string>();
   let aboutScreenEl = $state<HTMLElement>();
+  let aboutProjectEl = $state<HTMLElement>();
   let aboutTransitionId = 0;
   let gsap: Gsap;
   let flowTween: ReturnType<Gsap['to']> | undefined;
@@ -101,6 +102,23 @@
     firstNameX?: number;
     lastNameX?: number;
   };
+  type AboutProjectAsset = {
+    name: string;
+    src: string;
+    alt: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    style: string;
+    isBackdrop?: boolean;
+  };
+  type AboutProjectRawAsset = Omit<AboutProjectAsset, 'src' | 'style'>;
+  type AboutProjectBackgroundTile = {
+    name: string;
+    src: string;
+    style: string;
+  };
 
   const roleAudio: Record<AudioRole, AudioCueConfig> = {
     ufficio: {
@@ -135,6 +153,78 @@
   };
   const roleAudioEntries = audioRoles.map((role) => ({ role, config: roleAudio[role] }));
   const interviewAssetBase = '/assets/interviews/';
+  const aboutProjectPositionScale = 0.5;
+  const aboutProjectBackgroundTileWidth = 4096 * aboutProjectPositionScale;
+  const aboutProjectBackgroundTileHeight = 2660 * aboutProjectPositionScale;
+  const aboutProjectBackgroundSlices = ['Slice 17.png', 'Slice 17.png', 'Slice 18.png'] as const;
+  const aboutProjectTranslateX = aboutProjectBackgroundTileWidth;
+  const aboutProjectRawAssets: AboutProjectRawAsset[] = [
+    { name: 'mobile2', alt: '', x: 4294, y: 1643, width: 1647, height: 1021, isBackdrop: true },
+    { name: 'mobile1', alt: '', x: 5919, y: 1688, width: 1797, height: 972, isBackdrop: true },
+    { name: 'gerri', alt: 'Ritratto team Gerri', x: 4487, y: 1277, width: 482, height: 640 },
+    { name: 'luke', alt: 'Ritratto team Luke', x: 4926, y: 1263, width: 521, height: 655 },
+    { name: 'nicol', alt: 'Ritratto team Nicol', x: 5389, y: 1288, width: 475, height: 632 },
+    { name: 'alep', alt: 'Ritratto team Alep', x: 6044, y: 1269, width: 471, height: 649 },
+    { name: 'tama', alt: 'Ritratto team Tama', x: 6522, y: 1259, width: 513, height: 655 },
+    { name: 'vigex', alt: 'Ritratto team Vigex', x: 7051, y: 1295, width: 458, height: 620 }
+  ];
+  const aboutProjectLogicalAssets = aboutProjectRawAssets.map((asset) => {
+    const x = asset.x * aboutProjectPositionScale + aboutProjectTranslateX;
+    const y = asset.y * aboutProjectPositionScale;
+    const width = asset.width * aboutProjectPositionScale;
+    const height = asset.height * aboutProjectPositionScale;
+
+    return {
+      name: asset.name,
+      src: `/assets/about/${asset.name}.png`,
+      alt: asset.alt,
+      x,
+      y,
+      width,
+      height,
+      isBackdrop: asset.isBackdrop
+    };
+  });
+  const aboutProjectSceneWidth = Math.max(
+    aboutProjectBackgroundTileWidth * aboutProjectBackgroundSlices.length,
+    ...aboutProjectLogicalAssets.map((asset) => asset.x + asset.width)
+  );
+  const aboutProjectSceneHeight = Math.max(
+    aboutProjectBackgroundTileHeight,
+    ...aboutProjectLogicalAssets.map((asset) => asset.y + asset.height)
+  );
+  const aboutProjectTeamBounds = aboutProjectLogicalAssets.reduce(
+    (bounds, asset) => ({
+      left: Math.min(bounds.left, asset.x),
+      right: Math.max(bounds.right, asset.x + asset.width)
+    }),
+    { left: Number.POSITIVE_INFINITY, right: Number.NEGATIVE_INFINITY }
+  );
+  const aboutProjectTeamCenterX = (aboutProjectTeamBounds.left + aboutProjectTeamBounds.right) / 2;
+  const aboutProjectBackgroundTiles: AboutProjectBackgroundTile[] = aboutProjectBackgroundSlices.map(
+    (slice, index) => ({
+      name: `${slice}-${index}`,
+      src: `/assets/about/${slice}`,
+      style: [
+        `--project-bg-x:${fixed(((index * aboutProjectBackgroundTileWidth) / aboutProjectSceneWidth) * 100, 4)}%`,
+        `--project-bg-width:${fixed((aboutProjectBackgroundTileWidth / aboutProjectSceneWidth) * 100, 4)}%`,
+        '--project-bg-height:100%'
+      ].join(';')
+    })
+  );
+  const aboutProjectAssets: AboutProjectAsset[] = aboutProjectLogicalAssets.map((asset) => ({
+    ...asset,
+    style: [
+      `--project-x:${fixed((asset.x / aboutProjectSceneWidth) * 100, 4)}%`,
+      `--project-y:${fixed((asset.y / aboutProjectSceneHeight) * 100, 4)}%`,
+      `--project-width:${fixed((asset.width / aboutProjectSceneWidth) * 100, 4)}%`,
+      `--project-height:${fixed((asset.height / aboutProjectSceneHeight) * 100, 4)}%`
+    ].join(';')
+  }));
+  const aboutProjectStageStyle = [
+    `--project-scene-width:${fixed(aboutProjectSceneWidth, 2)}`,
+    `--project-scene-height:${fixed(aboutProjectSceneHeight, 2)}`
+  ].join(';');
   const interviewChefs: InterviewChef[] = [
     {
       number: '01',
@@ -1209,10 +1299,28 @@
     );
   }
 
+  function handleAboutCloseClick() {
+    if (aboutView !== 'gate') {
+      aboutView = 'gate';
+      activeInterviewName = undefined;
+      return;
+    }
+
+    closeAbout();
+  }
+
   function openAboutInterviews() {
     void startBackgroundAudio();
     aboutView = 'interviews';
     activeInterviewName = undefined;
+  }
+
+  async function openAboutProject() {
+    void startBackgroundAudio();
+    aboutView = 'project';
+    activeInterviewName = undefined;
+    await tick();
+    aboutProjectEl?.scrollTo({ left: 0, behavior: 'auto' });
   }
 
   function openInterviewDetail(chef: InterviewChef) {
@@ -1231,6 +1339,26 @@
     if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
     event.preventDefault();
     scroller.scrollLeft += event.deltaY;
+  }
+
+  function handleProjectWheel(event: WheelEvent) {
+    const scroller = event.currentTarget as HTMLElement;
+    if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+    event.preventDefault();
+    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    if (Math.abs(delta) < 1) return;
+
+    const targetLeft = delta > 0 ? getAboutProjectTeamScrollLeft(scroller) : 0;
+    scroller.scrollTo({ left: targetLeft, behavior: 'smooth' });
+  }
+
+  function getAboutProjectTeamScrollLeft(scroller: HTMLElement) {
+    const stageEl = scroller.querySelector<HTMLElement>('.about-project-stage');
+    if (!stageEl) return scroller.scrollLeft;
+
+    const stageWidth = stageEl.getBoundingClientRect().width;
+    const teamCenterX = stageWidth * (aboutProjectTeamCenterX / aboutProjectSceneWidth);
+    return clamp(teamCenterX - scroller.clientWidth / 2, 0, scroller.scrollWidth - scroller.clientWidth);
   }
 
   async function startRoleAudio(role: AudioRole) {
@@ -1987,6 +2115,7 @@
   <section
     bind:this={aboutScreenEl}
     class="about-screen"
+    class:is-project={aboutView === 'project'}
     class:is-interviews={aboutView === 'interviews'}
     aria-labelledby="about-title"
     data-node-id="256:1827"
@@ -2013,11 +2142,14 @@
       <button
         class="icon-button top-bar-menu about-close"
         type="button"
-        aria-label="Chiudi sezione about"
-        onclick={closeAbout}
+        aria-label={aboutView === 'gate' ? 'Chiudi sezione about' : 'Torna agli argomenti about'}
+        onclick={handleAboutCloseClick}
       >
         <span class="topbar-control-content" aria-hidden="true">
-          <span class="menu-icon"></span>
+          <span
+            class:menu-icon={aboutView === 'gate'}
+            class:close-icon={aboutView !== 'gate'}
+          ></span>
         </span>
       </button>
     </header>
@@ -2025,7 +2157,7 @@
     <h2 id="about-title" class="visually-hidden">About Fuorimenù</h2>
     {#if aboutView === 'gate'}
       <div class="about-gate-grid" aria-label="Argomenti about" data-node-id="381:155">
-        <button class="about-gate-section" type="button" data-node-id="381:277">
+        <button class="about-gate-section" type="button" data-node-id="381:277" onclick={openAboutProject}>
           <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
             <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
           </span>
@@ -2046,6 +2178,63 @@
           </span>
         </button>
       </div>
+    {:else if aboutView === 'project'}
+      <section
+        bind:this={aboutProjectEl}
+        class="about-project"
+        aria-labelledby="about-project-title"
+        onwheel={handleProjectWheel}
+      >
+        <h3 id="about-project-title" class="visually-hidden">Progetto Fuorimenù</h3>
+        <div class="about-project-rail">
+          <div
+            class="about-project-stage"
+            aria-label="Team e progetto Fuorimenù"
+            style={aboutProjectStageStyle}
+          >
+            <div class="about-project-intro" data-node-id="541:1585">
+              <div class="about-project-intro-copy">
+                <h3>Progetto</h3>
+                <p>
+                  Questo progetto digitale, nato al Politecnico di Milano, raccoglie le testimonianze di chef
+                  e addetti alla ristorazione che hanno lavorato dietro le quinte di Milano Cortina 2026.
+                  L'obiettivo è mostrare, attraverso un'esperienza immersiva, come la tradizione culinaria
+                  italiana abbia supportato le performance degli atleti durante i Giochi Olimpici.
+                </p>
+              </div>
+              <img
+                class="about-project-politecnico"
+                src="/assets/about/politecnico-project.png"
+                alt="Politecnico Milano 1863"
+                draggable="false"
+              />
+            </div>
+            {#each aboutProjectBackgroundTiles as tile (tile.name)}
+              <img
+                class="about-project-background-tile"
+                src={tile.src}
+                alt=""
+                style={tile.style}
+                draggable="false"
+              />
+            {/each}
+            {#each aboutProjectAssets as asset (asset.name)}
+              <img
+                class="about-project-asset"
+                class:is-backdrop={asset.isBackdrop}
+                src={asset.src}
+                alt={asset.alt}
+                style={asset.style}
+                draggable="false"
+              />
+            {/each}
+          </div>
+        </div>
+        <div class="about-project-scroll-cue" data-node-id="541:1675">
+          <span>Scorri per vedere il Team</span>
+          <img src="/assets/about/project-arrow.svg" alt="" draggable="false" />
+        </div>
+      </section>
     {:else}
       <section
         class="about-interviews"
@@ -2955,6 +3144,7 @@
     will-change: clip-path, transform;
   }
 
+  .about-screen.is-project,
   .about-screen.is-interviews {
     background: var(--color-surface-page);
     color: var(--color-text-primary);
@@ -2983,6 +3173,8 @@
     --topbar-control-depth: var(--color-surface-page);
   }
 
+  .about-screen.is-project .about-top-bar .logo,
+  .about-screen.is-project .about-top-bar .icon-button,
   .about-screen.is-interviews .about-top-bar .logo,
   .about-screen.is-interviews .about-top-bar .icon-button {
     --topbar-control-bg: var(--color-surface-page);
@@ -3005,6 +3197,12 @@
     color: var(--color-surface-page);
   }
 
+  .about-screen.is-project .about-logo:hover,
+  .about-screen.is-project .about-logo:focus-visible,
+  .about-screen.is-project .about-audio:hover,
+  .about-screen.is-project .about-audio:focus-visible,
+  .about-screen.is-project .about-close:hover,
+  .about-screen.is-project .about-close:focus-visible,
   .about-screen.is-interviews .about-logo:hover,
   .about-screen.is-interviews .about-logo:focus-visible,
   .about-screen.is-interviews .about-audio:hover,
@@ -3213,6 +3411,148 @@
   .about-gate-section:focus-visible .about-gate-knife {
     opacity: 1;
     transform: translate3d(0, 0, 0) scaleX(0.96);
+  }
+
+  .about-project {
+    position: absolute;
+    inset: 136px 0 0;
+    box-sizing: border-box;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: var(--color-surface-page);
+    color: var(--color-text-primary);
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+
+  .about-project::-webkit-scrollbar {
+    display: none;
+  }
+
+  .about-project-rail {
+    position: relative;
+    width: max-content;
+    min-width: 100%;
+    height: 100%;
+  }
+
+  .about-project-stage {
+    position: relative;
+    height: 100%;
+    aspect-ratio: var(--project-scene-width) / var(--project-scene-height);
+    overflow: hidden;
+    background: var(--color-surface-page);
+  }
+
+  .about-project-intro {
+    position: absolute;
+    z-index: 3;
+    top: clamp(30px, 5.7svh, 76px);
+    bottom: clamp(34px, 6.6svh, 88px);
+    left: var(--layout-page-gutter);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: clamp(340px, 47vw, 760px);
+    color: var(--brand-500);
+    pointer-events: none;
+  }
+
+  .about-project-intro-copy {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(22px, 4.4svh, 56px);
+    align-items: flex-start;
+  }
+
+  .about-project-intro h3 {
+    margin: 0;
+    color: var(--brand-500);
+    font-family: var(--font-display);
+    font-size: clamp(68px, 7.8vw, 118px);
+    font-weight: 700;
+    line-height: 0.96;
+    letter-spacing: 0;
+  }
+
+  .about-project-intro p {
+    width: min(690px, 100%);
+    margin: 0;
+    color: var(--brand-500);
+    font-family: var(--font-text);
+    font-size: clamp(17px, 1.66vw, 25px);
+    font-weight: 400;
+    line-height: 1.28;
+  }
+
+  .about-project-politecnico {
+    display: block;
+    width: clamp(158px, 15.2vw, 230px);
+    height: auto;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .about-project-scroll-cue {
+    position: absolute;
+    z-index: 4;
+    top: 50%;
+    right: var(--layout-page-gutter);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 18px;
+    max-width: min(360px, calc(50vw - var(--layout-page-gutter)));
+    color: var(--brand-500);
+    font-family: var(--font-text);
+    font-size: clamp(15px, 1.32vw, 20px);
+    font-weight: 400;
+    line-height: 1.2;
+    text-align: right;
+    pointer-events: none;
+    transform: translateY(-50%);
+  }
+
+  .about-project-scroll-cue img {
+    --project-arrow-size: clamp(34px, 4vw, 54px);
+
+    display: block;
+    flex: 0 0 auto;
+    width: calc(var(--project-arrow-size) * 1.03);
+    height: var(--project-arrow-size);
+    object-fit: contain;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .about-project-background-tile {
+    position: absolute;
+    z-index: 0;
+    top: 0;
+    left: var(--project-bg-x);
+    display: block;
+    width: var(--project-bg-width);
+    height: var(--project-bg-height);
+    object-fit: fill;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .about-project-asset {
+    position: absolute;
+    z-index: 1;
+    left: var(--project-x);
+    top: var(--project-y);
+    display: block;
+    width: var(--project-width);
+    height: var(--project-height);
+    object-fit: contain;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .about-project-asset.is-backdrop {
+    z-index: 2;
   }
 
   .about-interviews {
@@ -4370,6 +4710,38 @@
     }
     .about-interviews {
       inset: var(--layout-topbar-height-mobile) 0 0;
+    }
+    .about-project {
+      inset: var(--layout-topbar-height-mobile) 0 0;
+    }
+    .about-project-intro {
+      top: 24px;
+      bottom: 28px;
+      left: var(--layout-page-gutter-mobile);
+      width: min(336px, calc(100vw - var(--spacing-8)));
+    }
+    .about-project-intro-copy {
+      gap: 18px;
+    }
+    .about-project-intro h3 {
+      font-size: clamp(44px, 13vw, 62px);
+    }
+    .about-project-intro p {
+      width: min(310px, 100%);
+      font-size: 13px;
+      line-height: 1.22;
+    }
+    .about-project-politecnico {
+      width: clamp(128px, 34vw, 160px);
+    }
+    .about-project-scroll-cue {
+      right: var(--layout-page-gutter-mobile);
+      gap: 10px;
+      max-width: 172px;
+      font-size: 12px;
+    }
+    .about-project-scroll-cue img {
+      --project-arrow-size: 30px;
     }
     .intro        { padding: var(--layout-page-gutter-mobile); }
     .persistent-top-audio { top: calc(var(--unit-24) + var(--unit-4)); }

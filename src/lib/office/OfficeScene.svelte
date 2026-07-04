@@ -25,21 +25,36 @@
   let targetCameraX = 0;
   let isDragging = $state(false);
   let isSceneLoaded = $state(false);
+  let hasPointerScenePosition = $state(false);
+  let pointerSceneY = $state(0);
+  let pointerSceneX = $state({
+    background: 0,
+    middle: 0,
+    foreground: 0
+  });
+  let nearestSceneAsset = $state<{ id: string; distance: number }>();
   let prefersReducedMotion = $state(false);
   let officeAmbientAudioEl: HTMLAudioElement;
   let keysHoverAudioEl: HTMLAudioElement;
   let clickHoverAudioEl: HTMLAudioElement;
   let mapHoverAudioEl: HTMLAudioElement;
   let carloOfficeAudioEl: HTMLAudioElement;
+  let faustoOfficeAudioEl: HTMLAudioElement;
   let isAmbientAudioStarted = false;
   let isCarloOfficeAudioActive = $state(false);
   let isCarloOfficeAudioStarting = false;
   let hasPlayedCarloOfficeAudio = false;
+  let isFaustoOfficeAudioActive = $state(false);
+  let isFaustoOfficeAudioStarting = false;
+  let hasPlayedFaustoOfficeAudio = false;
   let carloOfficeRevealProgress = $state(0);
   let carloOfficeMutedPageIndex = $state(0);
+  let faustoOfficeRevealProgress = $state(0);
+  let faustoOfficeMutedPageIndex = $state(0);
   let gsap: Gsap | undefined;
   let officeAmbientFadeFrame: number | undefined;
   let carloOfficeFadeFrame: number | undefined;
+  let faustoOfficeFadeFrame: number | undefined;
   let dragStartX = 0;
   let dragScrollStart = 0;
   let scrollTrigger:
@@ -64,6 +79,9 @@
   const maxScrollX = $derived(Math.max(0, worldWidth - viewportWidth));
   const progress = $derived(maxScrollX > 0 ? clamp(cameraX / maxScrollX, 0, 1) : 0);
   const scenePx = (value: number) => px(value, 2);
+  const coord = (value: number) => Math.round(value).toString();
+  const coordDecimal = (value: number) => value.toFixed(3);
+  const officeCoordinateAssets = [...officeMiddleAssets, ...officeForegroundAssets];
   const scrollSpaceStyle = $derived(
     `width: ${scenePx(worldWidth)}; height: ${scenePx(viewportHeight)}`
   );
@@ -78,12 +96,23 @@
   const carloOfficeRevealDurationSeconds = 37.54;
   const carloOfficeSpeech =
     'Qui parliamo del 2018 che abbiamo sviluppato il dossier di candidatura. Nel 2019 Milano Cortina vince viene nominata organizzatrice delle Olimpiadi del 2026, quindi 7 anni prima. E poi nel 2021 io entro nello staff come direttore Food and Beverage. Ci sono 110-120 delegati delle federazioni internazionali, che sono i Presidenti dei vari Comitati Olimpici nel mondo, che si riuniscono, valutano il dossier che tu hai presentato e decidono tra le varie città candidate quale deve essere quella che vince, quindi tu devi essere molto esaustivo, molto attraente.';
+  const faustoOfficeAudioVolume = 1;
+  const faustoOfficeAudioFadeOutDuration = 0.36;
+  const faustoOfficeRevealDurationSeconds = 20.56;
+  const faustoOfficeSpeech =
+    "Le aziende coinvolte la maggior parte erano degli sponsor, quindi abbiamo dovuto adeguare anche il menu agli sponsor. Quindi è un incastro di situazioni molto particolari. Il menù tenete conto che noi l'abbiamo cambiato e rivisto almeno una dozzina di volte, proprio perché c'erano sponsor che uscivano e sponsor che entravano.";
   const carloOfficeEnterDistance = $derived(Math.max(130, viewportWidth * 0.16));
   const carloOfficeExitDistance = $derived(Math.max(170, viewportWidth * 0.2));
+  const faustoOfficeEnterDistance = $derived(Math.max(130, viewportWidth * 0.13));
+  const faustoOfficeExitDistance = $derived(Math.max(170, viewportWidth * 0.16));
   const carloOfficeSpeechPages = $derived(getCarloOfficeSpeechPages());
   const carloOfficeSpeechPageCount = $derived(carloOfficeSpeechPages.length);
   const carloOfficeVisiblePageIndex = $derived(getCarloOfficeVisiblePageIndex());
   const carloOfficeSpeechInfo = $derived(getCarloOfficeCurrentSpeechPageInfo());
+  const faustoOfficeSpeechPages = $derived(getFaustoOfficeSpeechPages());
+  const faustoOfficeSpeechPageCount = $derived(faustoOfficeSpeechPages.length);
+  const faustoOfficeVisiblePageIndex = $derived(getFaustoOfficeVisiblePageIndex());
+  const faustoOfficeSpeechInfo = $derived(getFaustoOfficeCurrentSpeechPageInfo());
 
   function versionedAsset(path: string) {
     const normalized = path.startsWith('/') ? path : `/assets/${path}`;
@@ -108,6 +137,42 @@
     return clamp(cameraAtAttaccapanni, getCarloOfficeEnterCameraX() + viewportWidth * 0.5, maxScrollX);
   }
 
+  function getFaustoOfficeAnchorCameraX(options: {
+    figmaX: number;
+    layer: 'middle' | 'foreground';
+    viewportFactor?: number;
+  }) {
+    const logicalX = options.figmaX * 0.5;
+    const speed = resolvedLayerSpeed[options.layer] || 1;
+    const viewportFactor = options.viewportFactor ?? 0.72;
+    return (logicalX * sceneScale - viewportWidth * viewportFactor) / speed;
+  }
+
+  function getFaustoOfficeStartCameraX() {
+    return clamp(
+      getFaustoOfficeAnchorCameraX({
+        figmaX: 89178,
+        layer: 'middle'
+      }),
+      0,
+      maxScrollX
+    );
+  }
+
+  function getFaustoOfficeEndCameraX() {
+    const startCameraX = getFaustoOfficeStartCameraX();
+    const divanoCameraX = getFaustoOfficeAnchorCameraX({
+      figmaX: 111631,
+      layer: 'foreground'
+    });
+
+    return clamp(
+      Math.max(divanoCameraX, startCameraX + viewportWidth * 0.42),
+      startCameraX + viewportWidth * 0.32,
+      maxScrollX
+    );
+  }
+
   function isCarloOfficeAudioUnfinished() {
     if (isCarloOfficeAudioStarting) return true;
     if (!isCarloOfficeAudioActive || !carloOfficeAudioEl || carloOfficeAudioEl.paused || carloOfficeAudioEl.ended) {
@@ -121,17 +186,42 @@
     return carloOfficeAudioEl.currentTime < duration - 0.2;
   }
 
+  function isFaustoOfficeAudioUnfinished() {
+    if (isFaustoOfficeAudioStarting) return true;
+    if (!isFaustoOfficeAudioActive || !faustoOfficeAudioEl || faustoOfficeAudioEl.paused || faustoOfficeAudioEl.ended) {
+      return false;
+    }
+
+    const duration = Number.isFinite(faustoOfficeAudioEl.duration)
+      ? faustoOfficeAudioEl.duration
+      : faustoOfficeRevealDurationSeconds;
+
+    return faustoOfficeAudioEl.currentTime < duration - 0.2;
+  }
+
   function applyCarloOfficeScrollResistance(nextValue: number, baseValue = targetCameraX) {
     const delta = nextValue - baseValue;
-    if (delta <= 0 || !isCarloOfficeAudioUnfinished()) return nextValue;
+    const activeFausto = isFaustoOfficeAudioUnfinished();
+    if (delta <= 0 || (!isCarloOfficeAudioUnfinished() && !activeFausto)) return nextValue;
+
+    if (activeFausto) {
+      const exitCameraX = getFaustoOfficeEndCameraX();
+      const stickyStart = Math.max(getFaustoOfficeStartCameraX(), exitCameraX - viewportWidth * 0.24);
+      const stickyEnd = exitCameraX + viewportWidth * 0.08;
+      if (cameraX < stickyStart || cameraX > stickyEnd) return nextValue;
+
+      const releaseProgress = clamp((cameraX - stickyStart) / Math.max(stickyEnd - stickyStart, 1), 0, 1);
+      const factor = 0.84 - ease(releaseProgress) * 0.42;
+      return baseValue + delta * factor;
+    }
 
     const exitCameraX = getCarloOfficeExitCameraX();
-    const stickyStart = Math.max(getCarloOfficeEnterCameraX(), exitCameraX - viewportWidth * 0.72);
-    const stickyEnd = exitCameraX + viewportWidth * 0.12;
+    const stickyStart = Math.max(getCarloOfficeEnterCameraX(), exitCameraX - viewportWidth * 0.28);
+    const stickyEnd = exitCameraX + viewportWidth * 0.08;
     if (cameraX < stickyStart || cameraX > stickyEnd) return nextValue;
 
     const releaseProgress = clamp((cameraX - stickyStart) / Math.max(stickyEnd - stickyStart, 1), 0, 1);
-    const factor = 0.66 - ease(releaseProgress) * 0.44;
+    const factor = 0.84 - ease(releaseProgress) * 0.42;
     return baseValue + delta * factor;
   }
 
@@ -160,6 +250,44 @@
     scrollTrigger?.scroll(getScrollForCameraX(targetCameraX));
   }
 
+  function updatePointerScenePosition(event: PointerEvent) {
+    if (!stageEl || !sceneScale) return;
+
+    const rect = stageEl.getBoundingClientRect();
+    const localX = clamp(event.clientX - rect.left, 0, rect.width);
+    const localY = clamp(event.clientY - rect.top, 0, rect.height);
+
+    hasPointerScenePosition = true;
+    pointerSceneY = localY / sceneScale;
+    pointerSceneX = {
+      background: (localX + cameraX * resolvedLayerSpeed.background) / sceneScale,
+      middle: (localX + cameraX * resolvedLayerSpeed.middle) / sceneScale,
+      foreground: (localX + cameraX * resolvedLayerSpeed.foreground) / sceneScale
+    };
+    nearestSceneAsset = getNearestSceneAsset();
+  }
+
+  function getNearestSceneAsset() {
+    if (!hasPointerScenePosition) return undefined;
+
+    let nearest: { id: string; distance: number } | undefined;
+
+    for (const asset of officeCoordinateAssets) {
+      const layerX = pointerSceneX[asset.layer as keyof typeof pointerSceneX];
+      if (layerX === undefined) continue;
+
+      const x = asset.x + asset.width / 2;
+      const y = asset.y + asset.height / 2;
+      const distance = Math.hypot(layerX - x, pointerSceneY - y);
+
+      if (!nearest || distance < nearest.distance) {
+        nearest = { id: asset.id, distance };
+      }
+    }
+
+    return nearest;
+  }
+
   function evaluateScene(delta: number) {
     if (targetCameraX > cameraX && isCarloOfficeAudioUnfinished()) {
       targetCameraX = applyCarloOfficeScrollResistance(targetCameraX, cameraX);
@@ -184,6 +312,7 @@
 
   function onPointerDown(event: PointerEvent) {
     if (event.button !== 0) return;
+    updatePointerScenePosition(event);
     void startAmbientAudio();
     isDragging = true;
     dragStartX = event.clientX;
@@ -192,8 +321,13 @@
   }
 
   function onPointerMove(event: PointerEvent) {
+    updatePointerScenePosition(event);
     if (!isDragging) return;
     scrollTrigger?.scroll(dragScrollStart + (dragStartX - event.clientX) * 1.95);
+  }
+
+  function onPointerLeave() {
+    if (!isDragging) hasPointerScenePosition = false;
   }
 
   function endDrag(event?: PointerEvent) {
@@ -312,13 +446,33 @@
     return getCarloOfficePresence() > 0.16;
   }
 
+  function getFaustoOfficePresence() {
+    const enter = clamp(
+      (cameraX - getFaustoOfficeStartCameraX()) / Math.max(faustoOfficeEnterDistance, 1),
+      0,
+      1
+    );
+    const exit = 1 - clamp(
+      (cameraX - getFaustoOfficeEndCameraX()) / Math.max(faustoOfficeExitDistance, 1),
+      0,
+      1
+    );
+
+    return clamp(ease(enter) * ease(exit), 0, 1);
+  }
+
+  function isFaustoOfficeDialogueVisible() {
+    return getFaustoOfficePresence() > 0.16;
+  }
+
   function getCarloOfficeBubbleWidth() {
-    return Math.min(viewportWidth - 48, Math.max(320, Math.min(430, viewportWidth * 0.34)));
+    if (viewportWidth <= 760) return Math.min(330, Math.max(260, viewportWidth - 96));
+    return 350;
   }
 
   function getCarloOfficeBubbleCopyHeight() {
-    if (viewportWidth <= 760) return 166;
-    return Math.max(148, Math.min(176, viewportHeight * 0.18));
+    if (viewportWidth <= 760) return 142;
+    return 172;
   }
 
   function getCarloOfficeBubbleMetaHeight() {
@@ -331,20 +485,50 @@
 
   function getCarloOfficeStyle() {
     const presence = getCarloOfficePresence();
-    const width = Math.max(250, Math.min(340, viewportWidth * 0.22));
-    const characterHeight = width * (1340 / 522);
+    return getOfficeTestimonialStyle({
+      assetWidth: 1304,
+      assetHeight: 2960,
+      characterScale: viewportWidth <= 760 ? 1.1 : 1.16,
+      presence
+    });
+  }
+
+  function getFaustoOfficeStyle() {
+    const presence = getFaustoOfficePresence();
+    return getOfficeTestimonialStyle({
+      assetWidth: 1276,
+      assetHeight: 2960,
+      characterScale: viewportWidth <= 760 ? 1.08 : 1.14,
+      presence
+    });
+  }
+
+  function getOfficeTestimonialStyle(options: {
+    assetWidth: number;
+    assetHeight: number;
+    characterScale: number;
+    presence: number;
+  }) {
+    const { assetWidth, assetHeight, characterScale, presence } = options;
+    const kitchenMatchingWidth = Math.max(315, Math.min(370, viewportWidth * 0.245));
+    const kitchenMatchingHeight = kitchenMatchingWidth * (565 / 185) * characterScale;
+    const width = kitchenMatchingHeight / (assetHeight / assetWidth);
+    const characterHeight = width * (assetHeight / assetWidth);
     const bubbleHeight = getCarloOfficeBubbleHeight();
-    const gap = viewportWidth <= 760 ? 22 : 30;
-    const topInset = (viewportWidth <= 760 ? 88 : 104) + 34;
-    const characterTop = topInset + bubbleHeight + gap;
+    const gap = viewportWidth <= 760 ? 14 : 12;
+    const characterLift = viewportWidth <= 760 ? 36 : 64;
+    const topInset = (viewportWidth <= 760 ? 88 : 104) + 40;
+    const characterTop = topInset + bubbleHeight + gap - characterLift;
     const bottomOffset = characterTop + characterHeight - viewportHeight;
     const entryY = (1 - presence) * Math.max(360, Math.min(520, viewportHeight * 0.54));
     const bubbleWidth = getCarloOfficeBubbleWidth();
-    const bubbleOffsetX = viewportWidth <= 760 ? 18 : 68;
+    const bubbleLeft = viewportWidth <= 760 ? 24 : 80;
+    const characterLeft = bubbleLeft + bubbleWidth / 2 - width / 2;
+    const bubbleOffsetX = 0;
     const arrowLeft = clamp(bubbleWidth / 2 - bubbleOffsetX, 18, bubbleWidth - 18);
 
     return [
-      `left: ${scenePx(viewportWidth <= 760 ? 26 : 78)}`,
+      `left: ${scenePx(characterLeft)}`,
       `bottom: ${scenePx(-bottomOffset)}`,
       `width: ${scenePx(width)}`,
       `--chef-entry-y: ${scenePx(entryY)}`,
@@ -375,8 +559,16 @@
   }
 
   function getCarloOfficeSpeechPages() {
+    return getOfficeSpeechPages(carloOfficeSpeech);
+  }
+
+  function getFaustoOfficeSpeechPages() {
+    return getOfficeSpeechPages(faustoOfficeSpeech);
+  }
+
+  function getOfficeSpeechPages(speech: string) {
     const pageCharacters = getCarloOfficeSpeechPageCharacters();
-    const words = carloOfficeSpeech.trim().split(/\s+/).filter(Boolean);
+    const words = speech.trim().split(/\s+/).filter(Boolean);
     const pages: string[] = [];
     let page = '';
 
@@ -418,14 +610,26 @@
   }
 
   function getCarloOfficeVisiblePageIndex() {
-    const pages = getCarloOfficeSpeechPages();
-    if (isAudioMuted) return clamp(carloOfficeMutedPageIndex, 0, Math.max(pages.length - 1, 0));
+    return getOfficeVisiblePageIndex(
+      getCarloOfficeSpeechPages(),
+      carloOfficeRevealProgress,
+      carloOfficeMutedPageIndex
+    );
+  }
+
+  function getFaustoOfficeVisiblePageIndex() {
+    return getOfficeVisiblePageIndex(
+      getFaustoOfficeSpeechPages(),
+      faustoOfficeRevealProgress,
+      faustoOfficeMutedPageIndex
+    );
+  }
+
+  function getOfficeVisiblePageIndex(pages: string[], revealProgress: number, mutedPageIndex: number) {
+    if (isAudioMuted) return clamp(mutedPageIndex, 0, Math.max(pages.length - 1, 0));
 
     const normalizedSpeech = pages.join(' ');
-    return getPageIndexForCharacterOffset(
-      pages,
-      normalizedSpeech.length * carloOfficeRevealProgress
-    );
+    return getPageIndexForCharacterOffset(pages, normalizedSpeech.length * revealProgress);
   }
 
   function setCarloOfficePage(pageIndex: number) {
@@ -444,6 +648,22 @@
     carloOfficeAudioEl.currentTime = progress * carloOfficeRevealDurationSeconds;
   }
 
+  function setFaustoOfficePage(pageIndex: number) {
+    const pages = getFaustoOfficeSpeechPages();
+    const nextPageIndex = clamp(pageIndex, 0, Math.max(pages.length - 1, 0));
+
+    if (isAudioMuted || !faustoOfficeAudioEl) {
+      faustoOfficeMutedPageIndex = nextPageIndex;
+      return;
+    }
+
+    const pageStart = getPageStartCharacterIndex(pages, nextPageIndex);
+    const normalizedSpeech = pages.join(' ');
+    const progress = clamp(pageStart / Math.max(normalizedSpeech.length, 1), 0, 0.98);
+    faustoOfficeRevealProgress = progress;
+    faustoOfficeAudioEl.currentTime = progress * faustoOfficeRevealDurationSeconds;
+  }
+
   function advanceCarloOfficePage(event: Event) {
     event.stopPropagation();
     setCarloOfficePage(getCarloOfficeVisiblePageIndex() + 1);
@@ -454,16 +674,44 @@
     setCarloOfficePage(getCarloOfficeVisiblePageIndex() - 1);
   }
 
+  function advanceFaustoOfficePage(event: Event) {
+    event.stopPropagation();
+    setFaustoOfficePage(getFaustoOfficeVisiblePageIndex() + 1);
+  }
+
+  function rewindFaustoOfficePage(event: Event) {
+    event.stopPropagation();
+    setFaustoOfficePage(getFaustoOfficeVisiblePageIndex() - 1);
+  }
+
   function getCarloOfficeCurrentSpeechPageInfo() {
-    const pages = getCarloOfficeSpeechPages();
-    const visiblePageIndex = getCarloOfficeVisiblePageIndex();
+    return getOfficeCurrentSpeechPageInfo(
+      getCarloOfficeSpeechPages(),
+      getCarloOfficeVisiblePageIndex(),
+      carloOfficeRevealProgress
+    );
+  }
+
+  function getFaustoOfficeCurrentSpeechPageInfo() {
+    return getOfficeCurrentSpeechPageInfo(
+      getFaustoOfficeSpeechPages(),
+      getFaustoOfficeVisiblePageIndex(),
+      faustoOfficeRevealProgress
+    );
+  }
+
+  function getOfficeCurrentSpeechPageInfo(
+    pages: string[],
+    visiblePageIndex: number,
+    revealProgress: number
+  ) {
     if (isAudioMuted) {
       const speech = pages[visiblePageIndex] ?? '';
       return { highlightedSpeech: speech, speech };
     }
 
     const normalizedSpeech = pages.join(' ');
-    const spokenLength = Math.ceil(normalizedSpeech.length * carloOfficeRevealProgress);
+    const spokenLength = Math.ceil(normalizedSpeech.length * revealProgress);
     let pageStart = 0;
 
     for (const page of pages) {
@@ -486,6 +734,11 @@
     return speech.slice(highlightedSpeech.length);
   }
 
+  function getFaustoOfficePendingSpeech() {
+    const { highlightedSpeech, speech } = getFaustoOfficeCurrentSpeechPageInfo();
+    return speech.slice(highlightedSpeech.length);
+  }
+
   function syncCarloOfficeSpeechReveal() {
     if (!carloOfficeAudioEl) return;
     const duration = Number.isFinite(carloOfficeAudioEl.duration)
@@ -499,6 +752,22 @@
     carloOfficeMutedPageIndex = getPageIndexForCharacterOffset(
       pages,
       carloOfficeRevealProgress * normalizedSpeech.length
+    );
+  }
+
+  function syncFaustoOfficeSpeechReveal() {
+    if (!faustoOfficeAudioEl) return;
+    const duration = Number.isFinite(faustoOfficeAudioEl.duration)
+      ? faustoOfficeAudioEl.duration
+      : faustoOfficeRevealDurationSeconds;
+    const revealDuration = Math.max(duration || faustoOfficeRevealDurationSeconds, 0.001);
+
+    faustoOfficeRevealProgress = clamp(faustoOfficeAudioEl.currentTime / revealDuration, 0, 1);
+    const pages = getFaustoOfficeSpeechPages();
+    const normalizedSpeech = pages.join(' ');
+    faustoOfficeMutedPageIndex = getPageIndexForCharacterOffset(
+      pages,
+      faustoOfficeRevealProgress * normalizedSpeech.length
     );
   }
 
@@ -548,6 +817,54 @@
     };
 
     carloOfficeFadeFrame = requestAnimationFrame(step);
+  }
+
+  function fadeFaustoOfficeAudioVolume(
+    targetVolume: number,
+    duration: number,
+    onComplete?: () => void
+  ) {
+    if (!faustoOfficeAudioEl) return;
+    if (faustoOfficeFadeFrame) cancelAnimationFrame(faustoOfficeFadeFrame);
+    faustoOfficeFadeFrame = undefined;
+
+    if (gsap && duration > 0) {
+      gsap.to(faustoOfficeAudioEl, {
+        volume: targetVolume,
+        duration,
+        ease: 'power2.out',
+        overwrite: true,
+        onComplete
+      });
+      return;
+    }
+
+    if (duration <= 0) {
+      faustoOfficeAudioEl.volume = targetVolume;
+      onComplete?.();
+      return;
+    }
+
+    const initialVolume = faustoOfficeAudioEl.volume;
+    const startedAt = performance.now();
+    const durationMs = duration * 1000;
+
+    const step = (now: number) => {
+      if (!faustoOfficeAudioEl) return;
+      const progress = Math.min((now - startedAt) / durationMs, 1);
+      faustoOfficeAudioEl.volume = initialVolume + (targetVolume - initialVolume) * progress;
+
+      if (progress < 1) {
+        faustoOfficeFadeFrame = requestAnimationFrame(step);
+        return;
+      }
+
+      faustoOfficeAudioEl.volume = targetVolume;
+      faustoOfficeFadeFrame = undefined;
+      onComplete?.();
+    };
+
+    faustoOfficeFadeFrame = requestAnimationFrame(step);
   }
 
   function fadeOfficeAmbientVolume(
@@ -602,7 +919,7 @@
   }
 
   function getOfficeAmbientTargetVolume() {
-    return officeAmbientVolume * (isCarloOfficeAudioActive ? 0.28 : 1);
+    return officeAmbientVolume * (isCarloOfficeAudioActive || isFaustoOfficeAudioActive ? 0.28 : 1);
   }
 
   function setOfficeAmbientVolume(duration = 0.48) {
@@ -676,6 +993,44 @@
     }
   }
 
+  async function startFaustoOfficeAudio() {
+    if (
+      isAudioMuted ||
+      hasPlayedFaustoOfficeAudio ||
+      isFaustoOfficeAudioStarting ||
+      !faustoOfficeAudioEl ||
+      !isFaustoOfficeDialogueVisible()
+    ) {
+      return;
+    }
+
+    isFaustoOfficeAudioStarting = true;
+    gsap?.killTweensOf(faustoOfficeAudioEl);
+    if (faustoOfficeFadeFrame) cancelAnimationFrame(faustoOfficeFadeFrame);
+    faustoOfficeFadeFrame = undefined;
+    faustoOfficeAudioEl.pause();
+    faustoOfficeAudioEl.currentTime =
+      clamp(faustoOfficeMutedPageIndex / Math.max(getFaustoOfficeSpeechPages().length - 1, 1), 0, 0.98) *
+      faustoOfficeRevealDurationSeconds;
+    faustoOfficeAudioEl.volume = faustoOfficeAudioVolume;
+    faustoOfficeRevealProgress = clamp(
+      faustoOfficeAudioEl.currentTime / faustoOfficeRevealDurationSeconds,
+      0,
+      1
+    );
+
+    try {
+      await faustoOfficeAudioEl.play();
+      hasPlayedFaustoOfficeAudio = true;
+      isFaustoOfficeAudioActive = true;
+      setOfficeAmbientVolume();
+    } catch {
+      isFaustoOfficeAudioActive = false;
+    } finally {
+      isFaustoOfficeAudioStarting = false;
+    }
+  }
+
   function stopCarloOfficeAudio(duration = carloOfficeAudioFadeOutDuration, resetReplay = false) {
     if (!carloOfficeAudioEl) {
       isCarloOfficeAudioActive = false;
@@ -700,10 +1055,35 @@
     });
   }
 
+  function stopFaustoOfficeAudio(duration = faustoOfficeAudioFadeOutDuration, resetReplay = false) {
+    if (!faustoOfficeAudioEl) {
+      isFaustoOfficeAudioActive = false;
+      isFaustoOfficeAudioStarting = false;
+      return;
+    }
+
+    isFaustoOfficeAudioStarting = false;
+    if (resetReplay) hasPlayedFaustoOfficeAudio = false;
+    if (faustoOfficeAudioEl.paused || duration <= 0) {
+      faustoOfficeAudioEl.pause();
+      isFaustoOfficeAudioActive = false;
+      setOfficeAmbientVolume();
+      return;
+    }
+
+    fadeFaustoOfficeAudioVolume(0, duration, () => {
+      faustoOfficeAudioEl.pause();
+      faustoOfficeAudioEl.volume = faustoOfficeAudioVolume;
+      isFaustoOfficeAudioActive = false;
+      setOfficeAmbientVolume();
+    });
+  }
+
   $effect(() => {
     if (isAudioMuted) {
       stopAmbientAudio();
       stopCarloOfficeAudio();
+      stopFaustoOfficeAudio();
       return;
     }
 
@@ -727,6 +1107,26 @@
       hasPlayedCarloOfficeAudio = false;
       carloOfficeRevealProgress = 0;
       carloOfficeMutedPageIndex = 0;
+    }
+  });
+
+  $effect(() => {
+    const visible = isFaustoOfficeDialogueVisible();
+
+    if (isAudioMuted) return;
+    if (visible) {
+      void startFaustoOfficeAudio();
+      return;
+    }
+
+    if (!visible && (isFaustoOfficeAudioActive || isFaustoOfficeAudioStarting)) {
+      stopFaustoOfficeAudio();
+    }
+
+    if (cameraX < getFaustoOfficeStartCameraX() - faustoOfficeEnterDistance) {
+      hasPlayedFaustoOfficeAudio = false;
+      faustoOfficeRevealProgress = 0;
+      faustoOfficeMutedPageIndex = 0;
     }
   });
 
@@ -785,14 +1185,19 @@
       scrollTrigger = undefined;
       gsap?.killTweensOf(officeAmbientAudioEl);
       gsap?.killTweensOf(carloOfficeAudioEl);
+      gsap?.killTweensOf(faustoOfficeAudioEl);
       if (officeAmbientFadeFrame) cancelAnimationFrame(officeAmbientFadeFrame);
       if (carloOfficeFadeFrame) cancelAnimationFrame(carloOfficeFadeFrame);
+      if (faustoOfficeFadeFrame) cancelAnimationFrame(faustoOfficeFadeFrame);
       officeAmbientFadeFrame = undefined;
       carloOfficeFadeFrame = undefined;
+      faustoOfficeFadeFrame = undefined;
       officeAmbientAudioEl?.pause();
       carloOfficeAudioEl?.pause();
+      faustoOfficeAudioEl?.pause();
       isAmbientAudioStarted = false;
       isCarloOfficeAudioActive = false;
+      isFaustoOfficeAudioActive = false;
     };
   });
 </script>
@@ -808,9 +1213,48 @@
   onwheel={onWheel}
   onpointerdown={onPointerDown}
   onpointermove={onPointerMove}
+  onpointerleave={onPointerLeave}
   onpointerup={endDrag}
   onpointercancel={endDrag}
 >
+  <aside class="scene-coordinate-indicator" aria-label="Coordinate scena per posizionamento asset">
+    <div class="coordinate-indicator-title">coordinate scena</div>
+    <dl>
+      <div>
+        <dt>y</dt>
+        <dd>{hasPointerScenePosition ? coord(pointerSceneY) : '...'}</dd>
+      </div>
+      <div>
+        <dt>x bg</dt>
+        <dd>{hasPointerScenePosition ? coord(pointerSceneX.background) : '...'}</dd>
+      </div>
+      <div>
+        <dt>x mid</dt>
+        <dd>{hasPointerScenePosition ? coord(pointerSceneX.middle) : '...'}</dd>
+      </div>
+      <div>
+        <dt>x fg</dt>
+        <dd>{hasPointerScenePosition ? coord(pointerSceneX.foreground) : '...'}</dd>
+      </div>
+      <div>
+        <dt>camera</dt>
+        <dd>{coord(cameraX)}</dd>
+      </div>
+      <div>
+        <dt>scale</dt>
+        <dd>{coordDecimal(sceneScale)}</dd>
+      </div>
+      <div>
+        <dt>near</dt>
+        <dd>{nearestSceneAsset ? nearestSceneAsset.id : '...'}</dd>
+      </div>
+      <div>
+        <dt>dist</dt>
+        <dd>{nearestSceneAsset ? coord(nearestSceneAsset.distance) : '...'}</dd>
+      </div>
+    </dl>
+  </aside>
+
   <div class="office-scroll-space" style={scrollSpaceStyle}>
     <div class="office-world" style={worldStyle}>
       {#each officeBackgroundChunks as chunk (chunk.assetKey)}
@@ -1001,7 +1445,112 @@
             </span>
           </span>
         </span>
-        <img src="/images/carlo-zarri.png" alt="Carlo Zarri" draggable="false" />
+        <img src="/assets/interviews-hover/zarri.png" alt="Carlo Zarri" draggable="false" />
+      </div>
+
+      <div
+        class="office-chef-button"
+        class:is-dialogue-visible={isFaustoOfficeDialogueVisible()}
+        data-testimonial="fausto"
+        style={`${getFaustoOfficeStyle()}; --reveal-delay: 430ms;`}
+        role="button"
+        tabindex="0"
+        aria-label="Testimonianza Fausto Meli ufficio"
+        onpointerdown={(event) => {
+          event.stopPropagation();
+          hasPlayedFaustoOfficeAudio = false;
+          void startFaustoOfficeAudio();
+        }}
+        onkeydown={(event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          hasPlayedFaustoOfficeAudio = false;
+          void startFaustoOfficeAudio();
+        }}
+      >
+        <span class="speech-bubble" aria-hidden={!isFaustoOfficeDialogueVisible()}>
+          <span
+            class="speech-bubble-copy has-page-controls"
+            aria-label={faustoOfficeSpeechInfo.speech}
+          >
+            {#if !isAudioMuted}
+              <span class="speech-bubble-text speech-bubble-text-audio" aria-hidden="true">
+                <span class="speech-bubble-text-line">
+                  <span class="speech-bubble-text-progress">{faustoOfficeSpeechInfo.highlightedSpeech}</span><span
+                    class="speech-bubble-text-pending">{getFaustoOfficePendingSpeech()}</span
+                  >
+                </span>
+              </span>
+            {:else}
+              <span class="speech-bubble-text">{faustoOfficeSpeechInfo.speech}</span>
+            {/if}
+            {#if faustoOfficeSpeechPageCount > 1}
+              <span
+                class="speech-bubble-page-controls"
+                aria-label={`Dialogo ${faustoOfficeVisiblePageIndex + 1} di ${faustoOfficeSpeechPageCount} per Fausto Meli`}
+              >
+                <button
+                  class="speech-bubble-page-button speech-bubble-page-button-prev"
+                  type="button"
+                  aria-label="Dialogo precedente di Fausto Meli"
+                  disabled={faustoOfficeVisiblePageIndex <= 0}
+                  onpointerdown={(event) => event.stopPropagation()}
+                  onclick={rewindFaustoOfficePage}
+                >
+                  <svg
+                    class="speech-bubble-page-icon"
+                    viewBox="0 0 52 52"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      class="speech-bubble-page-icon-depth"
+                      d="M14.1 22.5 Q8 26 14.1 29.5 L34.9 41.5 Q41 45 41 38 L41 14 Q41 7 34.9 10.5 Z"
+                    />
+                    <path
+                      class="speech-bubble-page-icon-face"
+                      d="M14.1 22.5 Q8 26 14.1 29.5 L34.9 41.5 Q41 45 41 38 L41 14 Q41 7 34.9 10.5 Z"
+                    />
+                  </svg>
+                </button>
+                <span class="speech-bubble-page-counter" aria-hidden="true">
+                  {faustoOfficeVisiblePageIndex + 1}/{faustoOfficeSpeechPageCount}
+                </span>
+                <button
+                  class="speech-bubble-page-button speech-bubble-page-button-next"
+                  type="button"
+                  aria-label="Dialogo successivo di Fausto Meli"
+                  disabled={faustoOfficeVisiblePageIndex >= faustoOfficeSpeechPageCount - 1}
+                  onpointerdown={(event) => event.stopPropagation()}
+                  onclick={advanceFaustoOfficePage}
+                >
+                  <svg
+                    class="speech-bubble-page-icon"
+                    viewBox="0 0 52 52"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      class="speech-bubble-page-icon-depth"
+                      d="M37.9 22.5 Q44 26 37.9 29.5 L17.1 41.5 Q11 45 11 38 L11 14 Q11 7 17.1 10.5 Z"
+                    />
+                    <path
+                      class="speech-bubble-page-icon-face"
+                      d="M37.9 22.5 Q44 26 37.9 29.5 L17.1 41.5 Q11 45 11 38 L11 14 Q11 7 17.1 10.5 Z"
+                    />
+                  </svg>
+                </button>
+              </span>
+            {/if}
+          </span>
+          <span class="speech-bubble-meta" aria-label="Chef - Fausto Meli">
+            <span class="speech-bubble-meta-label">
+              <span>Chef - </span>
+              <strong>Fausto Meli</strong>
+            </span>
+          </span>
+        </span>
+        <img src="/assets/interviews-hover/fausto.png" alt="Fausto Meli" draggable="false" />
       </div>
     </div>
   </div>
@@ -1024,6 +1573,22 @@
     carloOfficeRevealProgress = 1;
     hasPlayedCarloOfficeAudio = true;
     isCarloOfficeAudioActive = false;
+    setOfficeAmbientVolume();
+  }}
+></audio>
+<audio
+  bind:this={faustoOfficeAudioEl}
+  src="/sound/fausto_ufficio.mp3"
+  preload="auto"
+  onplay={() => {
+    isFaustoOfficeAudioActive = true;
+    setOfficeAmbientVolume();
+  }}
+  ontimeupdate={syncFaustoOfficeSpeechReveal}
+  onended={() => {
+    faustoOfficeRevealProgress = 1;
+    hasPlayedFaustoOfficeAudio = true;
+    isFaustoOfficeAudioActive = false;
     setOfficeAmbientVolume();
   }}
 ></audio>
@@ -1064,6 +1629,63 @@
 
   .office-stage.is-dragging {
     cursor: url('/cursors/retrogusto-cursor.svg') 5 5, auto;
+  }
+
+  .scene-coordinate-indicator {
+    position: fixed;
+    z-index: 130;
+    top: calc(var(--layout-page-gutter) + 82px);
+    right: var(--layout-page-gutter);
+    min-width: 154px;
+    padding: 10px 12px 11px;
+    border: 2px solid var(--color-border-primary);
+    border-radius: var(--radius-s);
+    background: rgb(248 243 233 / 0.9);
+    color: var(--color-text-primary);
+    box-shadow: 0 8px 18px rgb(var(--shadow-brand-rgb) / 0.12);
+    font-family: var(--font-text);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .coordinate-indicator-title {
+    margin-bottom: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .scene-coordinate-indicator dl {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+  }
+
+  .scene-coordinate-indicator div {
+    display: grid;
+    grid-template-columns: 54px 1fr;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .scene-coordinate-indicator dt,
+  .scene-coordinate-indicator dd {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.1;
+  }
+
+  .scene-coordinate-indicator dt {
+    font-weight: 600;
+    opacity: 0.68;
+  }
+
+  .scene-coordinate-indicator dd {
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    text-align: right;
   }
 
   .office-asset {
@@ -1592,6 +2214,27 @@
   }
 
   @media (max-width: 760px) {
+    .scene-coordinate-indicator {
+      top: calc(var(--layout-page-gutter-mobile) + 74px);
+      right: var(--layout-page-gutter-mobile);
+      min-width: 132px;
+      padding: 8px 9px;
+    }
+
+    .coordinate-indicator-title {
+      font-size: 9px;
+    }
+
+    .scene-coordinate-indicator div {
+      grid-template-columns: 48px 1fr;
+      gap: 6px;
+    }
+
+    .scene-coordinate-indicator dt,
+    .scene-coordinate-indicator dd {
+      font-size: 11px;
+    }
+
     .speech-bubble {
       width: var(--speech-bubble-width, min(330px, calc(100vw - 96px)));
     }
