@@ -642,7 +642,7 @@
       dialogue: "il mio ruolo ... seguimi nell'ufficio per saperne di più",
       hoverText: "io sono carlo zarri seguimi nell'ufficio",
       backgroundSrc: '/assets/cardsbackground/sfondoufficio.png',
-      personSrc: '/images/carlo-zarri-figma.png',
+      personSrc: '/assets/interviews-hover/zarri.png',
       href: '/ufficio'
     },
     {
@@ -1972,12 +1972,12 @@
       {/each}
     </p>
     <p bind:this={brandSubtitleEl} class="brand-subtitle">{brandSubtitle}</p>
-    <div bind:this={brandScrollCueEl} class="brand-scroll-cue" data-node-id="3448:2821" aria-label="Scorri">
-      <span data-node-id="3448:2822">Scorri</span>
-      <svg class="brand-scroll-arrow" viewBox="0 0 24 24" aria-hidden="true" data-node-id="3448:1201">
-        <path d="M12 5v12M7 12l5 5 5-5" />
-      </svg>
-    </div>
+  </div>
+  <div bind:this={brandScrollCueEl} class="brand-scroll-cue" data-node-id="3448:2821" aria-label="Scorri">
+    <span data-node-id="3448:2822">Scorri</span>
+    <svg class="brand-scroll-arrow" viewBox="0 0 24 24" aria-hidden="true" data-node-id="3448:1201">
+      <path d="M12 5v12M7 12l5 5 5-5" />
+    </svg>
   </div>
 </section>
 
@@ -4223,9 +4223,10 @@
   }
 
   .brand-scroll-cue {
-    position: fixed;
+    position: absolute;
+    z-index: 4;
     left: 50%;
-    bottom: clamp(24px, 6svh, 64px);
+    bottom: clamp(72px, 10svh, 80px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -4240,7 +4241,7 @@
     text-align: center;
     white-space: nowrap;
     opacity: var(--brand-subtitle-opacity, 0);
-    transform: translate(-50%, calc(var(--brand-subtitle-y, 14px) * 0.8));
+    transform: translateX(-50%);
     transition: opacity 120ms linear, transform 140ms ease-out;
     will-change: opacity, transform;
   }
@@ -4802,7 +4803,7 @@
     .brand-word   { font-size: clamp(40px, 10.5vw, 76px); }
     .brand-lockup { gap: 0; }
     .brand-subtitle { font-size: 24px; }
-    .brand-scroll-cue { bottom: clamp(16px, 4vh, 32px); }
+    .brand-scroll-cue { bottom: clamp(0px, 0.5svh, 6px); }
     .floating-raviolo { width: clamp(86px, 28vw, 124px); }
     .floating-pizza { width: clamp(92px, 30vw, 132px); }
     .floating-fusillo { width: clamp(82px, 26vw, 118px); }
