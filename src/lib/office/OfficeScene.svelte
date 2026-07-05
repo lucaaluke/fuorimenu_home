@@ -1715,7 +1715,7 @@
     padding: 0;
     border: 0;
     background: transparent;
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, pointer;
+    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     pointer-events: auto;
     touch-action: none;
   }
@@ -1794,7 +1794,7 @@
     border: 0;
     background: transparent;
     color: inherit;
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, pointer;
+    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     opacity: var(--chef-entry-opacity, 0);
     pointer-events: auto;
     transform: translate3d(0, var(--chef-entry-y, 420px), 0);
@@ -1987,7 +1987,7 @@
     border-radius: 0;
     background: transparent;
     color: currentColor;
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, pointer;
+    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     transition:
       opacity 140ms ease,
       transform 210ms cubic-bezier(0.18, 1.35, 0.28, 1);
