@@ -45,7 +45,10 @@
   const sceneController = createSceneController<KitchenControllerState, KitchenControllerEvents>(
     initialKitchenState
   );
-  let { isAudioMuted = false } = $props<{ isAudioMuted?: boolean }>();
+  let { isAudioMuted = false, onProgressChange } = $props<{
+    isAudioMuted?: boolean;
+    onProgressChange?: (progress: number) => void;
+  }>();
   const { bridge } = sceneController;
   const kitchenAsset = (name: string) => `/assets/${name}?v=${kitchenAssetVersion}`;
   let gsap: Gsap | undefined;
@@ -199,10 +202,15 @@
 	  let stageEl: HTMLElement;
   let phaserContainerEl = $state<HTMLElement>();
 	  let viewportWidth = $state(0);
-	  let viewportHeight = $state(0);
+  let viewportHeight = $state(0);
   let cameraX = $state(0);
   let narrativeProgress = $state(0);
   let activeChefId = $state<KitchenControllerState['activeChefId']>();
+
+  $effect(() => {
+    onProgressChange?.(narrativeProgress);
+  });
+
 	  let kitchenController:
     | {
         scrollBy: (delta: number) => void;

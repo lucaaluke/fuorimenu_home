@@ -801,7 +801,7 @@
   const introMessage    = 'Tutti abbiamo visto i video virali sulla cucina delle olimpiadi...';
   const nextMessage     = 'Incontra le persone che hanno reso tutto questo possibile.';
   const audioGateMessage = "Si consiglia l’uso dell’audio per\u00a0una\u00a0migliore esperienza";
-  const brandWord       = 'Fuorimenù';
+  const brandWord       = 'FuoriMenù';
   const brandSubtitle   = 'Dentro le cucine di Milano Cortina 2026';
   const introCharacters = parseMessage(introMessage, 'cucina');
   const nextCharacters  = parseMessage(nextMessage,  'persone');
@@ -2495,7 +2495,7 @@
 </section>
 
 
-<section bind:this={brandScreen} class="brand-screen" aria-label="Fuorimenù">
+<section bind:this={brandScreen} class="brand-screen" aria-label="FuoriMenù">
   {#each floatingAssets as asset, index}
     <div
       bind:this={floatingEls[index]}
@@ -5162,8 +5162,8 @@
     justify-content: center;
     flex: 0 0 auto;
     width: 244px;
-    height: 47px;
-    padding: 0 16px 7px;
+    height: 40px;
+    padding: 0 16px;
     border: 0;
     border-radius: var(--radius-full);
     background: transparent;
@@ -5189,7 +5189,7 @@
     top: 0;
     right: 0;
     left: 0;
-    height: 40px;
+    height: 100%;
     border: 2px solid var(--color-text-primary);
     border-radius: var(--radius-full);
     background: var(--color-text-primary);
@@ -5210,6 +5210,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    height: 100%;
+    line-height: 1;
     transform:
       translateY(var(--interview-cta-front-y))
       scale(var(--interview-cta-press-scale));
@@ -5248,9 +5250,11 @@
     width: 24px;
     height: 24px;
     margin-left: 10px;
+    line-height: 0;
   }
 
   .about-interview-detail-cta-icon .figma-arrow-icon-forward {
+    stroke-width: 1.45;
     transform: rotate(180deg);
     transition: transform 210ms cubic-bezier(0.18, 1.35, 0.28, 1);
     transform-origin: 50% 50%;
@@ -5724,16 +5728,17 @@
   }
 
   .role-grid {
-    --role-grid-height: min(620px, calc(var(--app-viewport-height) - 190px));
-    --role-card-max-width: min(386px, calc(var(--role-grid-height) * 0.7127));
+    --role-card-aspect: 373.448 / 524;
+    --role-grid-height: min(620px, calc(var(--app-viewport-height) - var(--layout-topbar-height) - 86px));
+    --role-card-max-width: min(386px, calc(var(--role-grid-height) * 0.7127), calc((100vw - var(--layout-page-gutter) * 2 - var(--spacing-5) * 2) / 3));
 
     position: absolute; z-index: 2;
-    top: 130px; left: var(--layout-page-gutter); right: var(--layout-page-gutter);
+    top: calc(var(--layout-topbar-height) + 26px); left: var(--layout-page-gutter); right: var(--layout-page-gutter);
     height: var(--role-grid-height);
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, var(--role-card-max-width)));
-    justify-content: space-between;
-    align-items: start;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-content: stretch;
+    align-items: center;
     column-gap: var(--spacing-5);
     transform-style: flat;
   }
@@ -5748,9 +5753,11 @@
     --role-dialogue-opacity-gap: 100ms;
 
     position: relative;
-    width: 100%;
-    aspect-ratio: 373.448 / 524;
+    width: min(100%, var(--role-card-max-width));
+    aspect-ratio: var(--role-card-aspect);
     max-height: 100%;
+    justify-self: center;
+    align-self: center;
     overflow: visible;
     isolation: isolate;
     min-height: 0;
@@ -5771,6 +5778,18 @@
     will-change: opacity, transform;
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
+  }
+
+  .role-card:nth-child(1) {
+    justify-self: start;
+  }
+
+  .role-card:nth-child(2) {
+    justify-self: center;
+  }
+
+  .role-card:nth-child(3) {
+    justify-self: end;
   }
 
   .role-card::before {
@@ -6209,10 +6228,12 @@
 
   @media (min-width: 701px) and (max-width: 1180px) {
     .role-grid {
-      --role-grid-height: min(590px, calc(var(--app-viewport-height) - 176px));
+      --role-grid-height: min(590px, calc(var(--app-viewport-height) - var(--layout-topbar-height) - 72px));
+      --role-card-gap: clamp(10px, 1.6vw, 18px);
+      --role-card-max-width: min(368px, calc(var(--role-grid-height) * 0.7127), calc((100vw - var(--layout-page-gutter) * 2 - var(--role-card-gap) * 2) / 3));
 
-      top: 122px;
-      column-gap: clamp(12px, 2vw, 24px);
+      top: calc(var(--layout-topbar-height) + 22px);
+      column-gap: var(--role-card-gap);
     }
 
     .role-card {
@@ -6441,27 +6462,34 @@
     .floating-fusillo { width: clamp(82px, 26vw, 118px); }
     .roles-top-bar { height: var(--layout-topbar-height-mobile); padding: var(--layout-topbar-padding-mobile); }
     .role-grid {
-      --role-grid-height: calc(var(--app-viewport-height) - 132px);
+      --role-grid-height: calc(var(--app-viewport-height) - var(--layout-topbar-height-mobile) - 16px);
+      --role-card-gap: clamp(6px, 1vh, 8px);
+      --role-card-mobile-row-height: calc((var(--role-grid-height) - var(--role-card-gap) * 2) / 3);
+      --role-card-max-width: min(calc(100vw - var(--spacing-5)), calc(var(--role-card-mobile-row-height) * 0.7127));
 
-      top: 104px;
-      left: var(--layout-page-gutter-mobile);
+      top: calc(var(--layout-topbar-height-mobile) + 8px);
+      left: 50%;
       right: auto;
       box-sizing: border-box;
-      width: calc(100vw - var(--spacing-8));
+      width: calc(100vw - var(--spacing-5));
       height: var(--role-grid-height);
-      grid-template-columns: 1fr;
-      grid-template-rows: repeat(3, minmax(118px, 1fr));
-      gap: 12px;
-      justify-content: stretch;
-      align-items: stretch;
-      transform: none;
+      grid-template-columns: var(--role-card-max-width);
+      grid-template-rows: repeat(3, minmax(0, var(--role-card-mobile-row-height)));
+      gap: var(--role-card-gap);
+      justify-content: center;
+      align-content: center;
+      align-items: center;
+      transform: translateX(-50%);
     }
     .role-card {
       --role-card-radius: clamp(34px, 12vw, 54px);
 
       min-height: 0;
-      aspect-ratio: auto;
+      width: var(--role-card-max-width);
+      max-height: var(--role-card-mobile-row-height);
+      aspect-ratio: var(--role-card-aspect);
       border-radius: var(--role-card-radius);
+      justify-self: center;
     }
     .role-card-copy { left: var(--spacing-4); right: var(--spacing-4); }
     .role-card-copy h2 { font-size: clamp(28px, 10vw, 44px); line-height: 1.08; }

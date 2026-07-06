@@ -5,12 +5,15 @@
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
   import { animateCompat, waitForAnimationCompat } from '$lib/scene/browser-compat';
   import { readAudioMutedPreference, writeAudioMutedPreference } from '$lib/scene/audio-preference';
+  import SectionNextLink from '$lib/scene/SectionNextLink.svelte';
   import OfficeScene from './OfficeScene.svelte';
 
   let isAudioMuted = $state(true);
+  let sceneProgress = $state(0);
   let isLeavingSection = false;
   const sectionAudioFadeOutMs = 460;
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
+  const showNextSectionLink = $derived(sceneProgress >= 0.96);
 
   function toggleAudioMuted() {
     isAudioMuted = !isAudioMuted;
@@ -112,8 +115,16 @@
     </a>
   </header>
 
+  <SectionNextLink
+    href="/phaser"
+    label="cucina"
+    ariaLabel="Vai alla sezione cucina"
+    visible={showNextSectionLink}
+    onclick={(event) => navigateWithAudioFade(event, '/phaser', { immediate: true })}
+  />
+
   <section class="office-shell" aria-label="Scena parallasse dell'ufficio">
-    <OfficeScene {isAudioMuted} />
+    <OfficeScene {isAudioMuted} onProgressChange={(progress) => (sceneProgress = progress)} />
   </section>
 </main>
 

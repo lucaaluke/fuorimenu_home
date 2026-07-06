@@ -5,12 +5,15 @@
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
   import { animateCompat, waitForAnimationCompat } from '$lib/scene/browser-compat';
   import { readAudioMutedPreference, writeAudioMutedPreference } from '$lib/scene/audio-preference';
+  import SectionNextLink from '$lib/scene/SectionNextLink.svelte';
   import KitchenScene from './KitchenScene.svelte';
 
   let isAudioMuted = $state(true);
+  let sceneProgress = $state(0);
   let isLeavingSection = false;
   const sectionAudioFadeOutMs = 460;
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
+  const showNextSectionLink = $derived(sceneProgress >= 0.96);
 
   function toggleAudioMuted() {
     isAudioMuted = !isAudioMuted;
@@ -111,8 +114,16 @@
     </a>
   </header>
 
+  <SectionNextLink
+    href="/servizio"
+    label="servizio"
+    ariaLabel="Vai alla sezione servizio"
+    visible={showNextSectionLink}
+    onclick={(event) => navigateWithAudioFade(event, '/servizio', { immediate: true })}
+  />
+
   <section class="game-shell" aria-label="Scena parallasse della cucina">
-    <KitchenScene {isAudioMuted} />
+    <KitchenScene {isAudioMuted} onProgressChange={(progress) => (sceneProgress = progress)} />
   </section>
 </main>
 

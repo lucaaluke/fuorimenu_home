@@ -17,7 +17,10 @@
   import { createViewportObserver } from '$lib/scene/viewport';
   import type { ParallaxPhaserGameHandle } from '$lib/scene/phaser/ParallaxPhaserGame';
 
-  let { isAudioMuted = false } = $props<{ isAudioMuted?: boolean }>();
+  let { isAudioMuted = false, onProgressChange } = $props<{
+    isAudioMuted?: boolean;
+    onProgressChange?: (progress: number) => void;
+  }>();
 
   const { assetVersion, layerSpeed, sceneHeight, sceneWidth } = officeSceneConfig;
 
@@ -103,6 +106,11 @@
   const maxScrollX = $derived(Math.max(0, worldWidth - viewportWidth));
   const progress = $derived(maxScrollX > 0 ? clamp(cameraX / maxScrollX, 0, 1) : 0);
   const isSceneInteractive = $derived(isSceneLoaded && isPhaserReady);
+
+  $effect(() => {
+    onProgressChange?.(progress);
+  });
+
   const scenePx = (value: number) => px(value, 2);
   const coord = (value: number) => Math.round(value).toString();
   const coordDecimal = (value: number) => value.toFixed(3);
