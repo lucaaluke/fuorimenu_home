@@ -38,6 +38,7 @@
     middle: 0,
     foreground: 0
   });
+  let shouldResumeServiceAudioFromMutedPage = false;
   let nearestSceneAsset = $state<{ id: string; distance: number }>();
   let carloServiceAudioEl: HTMLAudioElement;
   let isCarloServiceAudioActive = $state(false);
@@ -111,37 +112,43 @@
   const worldStyle = $derived(
     `width: ${scenePx(viewportWidth)}; height: ${scenePx(viewportHeight)}`
   );
+  const serviceHandoffResistance = {
+    maxFactor: 0.86,
+    minFactor: 0.52,
+    zoneBeforeDisappearPx: 200
+  };
+  const firstServiceDialogueStartCameraX = 600;
   const carloServiceAudioVolume = 1;
-  const serviceAudioFadeInDuration = 0.08;
-  const serviceAudioHandoffFadeOutDuration = 0.06;
-  const carloServiceAudioFadeOutDuration = 0.12;
+  const serviceAudioFadeInDuration = 0.04;
+  const serviceAudioHandoffFadeOutDuration = 0;
+  const carloServiceAudioFadeOutDuration = 0.08;
   const carloServiceRevealDurationSeconds = 75.68;
   const carloServiceEndCameraX = 7800;
   const carloServiceSpeech =
     "I sette clienti quali sono? Primo, ovviamente gli atleti. Possono mangiare 24 ore al giorno. Poi il secondo gruppo sono i volontari: sono 18.000 persone; la maggior parte lavorano anche all'aperto, quindi devi dargli dei pasti molto caldi. Il terzo sono la workforce. Sono quelli, come lo ero io, che hanno dei ruoli di management, o anche semplicemente dei ruoli esecutivi. La famiglia olimpica sono presidenti dei Comitati Olimpici Nazionali, sono, in questo caso da noi, Mattarella, Meloni. Questi, devo dire molto onestamente, non sono pretenziosi. Questo gruppo dice \"No signori, non vogliamo mandare il messaggio che noi ci trattiamo bene\". Il quinto gruppo è formato dai media. Sono divisi in due gruppi: i giornalisti e le televisioni. All'interno delle televisioni ci sono anche i giornalisti, però ci sono quei poveri cameraman che anche loro, magari alle 7 del mattino, sono lì con le telecamere che nevica. Il sesto gruppo è il gruppo delle hospitality: questi sono i VIP, gli sponsor, che non hanno problemi di budget. E poi ci sono gli spettatori. A Milano son stati quasi un milione e mezzo. Quindi la mia programmazione generale per i 22 giorni di gara è stata sui 3 milioni circa di pasti.";
   const elisabettaServiceAudioVolume = 1;
-  const elisabettaServiceAudioFadeOutDuration = 0.12;
+  const elisabettaServiceAudioFadeOutDuration = 0.08;
   const elisabettaServiceRevealDurationSeconds = 27.14;
   const elisabettaServiceStartCameraX = 8000;
   const elisabettaServiceEndCameraX = 10000;
   const elisabettaServiceSpeech =
     "L'obiettivo principale del cibo nel villaggio noi lo chiamavamo “Food for Fuel”, cioè quello di dare agli atleti esattamente tutto quello di cui hanno bisogno per aiutarli nelle loro performance, quindi è chiaro che ci sono dei pilastri fondamentali: carboidrati, proteine sempre presenti in rotazione. E poi ovviamente l'atro aspetto fondamentale è quello della Food Safety.";
   const marcoServiceAudioVolume = 1;
-  const marcoServiceAudioFadeOutDuration = 0.12;
+  const marcoServiceAudioFadeOutDuration = 0.08;
   const marcoServiceRevealDurationSeconds = 23.17;
   const marcoServiceStartCameraX = 10200;
   const marcoServiceEndCameraX = 12200;
   const marcoServiceSpeech =
     "Noi facevamo un menù di 5 giorni che andava a ripetersi. Quello che chiedevano chiaramente era roba fresca, fatta bene, preparata al momento e la disponibilità di orari. Le colazioni partivano alle 5 del mattino. Poi c'erano due persone giù di cucina, più la sala, che allestivano il breakfast: cereali, frutta, verdura, anche la pasta di prima mattina, perché gli atleti comunque hanno bisogno di una dieta particolare.";
   const faustoServiceAudioVolume = 1;
-  const faustoServiceAudioFadeOutDuration = 0.12;
+  const faustoServiceAudioFadeOutDuration = 0.08;
   const faustoServiceRevealDurationSeconds = 39.94;
   const faustoServiceStartCameraX = 12400;
   const faustoServiceEndCameraX = 14400;
   const faustoServiceSpeech =
     "C'erano sul buffet di benvenuto con il calice piccoli assaggi. Poi l'ospite si spostava nella sala centrale dove c'erano vari buffet, tra cui uno di salumi e formaggi, ovviamente i formaggi locali: il taleggio, il puzzone di Moena... Poi c'erano due primi, sempre caldi, a disposizione dei nostri ospiti. Una polenta sempre fissa e tre dolci a rotazione. Non erano previsti superalcolici. Di alcolico avevamo lo sponsor della birra, e i vini, principalmente Prosecco e poi qualche vino della Valtellina, qualche vino del Veneto e così via.";
   const niniServiceAudioVolume = 1;
-  const niniServiceAudioFadeOutDuration = 0.12;
+  const niniServiceAudioFadeOutDuration = 0.08;
   const niniServiceRevealDurationSeconds = 34;
   const niniServiceStartCameraX = 14600;
   const niniServiceEndCameraX = 16800;
@@ -237,12 +244,18 @@
       : activeElisabetta
         ? getElisabettaServiceStartCameraX()
         : getCarloServiceEnterCameraX();
-    const stickyStart = Math.max(enterCameraX, exitCameraX - viewportWidth * 0.28);
-    const stickyEnd = exitCameraX + viewportWidth * 0.08;
+    const stickyStart = Math.max(
+      enterCameraX,
+      exitCameraX - serviceHandoffResistance.zoneBeforeDisappearPx
+    );
+    const stickyEnd = exitCameraX;
     if (cameraX < stickyStart || cameraX > stickyEnd) return nextValue;
 
     const releaseProgress = clamp((cameraX - stickyStart) / Math.max(stickyEnd - stickyStart, 1), 0, 1);
-    const factor = 0.84 - ease(releaseProgress) * 0.42;
+    const factor =
+      serviceHandoffResistance.maxFactor -
+      ease(releaseProgress) *
+        (serviceHandoffResistance.maxFactor - serviceHandoffResistance.minFactor);
     return baseValue + delta * factor;
   }
 
@@ -278,7 +291,7 @@
   }
 
   function getCarloServiceEnterCameraX() {
-    return -carloServiceEnterDistance;
+    return clamp(firstServiceDialogueStartCameraX, 0, maxScrollX);
   }
 
   function getCarloServiceExitCameraX() {
@@ -790,11 +803,15 @@
     return clamp(pageStart / Math.max(normalizedSpeech.length, 1), 0, 0.98);
   }
 
-  function getServiceResumeProgress(pages: string[], revealProgress: number, mutedPageIndex: number) {
-    const visiblePageIndex = isAudioMuted
-      ? clamp(mutedPageIndex, 0, Math.max(pages.length - 1, 0))
-      : getPageIndexForCharacterOffset(pages, pages.join(' ').length * revealProgress);
+  function getServiceResumeProgress(
+    pages: string[],
+    revealProgress: number,
+    mutedPageIndex: number,
+    forceMutedPage = false
+  ) {
+    if (!isAudioMuted && !forceMutedPage) return clamp(revealProgress, 0, 0.98);
 
+    const visiblePageIndex = clamp(mutedPageIndex, 0, Math.max(pages.length - 1, 0));
     return getPageStartProgress(pages, visiblePageIndex);
   }
 
@@ -1447,14 +1464,20 @@
     carloServiceRevealProgress = getServiceResumeProgress(
       getCarloServiceSpeechPages(),
       carloServiceRevealProgress,
-      carloServiceMutedPageIndex
+      carloServiceMutedPageIndex,
+      shouldResumeServiceAudioFromMutedPage
     );
     carloServiceAudioEl.currentTime =
       carloServiceRevealProgress * getAudioDuration(carloServiceAudioEl, carloServiceRevealDurationSeconds);
     carloServiceAudioEl.volume = 0;
+    shouldResumeServiceAudioFromMutedPage = false;
 
     try {
       await carloServiceAudioEl.play();
+      if (!isCarloServiceAudioStarting || isAudioMuted || !isCarloServiceDialogueVisible()) {
+        carloServiceAudioEl.pause();
+        return;
+      }
       isCarloServiceAudioActive = true;
       fadeCarloServiceAudioVolume(carloServiceAudioVolume, serviceAudioFadeInDuration);
     } catch {
@@ -1484,15 +1507,21 @@
     elisabettaServiceRevealProgress = getServiceResumeProgress(
       getElisabettaServiceSpeechPages(),
       elisabettaServiceRevealProgress,
-      elisabettaServiceMutedPageIndex
+      elisabettaServiceMutedPageIndex,
+      shouldResumeServiceAudioFromMutedPage
     );
     elisabettaServiceAudioEl.currentTime =
       elisabettaServiceRevealProgress *
       getAudioDuration(elisabettaServiceAudioEl, elisabettaServiceRevealDurationSeconds);
     elisabettaServiceAudioEl.volume = 0;
+    shouldResumeServiceAudioFromMutedPage = false;
 
     try {
       await elisabettaServiceAudioEl.play();
+      if (!isElisabettaServiceAudioStarting || isAudioMuted || !isElisabettaServiceDialogueVisible()) {
+        elisabettaServiceAudioEl.pause();
+        return;
+      }
       isElisabettaServiceAudioActive = true;
       fadeElisabettaServiceAudioVolume(elisabettaServiceAudioVolume, serviceAudioFadeInDuration);
     } catch {
@@ -1522,14 +1551,20 @@
     marcoServiceRevealProgress = getServiceResumeProgress(
       getMarcoServiceSpeechPages(),
       marcoServiceRevealProgress,
-      marcoServiceMutedPageIndex
+      marcoServiceMutedPageIndex,
+      shouldResumeServiceAudioFromMutedPage
     );
     marcoServiceAudioEl.currentTime =
       marcoServiceRevealProgress * getAudioDuration(marcoServiceAudioEl, marcoServiceRevealDurationSeconds);
     marcoServiceAudioEl.volume = 0;
+    shouldResumeServiceAudioFromMutedPage = false;
 
     try {
       await marcoServiceAudioEl.play();
+      if (!isMarcoServiceAudioStarting || isAudioMuted || !isMarcoServiceDialogueVisible()) {
+        marcoServiceAudioEl.pause();
+        return;
+      }
       isMarcoServiceAudioActive = true;
       fadeMarcoServiceAudioVolume(marcoServiceAudioVolume, serviceAudioFadeInDuration);
     } catch {
@@ -1559,14 +1594,20 @@
     faustoServiceRevealProgress = getServiceResumeProgress(
       getFaustoServiceSpeechPages(),
       faustoServiceRevealProgress,
-      faustoServiceMutedPageIndex
+      faustoServiceMutedPageIndex,
+      shouldResumeServiceAudioFromMutedPage
     );
     faustoServiceAudioEl.currentTime =
       faustoServiceRevealProgress * getAudioDuration(faustoServiceAudioEl, faustoServiceRevealDurationSeconds);
     faustoServiceAudioEl.volume = 0;
+    shouldResumeServiceAudioFromMutedPage = false;
 
     try {
       await faustoServiceAudioEl.play();
+      if (!isFaustoServiceAudioStarting || isAudioMuted || !isFaustoServiceDialogueVisible()) {
+        faustoServiceAudioEl.pause();
+        return;
+      }
       isFaustoServiceAudioActive = true;
       fadeFaustoServiceAudioVolume(faustoServiceAudioVolume, serviceAudioFadeInDuration);
     } catch {
@@ -1596,14 +1637,20 @@
     niniServiceRevealProgress = getServiceResumeProgress(
       getNiniServiceSpeechPages(),
       niniServiceRevealProgress,
-      niniServiceMutedPageIndex
+      niniServiceMutedPageIndex,
+      shouldResumeServiceAudioFromMutedPage
     );
     niniServiceAudioEl.currentTime =
       niniServiceRevealProgress * getAudioDuration(niniServiceAudioEl, niniServiceRevealDurationSeconds);
     niniServiceAudioEl.volume = 0;
+    shouldResumeServiceAudioFromMutedPage = false;
 
     try {
       await niniServiceAudioEl.play();
+      if (!isNiniServiceAudioStarting || isAudioMuted || !isNiniServiceDialogueVisible()) {
+        niniServiceAudioEl.pause();
+        return;
+      }
       isNiniServiceAudioActive = true;
       fadeNiniServiceAudioVolume(niniServiceAudioVolume, serviceAudioFadeInDuration);
     } catch {
@@ -1621,6 +1668,7 @@
     }
 
     isCarloServiceAudioStarting = false;
+    syncCarloServiceSpeechReveal();
     if (resetReplay) hasPlayedCarloServiceAudio = false;
     if (carloServiceAudioEl.paused || duration <= 0) {
       carloServiceAudioEl.pause();
@@ -1643,6 +1691,7 @@
     }
 
     isElisabettaServiceAudioStarting = false;
+    syncElisabettaServiceSpeechReveal();
     if (resetReplay) hasPlayedElisabettaServiceAudio = false;
     if (elisabettaServiceAudioEl.paused || duration <= 0) {
       elisabettaServiceAudioEl.pause();
@@ -1665,6 +1714,7 @@
     }
 
     isMarcoServiceAudioStarting = false;
+    syncMarcoServiceSpeechReveal();
     if (resetReplay) hasPlayedMarcoServiceAudio = false;
     if (marcoServiceAudioEl.paused || duration <= 0) {
       marcoServiceAudioEl.pause();
@@ -1687,6 +1737,7 @@
     }
 
     isFaustoServiceAudioStarting = false;
+    syncFaustoServiceSpeechReveal();
     if (resetReplay) hasPlayedFaustoServiceAudio = false;
     if (faustoServiceAudioEl.paused || duration <= 0) {
       faustoServiceAudioEl.pause();
@@ -1709,6 +1760,7 @@
     }
 
     isNiniServiceAudioStarting = false;
+    syncNiniServiceSpeechReveal();
     if (resetReplay) hasPlayedNiniServiceAudio = false;
     if (niniServiceAudioEl.paused || duration <= 0) {
       niniServiceAudioEl.pause();
@@ -1742,9 +1794,18 @@
 
   $effect(() => {
     if (isAudioMuted) {
+      shouldResumeServiceAudioFromMutedPage = true;
       stopAllServiceAudio({ duration: 0.1, resetReplay: true });
       return;
     }
+
+    const hasVisibleDialogue =
+      isCarloServiceDialogueVisible() ||
+      isElisabettaServiceDialogueVisible() ||
+      isMarcoServiceDialogueVisible() ||
+      isFaustoServiceDialogueVisible() ||
+      isNiniServiceDialogueVisible();
+    if (!hasVisibleDialogue) shouldResumeServiceAudioFromMutedPage = false;
 
     if (isCarloServiceDialogueVisible()) void startCarloServiceAudio();
     if (isElisabettaServiceDialogueVisible()) void startElisabettaServiceAudio();
@@ -1772,8 +1833,6 @@
 
     if (cameraX < getCarloServiceEnterCameraX() - carloServiceEnterDistance) {
       hasPlayedCarloServiceAudio = false;
-      carloServiceRevealProgress = 0;
-      carloServiceMutedPageIndex = 0;
     }
   });
 
@@ -1796,8 +1855,6 @@
 
     if (cameraX < getElisabettaServiceStartCameraX() - elisabettaServiceEnterDistance) {
       hasPlayedElisabettaServiceAudio = false;
-      elisabettaServiceRevealProgress = 0;
-      elisabettaServiceMutedPageIndex = 0;
     }
   });
 
@@ -1820,8 +1877,6 @@
 
     if (cameraX < getMarcoServiceStartCameraX() - marcoServiceEnterDistance) {
       hasPlayedMarcoServiceAudio = false;
-      marcoServiceRevealProgress = 0;
-      marcoServiceMutedPageIndex = 0;
     }
   });
 
@@ -1844,8 +1899,6 @@
 
     if (cameraX < getFaustoServiceStartCameraX() - faustoServiceEnterDistance) {
       hasPlayedFaustoServiceAudio = false;
-      faustoServiceRevealProgress = 0;
-      faustoServiceMutedPageIndex = 0;
     }
   });
 
@@ -1868,8 +1921,6 @@
 
     if (cameraX < getNiniServiceStartCameraX() - niniServiceEnterDistance) {
       hasPlayedNiniServiceAudio = false;
-      niniServiceRevealProgress = 0;
-      niniServiceMutedPageIndex = 0;
     }
   });
 

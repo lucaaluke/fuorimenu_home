@@ -48,19 +48,19 @@
   const kitchenAsset = (name: string) => `/assets/${name}?v=${kitchenAssetVersion}`;
   let gsap: Gsap | undefined;
   const testimonialHandoffSticky = {
-    maxFactor: 0.66,
-    minFactor: 0.22,
-    releaseAfterNext: 0.009,
-    zoneBeforeNext: 0.064
+    maxFactor: 0.86,
+    minFactor: 0.52,
+    zoneBeforeDisappearPx: 200
   };
+  const firstKitchenDialogueStartCameraX = 600;
   const tailStartX = 23600;
   const carloSpeech =
     "C'erano grosse difficoltà su Santa Giulia. Il 30 di gennaio era ancora un cantiere, quindi si entrava con l'elmetto col giubbotto catarifrangente; la situazione era veramente drammatica.\nDa dicembre 2025 abbiamo cambiato completamente la strategia per quel sito, perché era un sito che si sapeva che avrebbe avuto delle grosse difficoltà, perché a volte si faceva anche fino a 11.000 spettatori per tre gare al giorno.";
   const kitchenAmbientFadeInDuration = 1.2;
   const kitchenAmbientFadeOutDuration = 0.42;
-  const testimonialAudioFadeInDuration = 0.08;
-  const testimonialAudioFadeOutDuration = 0.12;
-  const testimonialAudioHandoffFadeOutDuration = 0.06;
+  const testimonialAudioFadeInDuration = 0.04;
+  const testimonialAudioFadeOutDuration = 0.08;
+  const testimonialAudioHandoffFadeOutDuration = 0;
   const faustoSecondAudioPauseMs = 700;
   const faustoSecondAudioStartTime = 25.9;
   const faustoSecondSpeech =
@@ -252,6 +252,7 @@
   let isDragging = $state(false);
   let isSceneLoaded = $state(false);
   let hasPointerScenePosition = $state(false);
+  let isPointerOverTestimonialHitbox = $state(false);
   let pointerSceneY = $state(0);
   let pointerSceneX = $state({
     background: 0,
@@ -291,7 +292,9 @@
 	      background: (localX + cameraX * resolvedLayerSpeed.background) / sceneScale,
 	      middle: (localX + cameraX * resolvedLayerSpeed.middle) / sceneScale,
 	      foreground: (localX + cameraX * resolvedLayerSpeed.foreground) / sceneScale
-	    };
+    };
+    isPointerOverTestimonialHitbox = isPointerInsideVisibleTestimonial(event);
+    kitchenPhaserGame?.setObjectHoverSuppressed(isPointerOverTestimonialHitbox);
     nearestSceneAsset = getNearestSceneAsset();
 	  }
 
@@ -323,6 +326,11 @@
     return index >= 0 ? kitchenTestimonials[index + 1] : undefined;
   }
 
+  function getTestimonialEnterProgress(testimonial: KitchenTestimonial) {
+    if (testimonial.id !== 'carlo' || maxScrollX <= 0) return testimonial.enterProgress;
+    return clamp(firstKitchenDialogueStartCameraX / maxScrollX, 0, 1);
+  }
+
   function isTestimonialAudioUnfinished(testimonial: KitchenTestimonial) {
     const audio = getTestimonialAudioEl(testimonial);
     const state = testimonialAudioState[testimonial.id];
@@ -343,14 +351,15 @@
     );
     if (!activeTestimonial || !isTestimonialAudioUnfinished(activeTestimonial)) return delta;
 
-    const nextTestimonial = getNextTestimonial(activeTestimonial);
-    if (!nextTestimonial) return delta;
+    const exitProgress = activeTestimonial.exitProgress;
+    if (exitProgress === undefined || maxScrollX <= 0) return delta;
 
+    const zoneBeforeDisappear = testimonialHandoffSticky.zoneBeforeDisappearPx / maxScrollX;
     const stickyStart = Math.max(
-      activeTestimonial.enterProgress,
-      nextTestimonial.enterProgress - testimonialHandoffSticky.zoneBeforeNext
+      getTestimonialEnterProgress(activeTestimonial),
+      exitProgress - zoneBeforeDisappear
     );
-    const stickyEnd = nextTestimonial.enterProgress + testimonialHandoffSticky.releaseAfterNext;
+    const stickyEnd = exitProgress;
     if (narrativeProgress < stickyStart || narrativeProgress > stickyEnd) return delta;
 
     const releaseProgress = clamp(
@@ -403,7 +412,7 @@
 	  }
 
   function getNearestSceneAsset() {
-    if (!hasPointerScenePosition) return undefined;
+    if (!hasPointerScenePosition || isPointerOverTestimonialHitbox) return undefined;
 
     let nearest: { id: string; distance: number } | undefined;
 
@@ -420,6 +429,29 @@
     }
 
     return nearest;
+  }
+
+  function isPointerInsideVisibleTestimonial(event: PointerEvent) {
+    const target = event.target;
+    if (!(target instanceof Element)) return false;
+
+    const testimonialEl = target.closest<HTMLElement>('.chef-button.is-dialogue-visible');
+    if (!testimonialEl) return false;
+
+    const pointerX = event.clientX;
+    const pointerY = event.clientY;
+    const hitboxPadding = 10;
+    const testimonialRect = testimonialEl.getBoundingClientRect();
+    const bubbleRect = testimonialEl.querySelector<HTMLElement>('.speech-bubble')?.getBoundingClientRect();
+    const hitRects = [testimonialRect, bubbleRect].filter((rect): rect is DOMRect => Boolean(rect));
+
+    return hitRects.some(
+      (rect) =>
+        pointerX >= rect.left - hitboxPadding &&
+        pointerX <= rect.right + hitboxPadding &&
+        pointerY >= rect.top - hitboxPadding &&
+        pointerY <= rect.bottom + hitboxPadding
+    );
   }
 
 	  function getInteractiveAssetStyle(asset: InteractiveSceneAsset) {
@@ -457,7 +489,7 @@
   }
 
   function getRawTestimonialPresence(testimonial: KitchenTestimonial) {
-    const enter = clamp((narrativeProgress - testimonial.enterProgress) / 0.012, 0, 1);
+    const enter = clamp((narrativeProgress - getTestimonialEnterProgress(testimonial)) / 0.012, 0, 1);
     const exit =
       testimonial.exitProgress === undefined
         ? 1
@@ -924,13 +956,18 @@
   }
 
   function onPointerLeave() {
-    if (!isDragging) hasPointerScenePosition = false;
+    if (!isDragging) {
+      hasPointerScenePosition = false;
+      isPointerOverTestimonialHitbox = false;
+      kitchenPhaserGame?.setObjectHoverSuppressed(false);
+    }
   }
 
   function endDrag(event: PointerEvent) {
     isDragging = false;
     kitchenController?.endDrag();
     updatePointerScenePosition(event);
+    kitchenPhaserGame?.setObjectHoverSuppressed(isPointerOverTestimonialHitbox);
     if (stageEl.hasPointerCapture(event.pointerId)) {
       stageEl.releasePointerCapture(event.pointerId);
     }
@@ -1126,12 +1163,14 @@
 
       if (isDialogueVisible) {
         if (!state.hasPlayed && !state.isStarting) {
-          const resumeInfo = getMutedTestimonialResumeInfo(testimonial);
-          if (testimonial.id === 'fausto' && resumeInfo.part === 2) {
-            void resumeFaustoSecondAudioFromMutedPage(resumeInfo.progress);
+          if (testimonial.id === 'fausto' && faustoSpeechPart === 2) {
+            void playFaustoSecondAudio({
+              resumeProgress: testimonialRevealProgress.fausto,
+              forceReplay: true
+            });
           } else {
             void playTestimonialAudio(testimonial, {
-              resumeProgress: resumeInfo.progress,
+              resumeProgress: testimonialRevealProgress[testimonial.id],
               forceReplay: true
             });
           }
@@ -1285,8 +1324,9 @@
 
   function unlockRelevantTestimonialAudio() {
     kitchenTestimonials.forEach((testimonial) => {
-      const unlockStart = testimonial.enterProgress - 0.04;
-      const unlockEnd = (testimonial.exitProgress ?? testimonial.enterProgress + 0.06) + 0.03;
+      const enterProgress = getTestimonialEnterProgress(testimonial);
+      const unlockStart = enterProgress - 0.04;
+      const unlockEnd = (testimonial.exitProgress ?? enterProgress + 0.06) + 0.03;
       if (narrativeProgress < unlockStart || narrativeProgress > unlockEnd) return;
       void unlockTestimonialAudio(testimonial);
     });
@@ -1431,6 +1471,12 @@
     state.isStopping = duration > 0 && !audio.paused;
     if (resetReplay) state.hasPlayed = false;
 
+    if (testimonial.id === 'fausto' && audio === fausto2AudioEl) {
+      syncFaustoSecondSpeechReveal();
+    } else {
+      syncTestimonialSpeechReveal(testimonial);
+    }
+    syncMutedTestimonialPageIndexFromReveal(testimonial);
     gsap?.killTweensOf(audio);
 
     const afterStop = () => {
@@ -1528,6 +1574,7 @@
           },
           onReady: () => {
             isPhaserReady = true;
+            kitchenPhaserGame?.setObjectHoverSuppressed(isPointerOverTestimonialHitbox);
           },
           sceneHeight: kitchenConstructionSceneHeight
         }).then((game) => {

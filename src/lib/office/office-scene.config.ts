@@ -138,7 +138,7 @@ export const officeMiddleAssets: SceneAsset[] = [
   officeLayerAsset('secondopiano', '2_postazionecestino2', 70321, 1576, 1653, 821),
   officeLayerAsset('secondopiano', '2_acqua2', 73608, 1238, 265, 1155),
   officeLayerAsset('secondopiano', '2_scrivanie', 76366, 1437, 4166, 1023),
-  officeInteractiveAsset('secondopiano', '2_computerint', 78765, 1658, 970, 301, 'Computer interattivo ufficio'),
+  officeInteractiveAsset('secondopiano', '2_computerint', 78765, 1658, 332, 301, 'Computer interattivo ufficio'),
   officeLayerAsset('secondopiano', '2_stampacestino2', 89178, 1321, 1290, 1084),
   officeLayerAsset('secondopiano', '2_scrivaniacomodini3', 91366, 1392, 1222, 1057),
   officeLayerAsset('secondopiano', '2_scrivaniacomodini2', 92945, 1392, 1222, 1057),

@@ -54,7 +54,8 @@ const S_ALARM_CLOCK_WOBBLE_PAUSE_MS = 900;
 export function startKitchenSceneAnimations(
   scene: Phaser.Scene,
   assetSprites: KitchenAnimationSprite[],
-  getSceneScale: () => number
+  getSceneScale: () => number,
+  isObjectHoverSuppressed: () => boolean = () => false
 ) {
   const sCono = assetSprites.find(({ asset }) => asset.id === S_CONO_ASSET_ID)?.sprite;
   const toolbox = assetSprites.find(({ asset }) => asset.id === S_TOOLBOX_ASSET_ID)?.sprite;
@@ -73,7 +74,7 @@ export function startKitchenSceneAnimations(
 
   if (toolbox) {
     startToolboxShineAnimation(scene, toolbox);
-    startToolboxHoverJumpAnimation(scene, toolbox, getSceneScale);
+    startToolboxHoverJumpAnimation(scene, toolbox, getSceneScale, isObjectHoverSuppressed);
   }
 
   if (planetaria) {
@@ -82,7 +83,7 @@ export function startKitchenSceneAnimations(
 
   if (coffeeMachine) {
     startCoffeeDripAnimation(scene, coffeeMachine, getSceneScale);
-    startCoffeeHoverJumpAnimation(scene, coffeeMachine, getSceneScale);
+    startCoffeeHoverJumpAnimation(scene, coffeeMachine, getSceneScale, isObjectHoverSuppressed);
   }
 
   if (kitPulizieA) {
@@ -136,13 +137,14 @@ function playSConoJump(scene: Phaser.Scene, sprite: Phaser.GameObjects.Sprite, s
 function startToolboxHoverJumpAnimation(
   scene: Phaser.Scene,
   sprite: Phaser.GameObjects.Sprite,
-  getSceneScale: () => number
+  getSceneScale: () => number,
+  isObjectHoverSuppressed: () => boolean
 ) {
   let isJumping = false;
 
   sprite.setInteractive({ useHandCursor: true });
   sprite.on('pointerover', () => {
-    if (!sprite.active || isJumping) return;
+    if (!sprite.active || isJumping || isObjectHoverSuppressed()) return;
 
     isJumping = true;
     playToolboxHoverJump(scene, sprite, getSceneScale(), () => {
@@ -292,13 +294,14 @@ function playCoffeeDrip(scene: Phaser.Scene, sprite: Phaser.GameObjects.Sprite, 
 function startCoffeeHoverJumpAnimation(
   scene: Phaser.Scene,
   sprite: Phaser.GameObjects.Sprite,
-  getSceneScale: () => number
+  getSceneScale: () => number,
+  isObjectHoverSuppressed: () => boolean
 ) {
   let isJumping = false;
 
   sprite.setInteractive({ useHandCursor: true });
   sprite.on('pointerover', () => {
-    if (!sprite.active || isJumping) return;
+    if (!sprite.active || isJumping || isObjectHoverSuppressed()) return;
 
     isJumping = true;
     playCoffeeHoverJump(scene, sprite, getSceneScale(), () => {

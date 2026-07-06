@@ -38,6 +38,7 @@
   });
   let nearestSceneAsset = $state<{ id: string; distance: number }>();
   let prefersReducedMotion = $state(false);
+  let shouldResumeOfficeAudioFromMutedPage = false;
   let officeAmbientAudioEl: HTMLAudioElement;
   let keysHoverAudioEl: HTMLAudioElement;
   let clickHoverAudioEl: HTMLAudioElement;
@@ -110,32 +111,38 @@
   const worldStyle = $derived(
     `width: ${scenePx(viewportWidth)}; height: ${scenePx(viewportHeight)}`
   );
+  const officeHandoffResistance = {
+    maxFactor: 0.86,
+    minFactor: 0.52,
+    zoneBeforeDisappearPx: 200
+  };
+  const firstOfficeDialogueStartCameraX = 600;
   const officeAmbientVolume = 0.32;
   const officeAmbientFadeInDuration = 1.2;
   const officeAmbientFadeOutDuration = 0.36;
-  const officeDialogueAudioFadeInDuration = 0.08;
-  const officeDialogueAudioHandoffFadeOutDuration = 0.06;
+  const officeDialogueAudioFadeInDuration = 0.04;
+  const officeDialogueAudioHandoffFadeOutDuration = 0;
   const carloOfficeAudioVolume = 1;
-  const carloOfficeAudioFadeOutDuration = 0.12;
+  const carloOfficeAudioFadeOutDuration = 0.08;
   const carloOfficeRevealDurationSeconds = 37.54;
   const carloOfficeSpeech =
     'Qui parliamo del 2018 che abbiamo sviluppato il dossier di candidatura. Nel 2019 Milano Cortina vince viene nominata organizzatrice delle Olimpiadi del 2026, quindi 7 anni prima. E poi nel 2021 io entro nello staff come direttore Food and Beverage. Ci sono 110-120 delegati delle federazioni internazionali, che sono i Presidenti dei vari Comitati Olimpici nel mondo, che si riuniscono, valutano il dossier che tu hai presentato e decidono tra le varie città candidate quale deve essere quella che vince, quindi tu devi essere molto esaustivo, molto attraente.';
   const carloOffice2AudioVolume = 1;
-  const carloOffice2AudioFadeOutDuration = 0.12;
+  const carloOffice2AudioFadeOutDuration = 0.08;
   const carloOffice2RevealDurationSeconds = 41.74;
   const carloOffice2StartCameraX = 3785;
   const carloOffice2EndCameraX = 6844;
   const carloOffice2Speech =
     "La complessità di questa Olimpiade era che, mentre a Torino era una città, Torino, qui avevi quattro regioni, 9 province e 13 siti di gara. C'era un villaggio olimpico a Predazzo, un villaggio olimpico a Livigno, un villaggio olimpico a Cortina, poi avevi tre cluster alberghieri che fungevano da villaggio olimpico. E quando io dovevo fare l'impostazione reale sul posto e vedere come erano fatti, per fare la visita dei 7 io ci ho impiegato quattro giorni. Per spiegarlo ad un americano facevo questo esempio: è come se tu hai le Olimpiadi a Washington, poi hai la gara di bob a New York e poi le gare di fondo a Charleston.";
   const elisabettaOfficeAudioVolume = 1;
-  const elisabettaOfficeAudioFadeOutDuration = 0.12;
+  const elisabettaOfficeAudioFadeOutDuration = 0.08;
   const elisabettaOfficeRevealDurationSeconds = 47.57;
   const elisabettaOfficeStartCameraX = 7245;
   const elisabettaOfficeEndCameraX = 13000;
   const elisabettaOfficeSpeech =
     "Il lavoro solitamente si divide in tre fasi: c'è la fase di strategia, c'è il momento di planning, in cui si cercano i fornitori, e poi una fase di Games Time, dove invece si fanno solo operations. La nostra strategia è stata molto condizionata dal fatto che fossero le prime Olimpiadi del mondo così sparse sul territorio, Ci sono stati una serie di incontri preliminari con alcuni componenti di alcune federazioni e uno di questi è stato sicuramente lo Chef de mission, perché in questo meeting vengono i capi delegazione delle varie delegazioni internazionali. Al Games Time iniziano ad essere ogni tre giorni, ma prima ci sono almeno due o tre appuntamenti durante i quali si inizia a spiegare quale sarà il disegno e, mano a mano che si è pronti, si scende nei dettagli.";
   const faustoOfficeAudioVolume = 1;
-  const faustoOfficeAudioFadeOutDuration = 0.12;
+  const faustoOfficeAudioFadeOutDuration = 0.08;
   const faustoOfficeRevealDurationSeconds = 20.56;
   const faustoOfficeSpeech =
     "Le aziende coinvolte la maggior parte erano degli sponsor, quindi abbiamo dovuto adeguare anche il menu agli sponsor. Quindi è un incastro di situazioni molto particolari. Il menù tenete conto che noi l'abbiamo cambiato e rivisto almeno una dozzina di volte, proprio perché c'erano sponsor che uscivano e sponsor che entravano.";
@@ -175,7 +182,7 @@
   }
 
   function getCarloOfficeEnterCameraX() {
-    return Math.min(Math.max(120 * sceneScale, maxScrollX * 0.008), viewportWidth * 0.18);
+    return clamp(firstOfficeDialogueStartCameraX, 0, maxScrollX);
   }
 
   function getCarloOfficeExitCameraX() {
@@ -302,47 +309,36 @@
       return nextValue;
     }
 
-    if (activeFausto) {
-      const exitCameraX = getFaustoOfficeEndCameraX();
-      const stickyStart = Math.max(getFaustoOfficeStartCameraX(), exitCameraX - viewportWidth * 0.24);
-      const stickyEnd = exitCameraX + viewportWidth * 0.08;
+    const applyOfficeHandoffResistance = (enterCameraX: number, exitCameraX: number) => {
+      const stickyStart = Math.max(
+        enterCameraX,
+        exitCameraX - officeHandoffResistance.zoneBeforeDisappearPx
+      );
+      const stickyEnd = exitCameraX;
       if (cameraX < stickyStart || cameraX > stickyEnd) return nextValue;
 
       const releaseProgress = clamp((cameraX - stickyStart) / Math.max(stickyEnd - stickyStart, 1), 0, 1);
-      const factor = 0.84 - ease(releaseProgress) * 0.42;
+      const factor =
+        officeHandoffResistance.maxFactor -
+        ease(releaseProgress) *
+          (officeHandoffResistance.maxFactor - officeHandoffResistance.minFactor);
+
       return baseValue + delta * factor;
+    };
+
+    if (activeFausto) {
+      return applyOfficeHandoffResistance(getFaustoOfficeStartCameraX(), getFaustoOfficeEndCameraX());
     }
 
     if (activeElisabetta) {
-      const exitCameraX = getElisabettaOfficeEndCameraX();
-      const stickyStart = Math.max(getElisabettaOfficeStartCameraX(), exitCameraX - viewportWidth * 0.24);
-      const stickyEnd = exitCameraX + viewportWidth * 0.08;
-      if (cameraX < stickyStart || cameraX > stickyEnd) return nextValue;
-
-      const releaseProgress = clamp((cameraX - stickyStart) / Math.max(stickyEnd - stickyStart, 1), 0, 1);
-      const factor = 0.84 - ease(releaseProgress) * 0.42;
-      return baseValue + delta * factor;
+      return applyOfficeHandoffResistance(getElisabettaOfficeStartCameraX(), getElisabettaOfficeEndCameraX());
     }
 
     if (activeCarlo2) {
-      const exitCameraX = getCarloOffice2EndCameraX();
-      const stickyStart = Math.max(getCarloOffice2StartCameraX(), exitCameraX - viewportWidth * 0.24);
-      const stickyEnd = exitCameraX + viewportWidth * 0.08;
-      if (cameraX < stickyStart || cameraX > stickyEnd) return nextValue;
-
-      const releaseProgress = clamp((cameraX - stickyStart) / Math.max(stickyEnd - stickyStart, 1), 0, 1);
-      const factor = 0.84 - ease(releaseProgress) * 0.42;
-      return baseValue + delta * factor;
+      return applyOfficeHandoffResistance(getCarloOffice2StartCameraX(), getCarloOffice2EndCameraX());
     }
 
-    const exitCameraX = getCarloOfficeExitCameraX();
-    const stickyStart = Math.max(getCarloOfficeEnterCameraX(), exitCameraX - viewportWidth * 0.28);
-    const stickyEnd = exitCameraX + viewportWidth * 0.08;
-    if (cameraX < stickyStart || cameraX > stickyEnd) return nextValue;
-
-    const releaseProgress = clamp((cameraX - stickyStart) / Math.max(stickyEnd - stickyStart, 1), 0, 1);
-    const factor = 0.84 - ease(releaseProgress) * 0.42;
-    return baseValue + delta * factor;
+    return applyOfficeHandoffResistance(getCarloOfficeEnterCameraX(), getCarloOfficeExitCameraX());
   }
 
   function setTargetCameraX(value: number, options: { bypassResistance?: boolean } = {}) {
@@ -838,11 +834,15 @@
     return clamp(pageStart / Math.max(normalizedSpeech.length, 1), 0, 0.98);
   }
 
-  function getOfficeResumeProgress(pages: string[], revealProgress: number, mutedPageIndex: number) {
-    const visiblePageIndex = isAudioMuted
-      ? clamp(mutedPageIndex, 0, Math.max(pages.length - 1, 0))
-      : getPageIndexForCharacterOffset(pages, pages.join(' ').length * revealProgress);
+  function getOfficeResumeProgress(
+    pages: string[],
+    revealProgress: number,
+    mutedPageIndex: number,
+    forceMutedPage = false
+  ) {
+    if (!isAudioMuted && !forceMutedPage) return clamp(revealProgress, 0, 0.98);
 
+    const visiblePageIndex = clamp(mutedPageIndex, 0, Math.max(pages.length - 1, 0));
     return getPageStartProgress(pages, visiblePageIndex);
   }
 
@@ -1385,14 +1385,20 @@
     carloOfficeRevealProgress = getOfficeResumeProgress(
       getCarloOfficeSpeechPages(),
       carloOfficeRevealProgress,
-      carloOfficeMutedPageIndex
+      carloOfficeMutedPageIndex,
+      shouldResumeOfficeAudioFromMutedPage
     );
     carloOfficeAudioEl.currentTime =
       carloOfficeRevealProgress * getAudioDuration(carloOfficeAudioEl, carloOfficeRevealDurationSeconds);
     carloOfficeAudioEl.volume = 0;
+    shouldResumeOfficeAudioFromMutedPage = false;
 
     try {
       await carloOfficeAudioEl.play();
+      if (!isCarloOfficeAudioStarting || isAudioMuted || !isCarloOfficeDialogueVisible()) {
+        carloOfficeAudioEl.pause();
+        return;
+      }
       isCarloOfficeAudioActive = true;
       fadeCarloOfficeAudioVolume(carloOfficeAudioVolume, officeDialogueAudioFadeInDuration);
       setOfficeAmbientVolume();
@@ -1425,14 +1431,20 @@
     carloOffice2RevealProgress = getOfficeResumeProgress(
       getCarloOffice2SpeechPages(),
       carloOffice2RevealProgress,
-      carloOffice2MutedPageIndex
+      carloOffice2MutedPageIndex,
+      shouldResumeOfficeAudioFromMutedPage
     );
     carloOffice2AudioEl.currentTime =
       carloOffice2RevealProgress * getAudioDuration(carloOffice2AudioEl, carloOffice2RevealDurationSeconds);
     carloOffice2AudioEl.volume = 0;
+    shouldResumeOfficeAudioFromMutedPage = false;
 
     try {
       await carloOffice2AudioEl.play();
+      if (!isCarloOffice2AudioStarting || isAudioMuted || !isCarloOffice2DialogueVisible()) {
+        carloOffice2AudioEl.pause();
+        return;
+      }
       isCarloOffice2AudioActive = true;
       fadeCarloOffice2AudioVolume(carloOffice2AudioVolume, officeDialogueAudioFadeInDuration);
       setOfficeAmbientVolume();
@@ -1464,15 +1476,21 @@
     elisabettaOfficeRevealProgress = getOfficeResumeProgress(
       getElisabettaOfficeSpeechPages(),
       elisabettaOfficeRevealProgress,
-      elisabettaOfficeMutedPageIndex
+      elisabettaOfficeMutedPageIndex,
+      shouldResumeOfficeAudioFromMutedPage
     );
     elisabettaOfficeAudioEl.currentTime =
       elisabettaOfficeRevealProgress *
       getAudioDuration(elisabettaOfficeAudioEl, elisabettaOfficeRevealDurationSeconds);
     elisabettaOfficeAudioEl.volume = 0;
+    shouldResumeOfficeAudioFromMutedPage = false;
 
     try {
       await elisabettaOfficeAudioEl.play();
+      if (!isElisabettaOfficeAudioStarting || isAudioMuted || !isElisabettaOfficeDialogueVisible()) {
+        elisabettaOfficeAudioEl.pause();
+        return;
+      }
       isElisabettaOfficeAudioActive = true;
       fadeElisabettaOfficeAudioVolume(elisabettaOfficeAudioVolume, officeDialogueAudioFadeInDuration);
       setOfficeAmbientVolume();
@@ -1504,14 +1522,20 @@
     faustoOfficeRevealProgress = getOfficeResumeProgress(
       getFaustoOfficeSpeechPages(),
       faustoOfficeRevealProgress,
-      faustoOfficeMutedPageIndex
+      faustoOfficeMutedPageIndex,
+      shouldResumeOfficeAudioFromMutedPage
     );
     faustoOfficeAudioEl.currentTime =
       faustoOfficeRevealProgress * getAudioDuration(faustoOfficeAudioEl, faustoOfficeRevealDurationSeconds);
     faustoOfficeAudioEl.volume = 0;
+    shouldResumeOfficeAudioFromMutedPage = false;
 
     try {
       await faustoOfficeAudioEl.play();
+      if (!isFaustoOfficeAudioStarting || isAudioMuted || !isFaustoOfficeDialogueVisible()) {
+        faustoOfficeAudioEl.pause();
+        return;
+      }
       isFaustoOfficeAudioActive = true;
       fadeFaustoOfficeAudioVolume(faustoOfficeAudioVolume, officeDialogueAudioFadeInDuration);
       setOfficeAmbientVolume();
@@ -1530,6 +1554,7 @@
     }
 
     isCarloOfficeAudioStarting = false;
+    syncCarloOfficeSpeechReveal();
     if (resetReplay) hasPlayedCarloOfficeAudio = false;
     if (carloOfficeAudioEl.paused || duration <= 0) {
       carloOfficeAudioEl.pause();
@@ -1554,6 +1579,7 @@
     }
 
     isCarloOffice2AudioStarting = false;
+    syncCarloOffice2SpeechReveal();
     if (resetReplay) hasPlayedCarloOffice2Audio = false;
     if (carloOffice2AudioEl.paused || duration <= 0) {
       carloOffice2AudioEl.pause();
@@ -1578,6 +1604,7 @@
     }
 
     isElisabettaOfficeAudioStarting = false;
+    syncElisabettaOfficeSpeechReveal();
     if (resetReplay) hasPlayedElisabettaOfficeAudio = false;
     if (elisabettaOfficeAudioEl.paused || duration <= 0) {
       elisabettaOfficeAudioEl.pause();
@@ -1602,6 +1629,7 @@
     }
 
     isFaustoOfficeAudioStarting = false;
+    syncFaustoOfficeSpeechReveal();
     if (resetReplay) hasPlayedFaustoOfficeAudio = false;
     if (faustoOfficeAudioEl.paused || duration <= 0) {
       faustoOfficeAudioEl.pause();
@@ -1636,12 +1664,19 @@
 
   $effect(() => {
     if (isAudioMuted) {
+      shouldResumeOfficeAudioFromMutedPage = true;
       stopAmbientAudio();
       stopAllOfficeDialogueAudio({ duration: 0.1, resetReplay: true });
       return;
     }
 
     void startAmbientAudio();
+    const hasVisibleDialogue =
+      isCarloOfficeDialogueVisible() ||
+      isCarloOffice2DialogueVisible() ||
+      isElisabettaOfficeDialogueVisible() ||
+      isFaustoOfficeDialogueVisible();
+    if (!hasVisibleDialogue) shouldResumeOfficeAudioFromMutedPage = false;
   });
 
   $effect(() => {
@@ -1663,8 +1698,6 @@
 
     if (cameraX < getCarloOfficeEnterCameraX() - carloOfficeEnterDistance) {
       hasPlayedCarloOfficeAudio = false;
-      carloOfficeRevealProgress = 0;
-      carloOfficeMutedPageIndex = 0;
     }
   });
 
@@ -1687,8 +1720,6 @@
 
     if (cameraX < getCarloOffice2StartCameraX() - carloOffice2EnterDistance) {
       hasPlayedCarloOffice2Audio = false;
-      carloOffice2RevealProgress = 0;
-      carloOffice2MutedPageIndex = 0;
     }
   });
 
@@ -1711,8 +1742,6 @@
 
     if (cameraX < getElisabettaOfficeStartCameraX() - elisabettaOfficeEnterDistance) {
       hasPlayedElisabettaOfficeAudio = false;
-      elisabettaOfficeRevealProgress = 0;
-      elisabettaOfficeMutedPageIndex = 0;
     }
   });
 
@@ -1735,8 +1764,6 @@
 
     if (cameraX < getFaustoOfficeStartCameraX() - faustoOfficeEnterDistance) {
       hasPlayedFaustoOfficeAudio = false;
-      faustoOfficeRevealProgress = 0;
-      faustoOfficeMutedPageIndex = 0;
     }
   });
 
