@@ -11,6 +11,7 @@
     kitchenSceneConfig
   } from './kitchen-scene.config';
   import { createSceneController } from '$lib/scene/controller';
+  import { getCompatibleAudioContextConstructor } from '$lib/scene/browser-compat';
   import { loadGsap, type Gsap } from '$lib/scene/gsap-loader';
   import { clamp, px } from '$lib/scene/math';
   import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
@@ -48,11 +49,12 @@
   const kitchenAsset = (name: string) => `/assets/${name}?v=${kitchenAssetVersion}`;
   let gsap: Gsap | undefined;
   const testimonialHandoffSticky = {
-    maxFactor: 0.86,
-    minFactor: 0.52,
-    zoneBeforeDisappearPx: 200
+    maxFactor: 0.92,
+    minFactor: 0.68,
+    zoneBeforeDisappearPx: 350
   };
   const firstKitchenDialogueStartCameraX = 600;
+  const finalKitchenDialogueEndOffsetPx = 600;
   const tailStartX = 23600;
   const carloSpeech =
     "C'erano grosse difficoltà su Santa Giulia. Il 30 di gennaio era ancora un cantiere, quindi si entrava con l'elmetto col giubbotto catarifrangente; la situazione era veramente drammatica.\nDa dicembre 2025 abbiamo cambiato completamente la strategia per quel sito, perché era un sito che si sapeva che avrebbe avuto delle grosse difficoltà, perché a volte si faceva anche fino a 11.000 spettatori per tre gare al giorno.";
@@ -251,6 +253,7 @@
   const fallbackAudioFadeFrames = new WeakMap<HTMLAudioElement, number>();
   let isDragging = $state(false);
   let isSceneLoaded = $state(false);
+  const isSceneInteractive = $derived(isSceneLoaded && isPhaserReady);
   let hasPointerScenePosition = $state(false);
   let isPointerOverTestimonialHitbox = $state(false);
   let pointerSceneY = $state(0);
@@ -318,6 +321,7 @@
   }
 
   function scrollBy(delta: number) {
+    if (!isSceneInteractive) return;
     kitchenController?.scrollBy(applyTestimonialHandoffResistance(delta));
   }
 
@@ -329,6 +333,11 @@
   function getTestimonialEnterProgress(testimonial: KitchenTestimonial) {
     if (testimonial.id !== 'carlo' || maxScrollX <= 0) return testimonial.enterProgress;
     return clamp(firstKitchenDialogueStartCameraX / maxScrollX, 0, 1);
+  }
+
+  function getTestimonialExitProgress(testimonial: KitchenTestimonial) {
+    if (testimonial.id !== 'fausto' || maxScrollX <= 0) return testimonial.exitProgress;
+    return clamp((maxScrollX - finalKitchenDialogueEndOffsetPx) / maxScrollX, 0, 1);
   }
 
   function isTestimonialAudioUnfinished(testimonial: KitchenTestimonial) {
@@ -351,7 +360,7 @@
     );
     if (!activeTestimonial || !isTestimonialAudioUnfinished(activeTestimonial)) return delta;
 
-    const exitProgress = activeTestimonial.exitProgress;
+    const exitProgress = getTestimonialExitProgress(activeTestimonial);
     if (exitProgress === undefined || maxScrollX <= 0) return delta;
 
     const zoneBeforeDisappear = testimonialHandoffSticky.zoneBeforeDisappearPx / maxScrollX;
@@ -490,10 +499,11 @@
 
   function getRawTestimonialPresence(testimonial: KitchenTestimonial) {
     const enter = clamp((narrativeProgress - getTestimonialEnterProgress(testimonial)) / 0.012, 0, 1);
+    const exitProgress = getTestimonialExitProgress(testimonial);
     const exit =
-      testimonial.exitProgress === undefined
+      exitProgress === undefined
         ? 1
-        : 1 - clamp((narrativeProgress - testimonial.exitProgress) / 0.012, 0, 1);
+        : 1 - clamp((narrativeProgress - exitProgress) / 0.012, 0, 1);
 
     return clamp(smoothProgress(enter) * smoothProgress(exit), 0, 1);
   }
@@ -934,12 +944,17 @@
     const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
 
     event.preventDefault();
+    if (!isSceneInteractive) return;
     void startAmbientAudio();
     unlockRelevantTestimonialAudio();
-    scrollBy(delta * 1.05);
+    scrollBy(delta * 0.84);
   }
 
   function onPointerDown(event: PointerEvent) {
+    if (!isSceneInteractive) {
+      event.preventDefault();
+      return;
+    }
     updatePointerScenePosition(event);
     isDragging = true;
     void startAmbientAudio();
@@ -949,6 +964,7 @@
   }
 
   function onPointerMove(event: PointerEvent) {
+    if (!isSceneInteractive) return;
     updatePointerScenePosition(event);
     if (!isDragging) return;
     kitchenController?.dragTo(event.clientX);
@@ -974,17 +990,25 @@
   }
 
   function onKeydown(event: KeyboardEvent) {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    const isSceneScrollKey = event.key === 'ArrowLeft' || event.key === 'ArrowRight';
+    if (!isSceneInteractive) {
+      if (isSceneScrollKey) event.preventDefault();
+      return;
+    }
+    if (!isSceneScrollKey) return;
     event.preventDefault();
     void startAmbientAudio();
     unlockRelevantTestimonialAudio();
-    scrollBy(event.key === 'ArrowLeft' ? -42 : 42);
+    scrollBy(event.key === 'ArrowLeft' ? -33 : 33);
   }
 
   function boostToolShedAudio() {
     if (!toolShedAudioEl || toolShedAudioSource) return;
 
-    toolShedAudioContext = new AudioContext();
+    const AudioContextConstructor = getCompatibleAudioContextConstructor();
+    if (!AudioContextConstructor) return;
+
+    toolShedAudioContext = new AudioContextConstructor();
     toolShedAudioSource = toolShedAudioContext.createMediaElementSource(toolShedAudioEl);
     const gain = toolShedAudioContext.createGain();
     gain.gain.value = 1.35;
@@ -1326,7 +1350,7 @@
     kitchenTestimonials.forEach((testimonial) => {
       const enterProgress = getTestimonialEnterProgress(testimonial);
       const unlockStart = enterProgress - 0.04;
-      const unlockEnd = (testimonial.exitProgress ?? enterProgress + 0.06) + 0.03;
+      const unlockEnd = (getTestimonialExitProgress(testimonial) ?? enterProgress + 0.06) + 0.03;
       if (narrativeProgress < unlockStart || narrativeProgress > unlockEnd) return;
       void unlockTestimonialAudio(testimonial);
     });
@@ -1602,6 +1626,7 @@
         bridge,
         config: kitchenSceneConfig,
         getViewport: () => ({ width: viewportWidth, height: viewportHeight }),
+        isScrollEnabled: () => isSceneInteractive,
         stageEl
       }).then((controller) => {
         if (destroyed) {
@@ -1869,8 +1894,8 @@
   .kitchen-stage {
     position: relative;
     width: 100%;
-    height: 100svh;
-    min-height: 100svh;
+    height: var(--app-viewport-height);
+    min-height: var(--app-viewport-height);
     overflow: hidden;
     background: var(--color-surface-page);
     cursor: var(--kitchen-cursor);

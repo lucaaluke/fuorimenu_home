@@ -101,6 +101,7 @@
   const worldWidth = $derived(Math.max(viewportWidth, sceneWidth * sceneScale));
   const maxScrollX = $derived(Math.max(0, worldWidth - viewportWidth));
   const progress = $derived(maxScrollX > 0 ? clamp(cameraX / maxScrollX, 0, 1) : 0);
+  const isSceneInteractive = $derived(isSceneLoaded && isPhaserReady);
   const servicePhaserAssets = [...serviceFloorAssets, ...serviceMiddleAssets, ...serviceForegroundAssets];
   const serviceCoordinateAssets = [...serviceMiddleAssets, ...serviceForegroundAssets];
   const scenePx = (value: number) => px(value, 2);
@@ -113,11 +114,12 @@
     `width: ${scenePx(viewportWidth)}; height: ${scenePx(viewportHeight)}`
   );
   const serviceHandoffResistance = {
-    maxFactor: 0.86,
-    minFactor: 0.52,
-    zoneBeforeDisappearPx: 200
+    maxFactor: 0.92,
+    minFactor: 0.68,
+    zoneBeforeDisappearPx: 350
   };
   const firstServiceDialogueStartCameraX = 600;
+  const finalServiceDialogueEndOffsetPx = 600;
   const carloServiceAudioVolume = 1;
   const serviceAudioFadeInDuration = 0.04;
   const serviceAudioHandoffFadeOutDuration = 0;
@@ -264,10 +266,18 @@
   }
 
   function scrollBy(delta: number) {
+    if (!isSceneInteractive) return;
     setTargetCameraXWithResistance(targetCameraX + delta);
   }
 
   function evaluateScene(delta: number) {
+    if (!isSceneInteractive) {
+      targetCameraX = 0;
+      cameraX = 0;
+      servicePhaserGame?.setCameraX(0);
+      return;
+    }
+
     if (
       targetCameraX > cameraX &&
       (isCarloServiceAudioUnfinished() ||
@@ -340,8 +350,8 @@
 
   function getNiniServiceEndCameraX() {
     return clamp(
-      Math.max(niniServiceEndCameraX, getNiniServiceStartCameraX() + viewportWidth * 0.32),
-      getNiniServiceStartCameraX(),
+      maxScrollX - finalServiceDialogueEndOffsetPx,
+      getNiniServiceStartCameraX() + viewportWidth * 0.32,
       maxScrollX
     );
   }
@@ -614,7 +624,7 @@
     const characterHeight = width * (assetHeight / assetWidth);
     const bubbleHeight = getCarloServiceBubbleHeight();
     const gap = viewportWidth <= 760 ? 14 : 12;
-    const characterLift = viewportWidth <= 760 ? 36 : 64;
+    const characterLift = viewportWidth <= 760 ? 102 : 182;
     const topInset = (viewportWidth <= 760 ? 88 : 104) + 40;
     const characterTop = topInset + bubbleHeight + gap - characterLift;
     const bottomOffset = characterTop + characterHeight - viewportHeight;
@@ -1087,6 +1097,7 @@
       foreground: (localX + cameraX * resolvedLayerSpeed.foreground) / sceneScale
     };
     nearestSceneAsset = getNearestSceneAsset();
+    servicePhaserGame?.setHoveredAssetId(getHoveredServiceAssetId());
   }
 
   function getNearestSceneAsset() {
@@ -1110,13 +1121,41 @@
     return nearest;
   }
 
+  function getHoveredServiceAssetId() {
+    if (!hasPointerScenePosition) return undefined;
+
+    const hoverPadding = 18;
+    const hoverAssets = serviceCoordinateAssets.filter(
+      (asset) => Boolean(asset.hoverAnimation || asset.hoverSoundSrc)
+    );
+
+    for (const asset of hoverAssets.slice().reverse()) {
+      if (asset.layer !== 'background' && asset.layer !== 'middle' && asset.layer !== 'foreground') continue;
+      const layerX = pointerSceneX[asset.layer];
+      if (layerX === undefined) continue;
+
+      const withinX = layerX >= asset.x - hoverPadding && layerX <= asset.x + asset.width + hoverPadding;
+      const withinY =
+        pointerSceneY >= asset.y - hoverPadding && pointerSceneY <= asset.y + asset.height + hoverPadding;
+
+      if (withinX && withinY) return asset.id;
+    }
+
+    return undefined;
+  }
+
   function onWheel(event: WheelEvent) {
     event.preventDefault();
+    if (!isSceneInteractive) return;
     const axisDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
-    scrollBy(axisDelta * 1.35);
+    scrollBy(axisDelta * 1.08);
   }
 
   function onPointerDown(event: PointerEvent) {
+    if (!isSceneInteractive) {
+      event.preventDefault();
+      return;
+    }
     if (event.button !== 0) return;
     updatePointerScenePosition(event);
     isDragging = true;
@@ -1126,13 +1165,17 @@
   }
 
   function onPointerMove(event: PointerEvent) {
+    if (!isSceneInteractive) return;
     updatePointerScenePosition(event);
     if (!isDragging) return;
-    scrollTrigger?.scroll(dragScrollStart + (dragStartX - event.clientX) * 1.95);
+    scrollTrigger?.scroll(dragScrollStart + (dragStartX - event.clientX) * 1.54);
   }
 
   function onPointerLeave() {
-    if (!isDragging) hasPointerScenePosition = false;
+    if (!isDragging) {
+      hasPointerScenePosition = false;
+      servicePhaserGame?.setHoveredAssetId(undefined);
+    }
   }
 
   function endDrag(event?: PointerEvent) {
@@ -1144,13 +1187,20 @@
   }
 
   function onKeydown(event: KeyboardEvent) {
+    const isSceneScrollKey =
+      event.key === 'ArrowRight' || event.key === 'ArrowLeft' || event.key === 'Home' || event.key === 'End';
+    if (!isSceneInteractive) {
+      if (isSceneScrollKey) event.preventDefault();
+      return;
+    }
+
     if (event.key === 'ArrowRight') {
       event.preventDefault();
-      scrollBy(viewportWidth * 0.42);
+      scrollBy(viewportWidth * 0.33);
     }
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      scrollBy(-viewportWidth * 0.42);
+      scrollBy(-viewportWidth * 0.33);
     }
     if (event.key === 'Home') {
       event.preventDefault();
@@ -1793,6 +1843,8 @@
   }
 
   $effect(() => {
+    servicePhaserGame?.setAudioMuted(isAudioMuted);
+
     if (isAudioMuted) {
       shouldResumeServiceAudioFromMutedPage = true;
       stopAllServiceAudio({ duration: 0.1, resetReplay: true });
@@ -1951,12 +2003,14 @@
           width: Math.max(1, viewportWidth || stageEl?.clientWidth || 1),
           height: Math.max(1, viewportHeight || stageEl?.clientHeight || 1)
         }),
+        isAudioMuted: () => isAudioMuted,
         layerSpeed,
         onLoadingProgress: (progress) => {
           phaserLoadingProgress = progress;
         },
         onReady: () => {
           isPhaserReady = true;
+          servicePhaserGame?.setAudioMuted(isAudioMuted);
         },
         sceneHeight,
         sceneWidth,
@@ -1983,9 +2037,23 @@
         id: 'service-horizontal-scroll',
         invalidateOnRefresh: true,
         onRefresh: (self) => {
+          if (!isSceneInteractive) {
+            targetCameraX = 0;
+            cameraX = 0;
+            servicePhaserGame?.setCameraX(0);
+            if (self.scroll() !== self.start) self.scroll(self.start);
+            return;
+          }
           setTargetCameraX(self.progress * maxScrollX);
         },
         onUpdate: (self) => {
+          if (!isSceneInteractive) {
+            targetCameraX = 0;
+            cameraX = 0;
+            servicePhaserGame?.setCameraX(0);
+            if (self.scroll() !== self.start) self.scroll(self.start);
+            return;
+          }
           setTargetCameraX(self.progress * maxScrollX);
         },
         pin: stageEl,
@@ -2473,7 +2541,7 @@
         style={`${getNiniServiceStyle()}; --reveal-delay: 420ms;`}
         role="button"
         tabindex="0"
-        aria-label="Testimonianza Stefano Paganini servizio"
+        aria-label="Testimonianza Nini servizio"
         onpointerdown={(event) => {
           event.stopPropagation();
           hasPlayedNiniServiceAudio = false;
@@ -2502,12 +2570,12 @@
             {#if niniServiceSpeechPageCount > 1}
               <span
                 class="speech-bubble-page-controls"
-                aria-label={`Dialogo ${niniServiceVisiblePageIndex + 1} di ${niniServiceSpeechPageCount} per Stefano Paganini`}
+                aria-label={`Dialogo ${niniServiceVisiblePageIndex + 1} di ${niniServiceSpeechPageCount} per Nini`}
               >
                 <button
                   class="speech-bubble-page-button speech-bubble-page-button-prev"
                   type="button"
-                  aria-label="Dialogo precedente di Stefano Paganini"
+                  aria-label="Dialogo precedente di Nini"
                   disabled={niniServiceVisiblePageIndex <= 0}
                   onpointerdown={(event) => event.stopPropagation()}
                   onclick={rewindNiniServicePage}
@@ -2529,7 +2597,7 @@
                 <button
                   class="speech-bubble-page-button speech-bubble-page-button-next"
                   type="button"
-                  aria-label="Dialogo successivo di Stefano Paganini"
+                  aria-label="Dialogo successivo di Nini"
                   disabled={niniServiceVisiblePageIndex >= niniServiceSpeechPageCount - 1}
                   onpointerdown={(event) => event.stopPropagation()}
                   onclick={advanceNiniServicePage}
@@ -2548,14 +2616,14 @@
               </span>
             {/if}
           </span>
-          <span class="speech-bubble-meta" aria-label="Executive Chef - Stefano Paganini">
+          <span class="speech-bubble-meta" aria-label="Executive Chef - Nini">
             <span class="speech-bubble-meta-label">
               <span>Executive Chef - </span>
-              <strong>Stefano Paganini</strong>
+              <strong>Nini</strong>
             </span>
           </span>
         </span>
-        <img src="/assets/interviews-hover/nini.png" alt="Stefano Paganini" draggable="false" />
+        <img src="/assets/interviews-hover/nini.png" alt="Nini" draggable="false" />
       </div>
     </div>
   </div>
@@ -2636,8 +2704,8 @@
   .service-stage {
     position: relative;
     width: 100%;
-    height: 100svh;
-    min-height: 100svh;
+    height: var(--app-viewport-height);
+    min-height: var(--app-viewport-height);
     overflow: hidden;
     background: var(--color-surface-page);
     cursor: url('/cursors/retrogusto-cursor.svg') 5 5, auto;
@@ -2656,7 +2724,7 @@
     z-index: 0;
     inset: 0;
     overflow: hidden;
-    pointer-events: none;
+    pointer-events: auto;
   }
 
   .service-phaser-layer :global(canvas) {
@@ -2666,6 +2734,7 @@
     display: block;
     width: 100%;
     height: 100%;
+    pointer-events: auto;
   }
 
   .scene-coordinate-indicator {
@@ -2731,7 +2800,7 @@
   .service-scroll-space {
     position: relative;
     min-width: 100%;
-    min-height: 100svh;
+    min-height: var(--app-viewport-height);
   }
 
   .service-world {
@@ -2739,7 +2808,7 @@
     left: 0;
     top: 0;
     min-width: 100%;
-    min-height: 100svh;
+    min-height: var(--app-viewport-height);
     overflow: hidden;
   }
 
@@ -2767,6 +2836,8 @@
   }
 
   .service-chef-button img {
+    position: relative;
+    z-index: 0;
     display: block;
     width: 100%;
     height: auto;

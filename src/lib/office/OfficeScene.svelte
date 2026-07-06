@@ -42,6 +42,7 @@
   let officeAmbientAudioEl: HTMLAudioElement;
   let keysHoverAudioEl: HTMLAudioElement;
   let clickHoverAudioEl: HTMLAudioElement;
+  let cioHoverAudioEl: HTMLAudioElement;
   let mapHoverAudioEl: HTMLAudioElement;
   let carloOfficeAudioEl: HTMLAudioElement;
   let carloOffice2AudioEl: HTMLAudioElement;
@@ -100,6 +101,7 @@
   const worldWidth = $derived(Math.max(viewportWidth, sceneWidth * sceneScale));
   const maxScrollX = $derived(Math.max(0, worldWidth - viewportWidth));
   const progress = $derived(maxScrollX > 0 ? clamp(cameraX / maxScrollX, 0, 1) : 0);
+  const isSceneInteractive = $derived(isSceneLoaded && isPhaserReady);
   const scenePx = (value: number) => px(value, 2);
   const coord = (value: number) => Math.round(value).toString();
   const coordDecimal = (value: number) => value.toFixed(3);
@@ -112,11 +114,12 @@
     `width: ${scenePx(viewportWidth)}; height: ${scenePx(viewportHeight)}`
   );
   const officeHandoffResistance = {
-    maxFactor: 0.86,
-    minFactor: 0.52,
-    zoneBeforeDisappearPx: 200
+    maxFactor: 0.92,
+    minFactor: 0.68,
+    zoneBeforeDisappearPx: 350
   };
   const firstOfficeDialogueStartCameraX = 600;
+  const finalOfficeDialogueEndOffsetPx = 600;
   const officeAmbientVolume = 0.32;
   const officeAmbientFadeInDuration = 1.2;
   const officeAmbientFadeOutDuration = 0.36;
@@ -237,7 +240,7 @@
     const startCameraX = getFaustoOfficeStartCameraX();
 
     return clamp(
-      Math.max(16800, startCameraX + viewportWidth * 0.42),
+      maxScrollX - finalOfficeDialogueEndOffsetPx,
       startCameraX + viewportWidth * 0.32,
       maxScrollX
     );
@@ -375,6 +378,7 @@
   }
 
   function scrollBy(delta: number) {
+    if (!isSceneInteractive) return;
     setTargetCameraX(targetCameraX + delta);
     scrollTrigger?.scroll(getScrollForCameraX(targetCameraX));
   }
@@ -418,6 +422,13 @@
   }
 
   function evaluateScene(delta: number) {
+    if (!isSceneInteractive) {
+      targetCameraX = 0;
+      cameraX = 0;
+      officePhaserGame?.setCameraX(0);
+      return;
+    }
+
     if (
       targetCameraX > cameraX &&
       (isCarloOfficeAudioUnfinished() ||
@@ -441,12 +452,17 @@
 
   function onWheel(event: WheelEvent) {
     event.preventDefault();
+    if (!isSceneInteractive) return;
     void startAmbientAudio();
     const axisDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
-    scrollBy(axisDelta * 1.35);
+    scrollBy(axisDelta * 1.08);
   }
 
   function onPointerDown(event: PointerEvent) {
+    if (!isSceneInteractive) {
+      event.preventDefault();
+      return;
+    }
     if (event.button !== 0) return;
     updatePointerScenePosition(event);
     void startAmbientAudio();
@@ -457,9 +473,10 @@
   }
 
   function onPointerMove(event: PointerEvent) {
+    if (!isSceneInteractive) return;
     updatePointerScenePosition(event);
     if (!isDragging) return;
-    scrollTrigger?.scroll(dragScrollStart + (dragStartX - event.clientX) * 1.95);
+    scrollTrigger?.scroll(dragScrollStart + (dragStartX - event.clientX) * 1.54);
   }
 
   function onPointerLeave() {
@@ -475,14 +492,21 @@
   }
 
   function onKeydown(event: KeyboardEvent) {
+    const isSceneScrollKey =
+      event.key === 'ArrowRight' || event.key === 'ArrowLeft' || event.key === 'Home' || event.key === 'End';
+    if (!isSceneInteractive) {
+      if (isSceneScrollKey) event.preventDefault();
+      return;
+    }
+
     void startAmbientAudio();
     if (event.key === 'ArrowRight') {
       event.preventDefault();
-      scrollBy(viewportWidth * 0.42);
+      scrollBy(viewportWidth * 0.33);
     }
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      scrollBy(-viewportWidth * 0.42);
+      scrollBy(-viewportWidth * 0.33);
     }
     if (event.key === 'Home') {
       event.preventDefault();
@@ -534,7 +558,8 @@
   function getInteractiveHoverAudio(asset: InteractiveSceneAsset) {
     if (asset.id === '1_chiavi') return { audio: keysHoverAudioEl, volume: 0.58 };
     if (asset.id === '1_mappa') return { audio: mapHoverAudioEl, volume: 0.52 };
-    if (asset.id === '1_cio' || asset.id === '2_computerint') {
+    if (asset.id === '1_cio') return { audio: cioHoverAudioEl, volume: 0.55 };
+    if (asset.id === '2_computerint') {
       return { audio: clickHoverAudioEl, volume: 0.5 };
     }
 
@@ -1823,9 +1848,23 @@
         id: 'office-horizontal-scroll',
         invalidateOnRefresh: true,
         onRefresh: (self) => {
+          if (!isSceneInteractive) {
+            targetCameraX = 0;
+            cameraX = 0;
+            officePhaserGame?.setCameraX(0);
+            if (self.scroll() !== self.start) self.scroll(self.start);
+            return;
+          }
           setTargetCameraX(self.progress * maxScrollX, { bypassResistance: true });
         },
         onUpdate: (self) => {
+          if (!isSceneInteractive) {
+            targetCameraX = 0;
+            cameraX = 0;
+            officePhaserGame?.setCameraX(0);
+            if (self.scroll() !== self.start) self.scroll(self.start);
+            return;
+          }
           setTargetCameraX(self.progress * maxScrollX);
         },
         pin: stageEl,
@@ -1951,6 +1990,7 @@
         {#if isInteractiveAsset(item)}
           <button
             class="office-asset office-middle-asset office-interactive-asset reveal-layer middle-layer"
+            class:office-keys-asset={item.id === '1_chiavi'}
             type="button"
             aria-label={item.ariaLabel}
             style={getForegroundStyle(item)}
@@ -1979,6 +2019,7 @@
         {#if isInteractiveAsset(item)}
           <button
             class="office-asset office-foreground-asset office-interactive-asset reveal-layer foreground-layer"
+            class:office-keys-asset={item.id === '1_chiavi'}
             type="button"
             aria-label={item.ariaLabel}
             style={getForegroundStyle(item)}
@@ -2431,6 +2472,7 @@
 <audio bind:this={officeAmbientAudioEl} src="/sound/office_background.wav" preload="auto"></audio>
 <audio bind:this={keysHoverAudioEl} src="/sound/chiavi.mp3" preload="auto"></audio>
 <audio bind:this={clickHoverAudioEl} src="/sound/click.mp3" preload="auto"></audio>
+<audio bind:this={cioHoverAudioEl} src="/sound/ciook.mp3" preload="auto"></audio>
 <audio bind:this={mapHoverAudioEl} src="/sound/mappa.mp3" preload="auto"></audio>
 <audio
   bind:this={carloOfficeAudioEl}
@@ -2501,8 +2543,8 @@
   .office-stage {
     position: relative;
     width: 100%;
-    height: 100svh;
-    min-height: 100svh;
+    height: var(--app-viewport-height);
+    min-height: var(--app-viewport-height);
     overflow: hidden;
     background: var(--color-surface-page);
     cursor: url('/cursors/retrogusto-cursor.svg') 5 5, auto;
@@ -2536,7 +2578,7 @@
   .office-scroll-space {
     position: relative;
     min-width: 100%;
-    min-height: 100svh;
+    min-height: var(--app-viewport-height);
   }
 
   .office-world {
@@ -2544,7 +2586,7 @@
     left: 0;
     top: 0;
     min-width: 100%;
-    min-height: 100svh;
+    min-height: var(--app-viewport-height);
     overflow: hidden;
   }
 
@@ -2654,6 +2696,16 @@
   .office-interactive-asset:hover img,
   .office-interactive-asset:focus-visible img {
     animation: officeMapHoverLanding 860ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .office-keys-asset img {
+    transform-origin: 50% 16%;
+    animation: officeKeysIdle 1.9s ease-in-out infinite;
+  }
+
+  .office-keys-asset:hover img,
+  .office-keys-asset:focus-visible img {
+    animation: officeKeysHoverJumpShake 620ms cubic-bezier(0.2, 1, 0.28, 1) both;
   }
 
   .object-shine {
@@ -3081,6 +3133,51 @@
 
     100% {
       transform: translate3d(0, -6px, 0) rotate(-0.35deg) scale(1.018);
+    }
+  }
+
+  @keyframes officeKeysIdle {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) rotate(-2.1deg);
+    }
+
+    50% {
+      transform: translate3d(0, 0, 0) rotate(2.1deg);
+    }
+  }
+
+  @keyframes officeKeysHoverJumpShake {
+    0% {
+      transform: translate3d(0, 0, 0) rotate(0deg);
+    }
+
+    18% {
+      transform: translate3d(0, -9px, 0) rotate(-4.8deg);
+    }
+
+    30% {
+      transform: translate3d(3px, -10px, 0) rotate(5.2deg);
+    }
+
+    42% {
+      transform: translate3d(-3px, -9px, 0) rotate(-5.6deg);
+    }
+
+    54% {
+      transform: translate3d(2px, -8px, 0) rotate(4.2deg);
+    }
+
+    68% {
+      transform: translate3d(-1px, -5px, 0) rotate(-2.6deg);
+    }
+
+    82% {
+      transform: translate3d(0, 1px, 0) rotate(1.2deg);
+    }
+
+    100% {
+      transform: translate3d(0, 0, 0) rotate(0deg);
     }
   }
 

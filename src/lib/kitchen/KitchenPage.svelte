@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import VolumeMaxIcon from '$lib/VolumeMaxIcon.svelte';
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
+  import { animateCompat, waitForAnimationCompat } from '$lib/scene/browser-compat';
   import { readAudioMutedPreference, writeAudioMutedPreference } from '$lib/scene/audio-preference';
   import KitchenScene from './KitchenScene.svelte';
 
@@ -16,13 +17,18 @@
     writeAudioMutedPreference(isAudioMuted);
   }
 
-  function navigateWithAudioFade(event: MouseEvent, href: string) {
+  function navigateWithAudioFade(event: MouseEvent, href: string, options: { immediate?: boolean } = {}) {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     event.preventDefault();
     if (isLeavingSection) return;
 
     isLeavingSection = true;
     isAudioMuted = true;
+    if (options.immediate) {
+      void goto(href);
+      return;
+    }
+
     window.setTimeout(() => {
       void goto(href);
     }, sectionAudioFadeOutMs);
@@ -41,7 +47,8 @@
 
     requestAnimationFrame(() => {
       const animations = transitionEls.map((el) =>
-        el.animate(
+        animateCompat(
+          el,
           [
             { opacity: getComputedStyle(el).opacity },
             { opacity: '0' }
@@ -50,7 +57,7 @@
         )
       );
 
-      Promise.allSettled(animations.map((animation) => animation.finished)).then(() => {
+      Promise.allSettled(animations.map((animation) => waitForAnimationCompat(animation, 220))).then(() => {
         transitionEls.forEach((el) => el.remove());
       });
     });
@@ -96,7 +103,7 @@
       class="home-link press-ring-control"
       href="/?view=cards"
       aria-label="Torna alle card"
-      onclick={(event) => navigateWithAudioFade(event, '/?view=cards')}
+      onclick={(event) => navigateWithAudioFade(event, '/?view=cards', { immediate: true })}
     >
       <span class="topbar-control-content" aria-hidden="true">
         <span class="close-icon"></span>
@@ -117,7 +124,7 @@
 
   .game-page {
     position: relative;
-    min-height: 100svh;
+    min-height: var(--app-viewport-height);
     overflow-x: hidden;
     color: var(--color-text-primary);
     background: var(--color-surface-page);
@@ -411,7 +418,7 @@
 
   .game-shell {
     position: relative;
-    height: 100svh;
+    height: var(--app-viewport-height);
   }
 
   @media (max-width: 760px) {

@@ -16,6 +16,7 @@ export type ParallaxPhaserGameOptions = {
   floorDepth?: number;
   getChunkPath: (chunk: SceneChunk) => string;
   getViewport: () => ParallaxSceneViewport;
+  isAudioMuted?: () => boolean;
   layerBaseDepth?: Record<string, number>;
   layerSpeed?: Record<string, number>;
   onLoadingProgress?: (progress: number) => void;
@@ -28,7 +29,9 @@ export type ParallaxPhaserGameOptions = {
 export type ParallaxPhaserGameHandle = {
   destroy: () => void;
   resize: (width: number, height: number) => void;
+  setAudioMuted: (isMuted: boolean) => void;
   setCameraX: (cameraX: number) => void;
+  setHoveredAssetId: (assetId?: string) => void;
 };
 
 function getPixelRatio() {
@@ -57,6 +60,7 @@ export async function createParallaxPhaserGame(
   const initialPixelRatio = getPixelRatio();
   let game: Phaser.Game | undefined;
   let sceneApi: ParallaxMainSceneApi | undefined;
+  let latestAudioMuted = options.isAudioMuted?.() ?? false;
   let latestCameraX = 0;
 
   const ParallaxMainScene = createParallaxMainSceneClass(Phaser, {
@@ -68,12 +72,14 @@ export async function createParallaxPhaserGame(
     floorDepth: options.floorDepth,
     getChunkPath: options.getChunkPath,
     getViewport: options.getViewport,
+    isAudioMuted: () => latestAudioMuted,
     layerBaseDepth: options.layerBaseDepth,
     layerSpeed: options.layerSpeed,
     onLoadingProgress: options.onLoadingProgress,
     onReady: () => {
       sceneApi = game?.scene.getScene('ParallaxMain') as ParallaxMainSceneApi | undefined;
       sceneApi?.setCameraX(latestCameraX);
+      sceneApi?.setAudioMuted(latestAudioMuted);
       setCanvasCssSize(game, viewport.width, viewport.height);
       options.onReady?.();
     },
@@ -121,9 +127,16 @@ export async function createParallaxPhaserGame(
       sceneApi?.resize(width, height, pixelRatio);
       setCanvasCssSize(game, width, height);
     },
+    setAudioMuted(isMuted: boolean) {
+      latestAudioMuted = isMuted;
+      sceneApi?.setAudioMuted(isMuted);
+    },
     setCameraX(cameraX: number) {
       latestCameraX = cameraX;
       sceneApi?.setCameraX(cameraX);
+    },
+    setHoveredAssetId(assetId?: string) {
+      sceneApi?.setHoveredAssetId(assetId);
     }
   };
 }

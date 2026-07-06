@@ -1857,7 +1857,8 @@
     const epPage        = ease(pageProgress);
     const brandReveal   = clamp(brandProgress);
     const epBrand       = ease(brandReveal);
-    setCssVars(homeScreen, { '--page-y': `${(-100 * epPage).toFixed(2)}svh` });
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    setCssVars(homeScreen, { '--page-y': px(-viewportHeight * epPage) });
     setCssVars(introScrollCueEl, {
       '--intro-scroll-cue-opacity': fixed(1 - epPage),
       '--intro-scroll-cue-y': px(epPage * 10)
@@ -2950,7 +2951,7 @@
   }
 
   .audio-gate {
-    --audio-gate-orbit-size: min(calc(100vw - 48px), calc(100svh - 48px), 634px);
+    --audio-gate-orbit-size: min(calc(100vw - 48px), calc(var(--app-viewport-height) - 48px), 634px);
 
     position: fixed;
     z-index: 100;
@@ -3522,7 +3523,7 @@
 
   .home {
     position: fixed; inset: 0;
-    width: 100%; height: 100svh; overflow: hidden;
+    width: 100%; height: var(--app-viewport-height); overflow: hidden;
     background: var(--color-surface-page); color: var(--color-text-primary);
     transform: translateY(var(--page-y, 0));
     transition: transform 160ms ease-out;
@@ -4632,7 +4633,7 @@
   .about-full-interview-scroll {
     box-sizing: border-box;
     width: min(589px, 100%);
-    max-height: min(520px, calc(100svh - 342px));
+    max-height: min(520px, calc(var(--app-viewport-height) - 342px));
     margin-top: 44px;
     padding: 22px 22px 92px 0;
     overflow-x: hidden;
@@ -5666,7 +5667,7 @@
   .role-grid {
     position: absolute; z-index: 2;
     top: 130px; left: var(--layout-page-gutter); right: var(--layout-page-gutter);
-    height: min(620px, calc(100svh - 190px));
+    height: min(620px, calc(var(--app-viewport-height) - 190px));
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 386px));
     justify-content: space-between;
@@ -6333,7 +6334,7 @@
     .role-grid {
       top: 104px; left: var(--layout-page-gutter-mobile);
       width: calc(100vw - var(--spacing-8));
-      height: calc(100svh - 132px);
+      height: calc(var(--app-viewport-height) - 132px);
       grid-template-columns: 1fr;
       grid-template-rows: repeat(3, minmax(0, 1fr));
       gap: 12px;

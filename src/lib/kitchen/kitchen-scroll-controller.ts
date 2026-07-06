@@ -32,6 +32,7 @@ type KitchenScrollControllerOptions = {
   bridge?: KitchenControllerBridge;
   config?: KitchenSceneConfig;
   getViewport: () => Viewport;
+  isScrollEnabled?: () => boolean;
   onUpdate?: (state: KitchenControllerState) => void;
   stageEl: HTMLElement;
 };
@@ -64,6 +65,7 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
       initialKitchenControllerState
   );
   const config = options.config ?? kitchenSceneConfig;
+  const isScrollEnabled = options.isScrollEnabled ?? (() => true);
   const triggers = createTriggerRegistry<KitchenTriggerContext>();
   const onUpdate = options.onUpdate ?? (() => {});
   let activeChefId: KitchenChefId | undefined;
@@ -101,12 +103,35 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
   }
 
   function scrollToCameraX(value: number) {
+    if (!isScrollEnabled()) {
+      cameraX = 0;
+      targetCameraX = 0;
+      scrollTrigger.scroll(scrollTrigger.start);
+      return;
+    }
+
     setTargetCameraX(value);
     scrollTrigger.scroll(getScrollForCameraX(targetCameraX));
   }
 
   function evaluateScene(delta: number, now: number) {
     const metrics = getMetrics();
+    if (!isScrollEnabled()) {
+      cameraX = 0;
+      targetCameraX = 0;
+      activeChefId = undefined;
+      const state: KitchenControllerState = {
+        activeChefId,
+        cameraX,
+        progress: 0,
+        targetCameraX
+      };
+
+      bridge.updateState(state);
+      onUpdate(state);
+      return;
+    }
+
     if (prefersReducedMotion) {
       cameraX = targetCameraX;
     } else {
@@ -168,9 +193,23 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
     id: 'kitchen-horizontal-scroll',
     invalidateOnRefresh: true,
     onRefresh: (self) => {
+      if (!isScrollEnabled()) {
+        cameraX = 0;
+        targetCameraX = 0;
+        activeChefId = undefined;
+        if (self.scroll() !== self.start) self.scroll(self.start);
+        return;
+      }
       setTargetCameraX(self.progress * getMetrics().maxScrollX);
     },
     onUpdate: (self) => {
+      if (!isScrollEnabled()) {
+        cameraX = 0;
+        targetCameraX = 0;
+        activeChefId = undefined;
+        if (self.scroll() !== self.start) self.scroll(self.start);
+        return;
+      }
       setTargetCameraX(self.progress * getMetrics().maxScrollX);
     },
     pin: options.stageEl,
@@ -189,6 +228,7 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
 
   return {
     beginDrag(clientX: number) {
+      if (!isScrollEnabled()) return;
       dragging = true;
       dragStartX = clientX;
       dragScrollStart = scrollTrigger.scroll();
@@ -202,8 +242,8 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
       scrollTrigger.kill();
     },
     dragTo(clientX: number) {
-      if (!dragging) return;
-      scrollTrigger.scroll(dragScrollStart + (dragStartX - clientX) * 1.95);
+      if (!dragging || !isScrollEnabled()) return;
+      scrollTrigger.scroll(dragScrollStart + (dragStartX - clientX) * 1.54);
     },
     endDrag() {
       dragging = false;
@@ -215,6 +255,7 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
       ScrollTrigger.refresh();
     },
     scrollBy(delta: number) {
+      if (!isScrollEnabled()) return;
       scrollToCameraX(targetCameraX + delta);
     }
   };

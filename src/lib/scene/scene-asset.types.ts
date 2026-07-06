@@ -24,6 +24,12 @@ export type SceneAssetBase = {
   zOffset?: number;
   opacity?: number;
   interactive?: boolean;
+  hoverAnimation?: 'pop' | 'shake';
+  hoverPopHeightMultiplier?: number;
+  hoverSoundTrigger?: 'hover' | 'click' | 'both';
+  idleAnimation?: 'bob' | 'sway';
+  hoverSoundSrc?: string;
+  hoverSoundVolume?: number;
   viewportBottomAligned?: boolean;
   overlapX?: number;
 
