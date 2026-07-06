@@ -22,6 +22,7 @@ export type KitchenPhaserGameHandle = {
   destroy: () => void;
   resize: (width: number, height: number) => void;
   setCameraX: (cameraX: number) => void;
+  setObjectHoverSuppressed: (isSuppressed: boolean) => void;
 };
 
 function getPixelRatio() {
@@ -50,6 +51,7 @@ export async function createKitchenPhaserGame(
   const initialPixelRatio = getPixelRatio();
   let sceneApi: KitchenMainSceneApi | undefined;
   let latestCameraX = 0;
+  let isObjectHoverSuppressed = false;
   let game: Phaser.Game | undefined;
 
   const KitchenMainScene = createKitchenMainSceneClass(Phaser, {
@@ -58,6 +60,7 @@ export async function createKitchenPhaserGame(
     chunks: options.chunks,
     floorTopY: options.floorTopY,
     getViewport: options.getViewport,
+    isObjectHoverSuppressed: () => isObjectHoverSuppressed,
     onLoadingProgress: options.onLoadingProgress,
     onReady: () => {
       sceneApi = game?.scene.getScene('KitchenMain') as KitchenMainSceneApi | undefined;
@@ -110,6 +113,9 @@ export async function createKitchenPhaserGame(
     setCameraX(cameraX: number) {
       latestCameraX = cameraX;
       sceneApi?.setCameraX(cameraX);
+    },
+    setObjectHoverSuppressed(isSuppressed: boolean) {
+      isObjectHoverSuppressed = isSuppressed;
     }
   };
 }

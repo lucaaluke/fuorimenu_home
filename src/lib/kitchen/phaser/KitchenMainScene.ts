@@ -30,6 +30,7 @@ export type KitchenMainSceneDependencies = {
   chunks?: SceneChunk[];
   floorTopY?: number;
   getViewport: () => KitchenMainSceneViewport;
+  isObjectHoverSuppressed?: () => boolean;
   layerBaseDepth?: Record<SceneLayer, number>;
   layerSpeed?: Record<SceneLayer, number>;
   onLoadingProgress?: (progress: number) => void;
@@ -165,7 +166,12 @@ export function createKitchenMainSceneClass(Phaser: PhaserModule, dependencies: 
 
         return [{ asset, sprite }];
       });
-      startKitchenSceneAnimations(this, this.assetSprites, () => this.sceneScale);
+      startKitchenSceneAnimations(
+        this,
+        this.assetSprites,
+        () => this.sceneScale,
+        () => dependencies.isObjectHoverSuppressed?.() ?? false
+      );
 
       this.resize(this.viewport.width, this.viewport.height);
       dependencies.onReady?.();

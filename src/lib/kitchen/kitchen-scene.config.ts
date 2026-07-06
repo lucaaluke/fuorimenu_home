@@ -145,7 +145,7 @@ export const kitchenSceneConfig = {
     foreground: 1
   },
   cursorCss: "url('/cursors/retrogusto-cursor.svg') 5 5, auto",
-  pointerCursorCss: "url('/cursors/retrogusto-cursor.svg') 5 5, pointer",
+  pointerCursorCss: "url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer",
   title: 'Cucina',
   chefQuote:
     'Il 30 di gennaio era ancora un cantiere, quindi si entrava con l\'elmetto, col giubbotto catarifrangente e le scarpe antinfortunistiche.'

@@ -68,9 +68,9 @@
 </svelte:head>
 
 <main class="game-page">
-  <header class="kitchen-topbar" aria-label="Navigazione cucina">
+  <header class="scene-topbar kitchen-topbar" aria-label="Navigazione cucina">
     <a
-      class="logo"
+      class="logo press-ring-control"
       href="/?view=brand"
       aria-label="Vai al brand screen Fuorimenù"
       onclick={(event) => navigateWithAudioFade(event, '/?view=brand')}
@@ -78,7 +78,7 @@
       <span class="topbar-control-content">FM</span>
     </a>
     <button
-      class="icon-button top-bar-audio"
+      class="icon-button top-bar-audio press-ring-control"
       type="button"
       aria-label={audioLabel}
       aria-pressed={isAudioMuted}
@@ -93,7 +93,7 @@
       </span>
     </button>
     <a
-      class="home-link"
+      class="home-link press-ring-control"
       href="/?view=cards"
       aria-label="Torna alle card"
       onclick={(event) => navigateWithAudioFade(event, '/?view=cards')}
@@ -193,7 +193,7 @@
     border-radius: var(--radius-full);
     background: transparent;
     color: var(--topbar-control-fg);
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, pointer;
+    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     isolation: isolate;
     transform: scale(var(--button-hover-scale));
     transition:
@@ -311,6 +311,77 @@
   .kitchen-topbar .icon-button:active::before,
   .kitchen-topbar .home-link:active::before {
     opacity: 1;
+  }
+
+  .scene-topbar .press-ring-control {
+    --press-ring-opacity: 0;
+    --press-ring-inner-size: 0px;
+    --press-content-scale: 1;
+    --button-lift-x: 0px;
+    --button-lift-y: 0px;
+  }
+
+  .scene-topbar .press-ring-control::before {
+    display: none;
+  }
+
+  .scene-topbar .press-ring-control::after {
+    border-color: currentColor;
+    background: transparent;
+    box-shadow: inset 0 0 0 var(--press-ring-inner-size) currentColor;
+    opacity: var(--press-ring-opacity);
+    transform: none;
+    transition:
+      border-color 160ms ease,
+      box-shadow 170ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 120ms ease;
+  }
+
+  .scene-topbar .press-ring-control .topbar-control-content {
+    transform: scale(var(--press-content-scale));
+    transition:
+      color 160ms ease,
+      transform 170ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .scene-topbar .press-ring-control:hover,
+  .scene-topbar .press-ring-control:focus-visible {
+    --button-lift-x: 0px;
+    --button-lift-y: 0px;
+    --press-ring-opacity: 1;
+  }
+
+  .scene-topbar .press-ring-control:hover::after,
+  .scene-topbar .press-ring-control:focus-visible::after {
+    border-color: currentColor;
+    background: transparent;
+  }
+
+  .scene-topbar .press-ring-control:active {
+    --button-lift-x: 0px;
+    --button-lift-y: 0px;
+    --press-ring-opacity: 1;
+    --press-ring-inner-size: 5px;
+    --press-content-scale: 0.83;
+  }
+
+  .scene-topbar .home-link.press-ring-control .topbar-control-content {
+    width: 24px;
+    height: 24px;
+  }
+
+  .scene-topbar .home-link.press-ring-control .close-icon {
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(currentColor, currentColor) center / 24px 2.4px no-repeat;
+    transform: rotate(45deg);
+  }
+
+  .scene-topbar .home-link.press-ring-control .close-icon::before {
+    top: 50%;
+    width: 24px;
+    height: 2.4px;
+    transform: translateY(-50%) rotate(90deg);
   }
 
   .logo:focus-visible,

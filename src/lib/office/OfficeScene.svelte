@@ -11,8 +11,10 @@
   import { clamp, ease, px } from '$lib/scene/math';
   import { loadGsapWithScrollTrigger, type Gsap } from '$lib/scene/gsap-loader';
   import type { InteractiveSceneAsset, SceneAsset, SceneChunk } from '$lib/scene/scene-asset.types';
+  import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
   import { getSceneAssetStyle } from '$lib/scene/scene-utils';
   import { createViewportObserver } from '$lib/scene/viewport';
+  import type { ParallaxPhaserGameHandle } from '$lib/scene/phaser/ParallaxPhaserGame';
 
   let { isAudioMuted = false } = $props<{ isAudioMuted?: boolean }>();
 
@@ -25,6 +27,8 @@
   let targetCameraX = 0;
   let isDragging = $state(false);
   let isSceneLoaded = $state(false);
+  let isPhaserReady = $state(false);
+  let phaserLoadingProgress = $state(0);
   let hasPointerScenePosition = $state(false);
   let pointerSceneY = $state(0);
   let pointerSceneX = $state({
@@ -34,27 +38,45 @@
   });
   let nearestSceneAsset = $state<{ id: string; distance: number }>();
   let prefersReducedMotion = $state(false);
+  let shouldResumeOfficeAudioFromMutedPage = false;
   let officeAmbientAudioEl: HTMLAudioElement;
   let keysHoverAudioEl: HTMLAudioElement;
   let clickHoverAudioEl: HTMLAudioElement;
   let mapHoverAudioEl: HTMLAudioElement;
   let carloOfficeAudioEl: HTMLAudioElement;
+  let carloOffice2AudioEl: HTMLAudioElement;
+  let elisabettaOfficeAudioEl: HTMLAudioElement;
   let faustoOfficeAudioEl: HTMLAudioElement;
   let isAmbientAudioStarted = false;
   let isCarloOfficeAudioActive = $state(false);
   let isCarloOfficeAudioStarting = false;
   let hasPlayedCarloOfficeAudio = false;
+  let isCarloOffice2AudioActive = $state(false);
+  let isCarloOffice2AudioStarting = false;
+  let hasPlayedCarloOffice2Audio = false;
+  let isElisabettaOfficeAudioActive = $state(false);
+  let isElisabettaOfficeAudioStarting = false;
+  let hasPlayedElisabettaOfficeAudio = false;
   let isFaustoOfficeAudioActive = $state(false);
   let isFaustoOfficeAudioStarting = false;
   let hasPlayedFaustoOfficeAudio = false;
   let carloOfficeRevealProgress = $state(0);
   let carloOfficeMutedPageIndex = $state(0);
+  let carloOffice2RevealProgress = $state(0);
+  let carloOffice2MutedPageIndex = $state(0);
+  let elisabettaOfficeRevealProgress = $state(0);
+  let elisabettaOfficeMutedPageIndex = $state(0);
   let faustoOfficeRevealProgress = $state(0);
   let faustoOfficeMutedPageIndex = $state(0);
   let gsap: Gsap | undefined;
   let officeAmbientFadeFrame: number | undefined;
   let carloOfficeFadeFrame: number | undefined;
+  let carloOffice2FadeFrame: number | undefined;
+  let elisabettaOfficeFadeFrame: number | undefined;
   let faustoOfficeFadeFrame: number | undefined;
+  let officePhaserContainerEl: HTMLElement;
+  let officePhaserGame: ParallaxPhaserGameHandle | undefined;
+  let officePhaserResizeTimer: number | undefined;
   let dragStartX = 0;
   let dragScrollStart = 0;
   let scrollTrigger:
@@ -82,33 +104,68 @@
   const coord = (value: number) => Math.round(value).toString();
   const coordDecimal = (value: number) => value.toFixed(3);
   const officeCoordinateAssets = [...officeMiddleAssets, ...officeForegroundAssets];
+  const officePhaserAssets = [...officeFloorAssets, ...officeMiddleAssets, ...officeForegroundAssets];
   const scrollSpaceStyle = $derived(
     `width: ${scenePx(worldWidth)}; height: ${scenePx(viewportHeight)}`
   );
   const worldStyle = $derived(
     `width: ${scenePx(viewportWidth)}; height: ${scenePx(viewportHeight)}`
   );
+  const officeHandoffResistance = {
+    maxFactor: 0.86,
+    minFactor: 0.52,
+    zoneBeforeDisappearPx: 200
+  };
+  const firstOfficeDialogueStartCameraX = 600;
   const officeAmbientVolume = 0.32;
   const officeAmbientFadeInDuration = 1.2;
   const officeAmbientFadeOutDuration = 0.36;
+  const officeDialogueAudioFadeInDuration = 0.04;
+  const officeDialogueAudioHandoffFadeOutDuration = 0;
   const carloOfficeAudioVolume = 1;
-  const carloOfficeAudioFadeOutDuration = 0.36;
+  const carloOfficeAudioFadeOutDuration = 0.08;
   const carloOfficeRevealDurationSeconds = 37.54;
   const carloOfficeSpeech =
     'Qui parliamo del 2018 che abbiamo sviluppato il dossier di candidatura. Nel 2019 Milano Cortina vince viene nominata organizzatrice delle Olimpiadi del 2026, quindi 7 anni prima. E poi nel 2021 io entro nello staff come direttore Food and Beverage. Ci sono 110-120 delegati delle federazioni internazionali, che sono i Presidenti dei vari Comitati Olimpici nel mondo, che si riuniscono, valutano il dossier che tu hai presentato e decidono tra le varie città candidate quale deve essere quella che vince, quindi tu devi essere molto esaustivo, molto attraente.';
+  const carloOffice2AudioVolume = 1;
+  const carloOffice2AudioFadeOutDuration = 0.08;
+  const carloOffice2RevealDurationSeconds = 41.74;
+  const carloOffice2StartCameraX = 3785;
+  const carloOffice2EndCameraX = 6844;
+  const carloOffice2Speech =
+    "La complessità di questa Olimpiade era che, mentre a Torino era una città, Torino, qui avevi quattro regioni, 9 province e 13 siti di gara. C'era un villaggio olimpico a Predazzo, un villaggio olimpico a Livigno, un villaggio olimpico a Cortina, poi avevi tre cluster alberghieri che fungevano da villaggio olimpico. E quando io dovevo fare l'impostazione reale sul posto e vedere come erano fatti, per fare la visita dei 7 io ci ho impiegato quattro giorni. Per spiegarlo ad un americano facevo questo esempio: è come se tu hai le Olimpiadi a Washington, poi hai la gara di bob a New York e poi le gare di fondo a Charleston.";
+  const elisabettaOfficeAudioVolume = 1;
+  const elisabettaOfficeAudioFadeOutDuration = 0.08;
+  const elisabettaOfficeRevealDurationSeconds = 47.57;
+  const elisabettaOfficeStartCameraX = 7245;
+  const elisabettaOfficeEndCameraX = 13000;
+  const elisabettaOfficeSpeech =
+    "Il lavoro solitamente si divide in tre fasi: c'è la fase di strategia, c'è il momento di planning, in cui si cercano i fornitori, e poi una fase di Games Time, dove invece si fanno solo operations. La nostra strategia è stata molto condizionata dal fatto che fossero le prime Olimpiadi del mondo così sparse sul territorio, Ci sono stati una serie di incontri preliminari con alcuni componenti di alcune federazioni e uno di questi è stato sicuramente lo Chef de mission, perché in questo meeting vengono i capi delegazione delle varie delegazioni internazionali. Al Games Time iniziano ad essere ogni tre giorni, ma prima ci sono almeno due o tre appuntamenti durante i quali si inizia a spiegare quale sarà il disegno e, mano a mano che si è pronti, si scende nei dettagli.";
   const faustoOfficeAudioVolume = 1;
-  const faustoOfficeAudioFadeOutDuration = 0.36;
+  const faustoOfficeAudioFadeOutDuration = 0.08;
   const faustoOfficeRevealDurationSeconds = 20.56;
   const faustoOfficeSpeech =
     "Le aziende coinvolte la maggior parte erano degli sponsor, quindi abbiamo dovuto adeguare anche il menu agli sponsor. Quindi è un incastro di situazioni molto particolari. Il menù tenete conto che noi l'abbiamo cambiato e rivisto almeno una dozzina di volte, proprio perché c'erano sponsor che uscivano e sponsor che entravano.";
   const carloOfficeEnterDistance = $derived(Math.max(130, viewportWidth * 0.16));
   const carloOfficeExitDistance = $derived(Math.max(170, viewportWidth * 0.2));
+  const carloOffice2EnterDistance = $derived(Math.max(130, viewportWidth * 0.13));
+  const carloOffice2ExitDistance = $derived(Math.max(170, viewportWidth * 0.16));
+  const elisabettaOfficeEnterDistance = $derived(Math.max(130, viewportWidth * 0.13));
+  const elisabettaOfficeExitDistance = $derived(Math.max(170, viewportWidth * 0.16));
   const faustoOfficeEnterDistance = $derived(Math.max(130, viewportWidth * 0.13));
   const faustoOfficeExitDistance = $derived(Math.max(170, viewportWidth * 0.16));
   const carloOfficeSpeechPages = $derived(getCarloOfficeSpeechPages());
   const carloOfficeSpeechPageCount = $derived(carloOfficeSpeechPages.length);
   const carloOfficeVisiblePageIndex = $derived(getCarloOfficeVisiblePageIndex());
   const carloOfficeSpeechInfo = $derived(getCarloOfficeCurrentSpeechPageInfo());
+  const carloOffice2SpeechPages = $derived(getCarloOffice2SpeechPages());
+  const carloOffice2SpeechPageCount = $derived(carloOffice2SpeechPages.length);
+  const carloOffice2VisiblePageIndex = $derived(getCarloOffice2VisiblePageIndex());
+  const carloOffice2SpeechInfo = $derived(getCarloOffice2CurrentSpeechPageInfo());
+  const elisabettaOfficeSpeechPages = $derived(getElisabettaOfficeSpeechPages());
+  const elisabettaOfficeSpeechPageCount = $derived(elisabettaOfficeSpeechPages.length);
+  const elisabettaOfficeVisiblePageIndex = $derived(getElisabettaOfficeVisiblePageIndex());
+  const elisabettaOfficeSpeechInfo = $derived(getElisabettaOfficeCurrentSpeechPageInfo());
   const faustoOfficeSpeechPages = $derived(getFaustoOfficeSpeechPages());
   const faustoOfficeSpeechPageCount = $derived(faustoOfficeSpeechPages.length);
   const faustoOfficeVisiblePageIndex = $derived(getFaustoOfficeVisiblePageIndex());
@@ -120,12 +177,12 @@
     return `${normalized}${separator}v=${assetVersion}`;
   }
 
-  function chunkAsset(chunk: SceneChunk) {
-    return versionedAsset(`office-figma/background/Slice ${chunk.frameIndex + 1}.png`);
+  function officeChunkPath(chunk: SceneChunk) {
+    return `office-figma/background/Slice ${chunk.frameIndex + 1}.png`;
   }
 
   function getCarloOfficeEnterCameraX() {
-    return Math.min(Math.max(120 * sceneScale, maxScrollX * 0.008), viewportWidth * 0.18);
+    return clamp(firstOfficeDialogueStartCameraX, 0, maxScrollX);
   }
 
   function getCarloOfficeExitCameraX() {
@@ -135,6 +192,30 @@
       (attaccapanniLogicalX * sceneScale - viewportWidth * 0.72) / foregroundSpeed;
 
     return clamp(cameraAtAttaccapanni, getCarloOfficeEnterCameraX() + viewportWidth * 0.5, maxScrollX);
+  }
+
+  function getCarloOffice2StartCameraX() {
+    return clamp(carloOffice2StartCameraX, 0, maxScrollX);
+  }
+
+  function getCarloOffice2EndCameraX() {
+    return clamp(
+      Math.max(carloOffice2EndCameraX, getCarloOffice2StartCameraX() + viewportWidth * 0.32),
+      getCarloOffice2StartCameraX(),
+      maxScrollX
+    );
+  }
+
+  function getElisabettaOfficeStartCameraX() {
+    return clamp(elisabettaOfficeStartCameraX, 0, maxScrollX);
+  }
+
+  function getElisabettaOfficeEndCameraX() {
+    return clamp(
+      Math.max(elisabettaOfficeEndCameraX, getElisabettaOfficeStartCameraX() + viewportWidth * 0.32),
+      getElisabettaOfficeStartCameraX(),
+      maxScrollX
+    );
   }
 
   function getFaustoOfficeAnchorCameraX(options: {
@@ -149,25 +230,14 @@
   }
 
   function getFaustoOfficeStartCameraX() {
-    return clamp(
-      getFaustoOfficeAnchorCameraX({
-        figmaX: 89178,
-        layer: 'middle'
-      }),
-      0,
-      maxScrollX
-    );
+    return clamp(13700, 0, maxScrollX);
   }
 
   function getFaustoOfficeEndCameraX() {
     const startCameraX = getFaustoOfficeStartCameraX();
-    const divanoCameraX = getFaustoOfficeAnchorCameraX({
-      figmaX: 111631,
-      layer: 'foreground'
-    });
 
     return clamp(
-      Math.max(divanoCameraX, startCameraX + viewportWidth * 0.42),
+      Math.max(16800, startCameraX + viewportWidth * 0.42),
       startCameraX + viewportWidth * 0.32,
       maxScrollX
     );
@@ -186,6 +256,37 @@
     return carloOfficeAudioEl.currentTime < duration - 0.2;
   }
 
+  function isCarloOffice2AudioUnfinished() {
+    if (isCarloOffice2AudioStarting) return true;
+    if (!isCarloOffice2AudioActive || !carloOffice2AudioEl || carloOffice2AudioEl.paused || carloOffice2AudioEl.ended) {
+      return false;
+    }
+
+    const duration = Number.isFinite(carloOffice2AudioEl.duration)
+      ? carloOffice2AudioEl.duration
+      : carloOffice2RevealDurationSeconds;
+
+    return carloOffice2AudioEl.currentTime < duration - 0.2;
+  }
+
+  function isElisabettaOfficeAudioUnfinished() {
+    if (isElisabettaOfficeAudioStarting) return true;
+    if (
+      !isElisabettaOfficeAudioActive ||
+      !elisabettaOfficeAudioEl ||
+      elisabettaOfficeAudioEl.paused ||
+      elisabettaOfficeAudioEl.ended
+    ) {
+      return false;
+    }
+
+    const duration = Number.isFinite(elisabettaOfficeAudioEl.duration)
+      ? elisabettaOfficeAudioEl.duration
+      : elisabettaOfficeRevealDurationSeconds;
+
+    return elisabettaOfficeAudioEl.currentTime < duration - 0.2;
+  }
+
   function isFaustoOfficeAudioUnfinished() {
     if (isFaustoOfficeAudioStarting) return true;
     if (!isFaustoOfficeAudioActive || !faustoOfficeAudioEl || faustoOfficeAudioEl.paused || faustoOfficeAudioEl.ended) {
@@ -202,27 +303,42 @@
   function applyCarloOfficeScrollResistance(nextValue: number, baseValue = targetCameraX) {
     const delta = nextValue - baseValue;
     const activeFausto = isFaustoOfficeAudioUnfinished();
-    if (delta <= 0 || (!isCarloOfficeAudioUnfinished() && !activeFausto)) return nextValue;
+    const activeElisabetta = isElisabettaOfficeAudioUnfinished();
+    const activeCarlo2 = isCarloOffice2AudioUnfinished();
+    if (delta <= 0 || (!isCarloOfficeAudioUnfinished() && !activeCarlo2 && !activeElisabetta && !activeFausto)) {
+      return nextValue;
+    }
 
-    if (activeFausto) {
-      const exitCameraX = getFaustoOfficeEndCameraX();
-      const stickyStart = Math.max(getFaustoOfficeStartCameraX(), exitCameraX - viewportWidth * 0.24);
-      const stickyEnd = exitCameraX + viewportWidth * 0.08;
+    const applyOfficeHandoffResistance = (enterCameraX: number, exitCameraX: number) => {
+      const stickyStart = Math.max(
+        enterCameraX,
+        exitCameraX - officeHandoffResistance.zoneBeforeDisappearPx
+      );
+      const stickyEnd = exitCameraX;
       if (cameraX < stickyStart || cameraX > stickyEnd) return nextValue;
 
       const releaseProgress = clamp((cameraX - stickyStart) / Math.max(stickyEnd - stickyStart, 1), 0, 1);
-      const factor = 0.84 - ease(releaseProgress) * 0.42;
+      const factor =
+        officeHandoffResistance.maxFactor -
+        ease(releaseProgress) *
+          (officeHandoffResistance.maxFactor - officeHandoffResistance.minFactor);
+
       return baseValue + delta * factor;
+    };
+
+    if (activeFausto) {
+      return applyOfficeHandoffResistance(getFaustoOfficeStartCameraX(), getFaustoOfficeEndCameraX());
     }
 
-    const exitCameraX = getCarloOfficeExitCameraX();
-    const stickyStart = Math.max(getCarloOfficeEnterCameraX(), exitCameraX - viewportWidth * 0.28);
-    const stickyEnd = exitCameraX + viewportWidth * 0.08;
-    if (cameraX < stickyStart || cameraX > stickyEnd) return nextValue;
+    if (activeElisabetta) {
+      return applyOfficeHandoffResistance(getElisabettaOfficeStartCameraX(), getElisabettaOfficeEndCameraX());
+    }
 
-    const releaseProgress = clamp((cameraX - stickyStart) / Math.max(stickyEnd - stickyStart, 1), 0, 1);
-    const factor = 0.84 - ease(releaseProgress) * 0.42;
-    return baseValue + delta * factor;
+    if (activeCarlo2) {
+      return applyOfficeHandoffResistance(getCarloOffice2StartCameraX(), getCarloOffice2EndCameraX());
+    }
+
+    return applyOfficeHandoffResistance(getCarloOfficeEnterCameraX(), getCarloOfficeExitCameraX());
   }
 
   function setTargetCameraX(value: number, options: { bypassResistance?: boolean } = {}) {
@@ -236,7 +352,20 @@
     viewportHeight = stageEl.clientHeight;
     targetCameraX = clamp(targetCameraX, 0, maxScrollX);
     cameraX = clamp(cameraX, 0, maxScrollX);
+    officePhaserGame?.setCameraX(cameraX);
+    scheduleOfficePhaserResize();
     scrollTrigger?.refresh();
+  }
+
+  function scheduleOfficePhaserResize() {
+    if (!officePhaserGame || !viewportWidth || !viewportHeight) return;
+    if (officePhaserResizeTimer) window.clearTimeout(officePhaserResizeTimer);
+
+    officePhaserResizeTimer = window.setTimeout(() => {
+      officePhaserResizeTimer = undefined;
+      officePhaserGame?.resize(viewportWidth, viewportHeight);
+      officePhaserGame?.setCameraX(cameraX);
+    }, 0);
   }
 
   function getScrollForCameraX(value: number) {
@@ -289,7 +418,13 @@
   }
 
   function evaluateScene(delta: number) {
-    if (targetCameraX > cameraX && isCarloOfficeAudioUnfinished()) {
+    if (
+      targetCameraX > cameraX &&
+      (isCarloOfficeAudioUnfinished() ||
+        isCarloOffice2AudioUnfinished() ||
+        isElisabettaOfficeAudioUnfinished() ||
+        isFaustoOfficeAudioUnfinished())
+    ) {
       targetCameraX = applyCarloOfficeScrollResistance(targetCameraX, cameraX);
     }
 
@@ -301,6 +436,7 @@
     cameraX = Math.abs(distance) < 0.08 ? targetCameraX : cameraX + distance * stepAmount;
     cameraX = clamp(cameraX, 0, maxScrollX);
     targetCameraX = clamp(targetCameraX, 0, maxScrollX);
+    officePhaserGame?.setCameraX(cameraX);
   }
 
   function onWheel(event: WheelEvent) {
@@ -418,7 +554,8 @@
 
   function getTitleStyle() {
     const titleFontSize = Math.min(180 * sceneScale, Math.max(56, (viewportWidth - 48) / 4.55));
-    const translateX = 92 * sceneScale - cameraX * resolvedLayerSpeed.title;
+    const topbarGutter = viewportWidth <= 760 ? 24 : 80;
+    const translateX = topbarGutter - cameraX * resolvedLayerSpeed.title;
 
     return [
       `left: ${scenePx(translateX)}`,
@@ -439,11 +576,61 @@
       1
     );
 
-    return clamp(ease(enter) * ease(exit), 0, 1);
+    const nextCueHandoff = 1 - clamp(
+      (cameraX - (getCarloOffice2StartCameraX() - 90)) / 90,
+      0,
+      1
+    );
+
+    return clamp(ease(enter) * ease(exit) * nextCueHandoff, 0, 1);
   }
 
   function isCarloOfficeDialogueVisible() {
-    return getCarloOfficePresence() > 0.16;
+    return cameraX < getCarloOffice2StartCameraX() && getCarloOfficePresence() > 0.16;
+  }
+
+  function getCarloOffice2Presence() {
+    const enter = clamp(
+      (cameraX - getCarloOffice2StartCameraX()) / Math.max(carloOffice2EnterDistance, 1),
+      0,
+      1
+    );
+    const exit = 1 - clamp(
+      (cameraX - getCarloOffice2EndCameraX()) / Math.max(carloOffice2ExitDistance, 1),
+      0,
+      1
+    );
+
+    const nextCueHandoff = 1 - clamp(
+      (cameraX - (getElisabettaOfficeStartCameraX() - 90)) / 90,
+      0,
+      1
+    );
+
+    return clamp(ease(enter) * ease(exit) * nextCueHandoff, 0, 1);
+  }
+
+  function isCarloOffice2DialogueVisible() {
+    return cameraX < getElisabettaOfficeStartCameraX() && getCarloOffice2Presence() > 0.16;
+  }
+
+  function getElisabettaOfficePresence() {
+    const enter = clamp(
+      (cameraX - getElisabettaOfficeStartCameraX()) / Math.max(elisabettaOfficeEnterDistance, 1),
+      0,
+      1
+    );
+    const exit = 1 - clamp(
+      (cameraX - getElisabettaOfficeEndCameraX()) / Math.max(elisabettaOfficeExitDistance, 1),
+      0,
+      1
+    );
+
+    return clamp(ease(enter) * ease(exit), 0, 1);
+  }
+
+  function isElisabettaOfficeDialogueVisible() {
+    return getElisabettaOfficePresence() > 0.16;
   }
 
   function getFaustoOfficePresence() {
@@ -489,6 +676,26 @@
       assetWidth: 1304,
       assetHeight: 2960,
       characterScale: viewportWidth <= 760 ? 1.1 : 1.16,
+      presence
+    });
+  }
+
+  function getCarloOffice2Style() {
+    const presence = getCarloOffice2Presence();
+    return getOfficeTestimonialStyle({
+      assetWidth: 1304,
+      assetHeight: 2960,
+      characterScale: viewportWidth <= 760 ? 1.1 : 1.16,
+      presence
+    });
+  }
+
+  function getElisabettaOfficeStyle() {
+    const presence = getElisabettaOfficePresence();
+    return getOfficeTestimonialStyle({
+      assetWidth: 1276,
+      assetHeight: 2960,
+      characterScale: viewportWidth <= 760 ? 1.08 : 1.14,
       presence
     });
   }
@@ -562,6 +769,14 @@
     return getOfficeSpeechPages(carloOfficeSpeech);
   }
 
+  function getCarloOffice2SpeechPages() {
+    return getOfficeSpeechPages(carloOffice2Speech);
+  }
+
+  function getElisabettaOfficeSpeechPages() {
+    return getOfficeSpeechPages(elisabettaOfficeSpeech);
+  }
+
   function getFaustoOfficeSpeechPages() {
     return getOfficeSpeechPages(faustoOfficeSpeech);
   }
@@ -609,11 +824,49 @@
     return 0;
   }
 
+  function getAudioDuration(audio: HTMLAudioElement | undefined, fallbackDuration: number) {
+    return audio && Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : fallbackDuration;
+  }
+
+  function getPageStartProgress(pages: string[], pageIndex: number) {
+    const normalizedSpeech = pages.join(' ');
+    const pageStart = getPageStartCharacterIndex(pages, pageIndex);
+    return clamp(pageStart / Math.max(normalizedSpeech.length, 1), 0, 0.98);
+  }
+
+  function getOfficeResumeProgress(
+    pages: string[],
+    revealProgress: number,
+    mutedPageIndex: number,
+    forceMutedPage = false
+  ) {
+    if (!isAudioMuted && !forceMutedPage) return clamp(revealProgress, 0, 0.98);
+
+    const visiblePageIndex = clamp(mutedPageIndex, 0, Math.max(pages.length - 1, 0));
+    return getPageStartProgress(pages, visiblePageIndex);
+  }
+
   function getCarloOfficeVisiblePageIndex() {
     return getOfficeVisiblePageIndex(
       getCarloOfficeSpeechPages(),
       carloOfficeRevealProgress,
       carloOfficeMutedPageIndex
+    );
+  }
+
+  function getCarloOffice2VisiblePageIndex() {
+    return getOfficeVisiblePageIndex(
+      getCarloOffice2SpeechPages(),
+      carloOffice2RevealProgress,
+      carloOffice2MutedPageIndex
+    );
+  }
+
+  function getElisabettaOfficeVisiblePageIndex() {
+    return getOfficeVisiblePageIndex(
+      getElisabettaOfficeSpeechPages(),
+      elisabettaOfficeRevealProgress,
+      elisabettaOfficeMutedPageIndex
     );
   }
 
@@ -641,11 +894,39 @@
       return;
     }
 
-    const pageStart = getPageStartCharacterIndex(pages, nextPageIndex);
-    const normalizedSpeech = pages.join(' ');
-    const progress = clamp(pageStart / Math.max(normalizedSpeech.length, 1), 0, 0.98);
+    const progress = getPageStartProgress(pages, nextPageIndex);
     carloOfficeRevealProgress = progress;
-    carloOfficeAudioEl.currentTime = progress * carloOfficeRevealDurationSeconds;
+    carloOfficeAudioEl.currentTime = progress * getAudioDuration(carloOfficeAudioEl, carloOfficeRevealDurationSeconds);
+  }
+
+  function setCarloOffice2Page(pageIndex: number) {
+    const pages = getCarloOffice2SpeechPages();
+    const nextPageIndex = clamp(pageIndex, 0, Math.max(pages.length - 1, 0));
+
+    if (isAudioMuted || !carloOffice2AudioEl) {
+      carloOffice2MutedPageIndex = nextPageIndex;
+      return;
+    }
+
+    const progress = getPageStartProgress(pages, nextPageIndex);
+    carloOffice2RevealProgress = progress;
+    carloOffice2AudioEl.currentTime =
+      progress * getAudioDuration(carloOffice2AudioEl, carloOffice2RevealDurationSeconds);
+  }
+
+  function setElisabettaOfficePage(pageIndex: number) {
+    const pages = getElisabettaOfficeSpeechPages();
+    const nextPageIndex = clamp(pageIndex, 0, Math.max(pages.length - 1, 0));
+
+    if (isAudioMuted || !elisabettaOfficeAudioEl) {
+      elisabettaOfficeMutedPageIndex = nextPageIndex;
+      return;
+    }
+
+    const progress = getPageStartProgress(pages, nextPageIndex);
+    elisabettaOfficeRevealProgress = progress;
+    elisabettaOfficeAudioEl.currentTime =
+      progress * getAudioDuration(elisabettaOfficeAudioEl, elisabettaOfficeRevealDurationSeconds);
   }
 
   function setFaustoOfficePage(pageIndex: number) {
@@ -657,11 +938,9 @@
       return;
     }
 
-    const pageStart = getPageStartCharacterIndex(pages, nextPageIndex);
-    const normalizedSpeech = pages.join(' ');
-    const progress = clamp(pageStart / Math.max(normalizedSpeech.length, 1), 0, 0.98);
+    const progress = getPageStartProgress(pages, nextPageIndex);
     faustoOfficeRevealProgress = progress;
-    faustoOfficeAudioEl.currentTime = progress * faustoOfficeRevealDurationSeconds;
+    faustoOfficeAudioEl.currentTime = progress * getAudioDuration(faustoOfficeAudioEl, faustoOfficeRevealDurationSeconds);
   }
 
   function advanceCarloOfficePage(event: Event) {
@@ -672,6 +951,26 @@
   function rewindCarloOfficePage(event: Event) {
     event.stopPropagation();
     setCarloOfficePage(getCarloOfficeVisiblePageIndex() - 1);
+  }
+
+  function advanceCarloOffice2Page(event: Event) {
+    event.stopPropagation();
+    setCarloOffice2Page(getCarloOffice2VisiblePageIndex() + 1);
+  }
+
+  function rewindCarloOffice2Page(event: Event) {
+    event.stopPropagation();
+    setCarloOffice2Page(getCarloOffice2VisiblePageIndex() - 1);
+  }
+
+  function advanceElisabettaOfficePage(event: Event) {
+    event.stopPropagation();
+    setElisabettaOfficePage(getElisabettaOfficeVisiblePageIndex() + 1);
+  }
+
+  function rewindElisabettaOfficePage(event: Event) {
+    event.stopPropagation();
+    setElisabettaOfficePage(getElisabettaOfficeVisiblePageIndex() - 1);
   }
 
   function advanceFaustoOfficePage(event: Event) {
@@ -689,6 +988,22 @@
       getCarloOfficeSpeechPages(),
       getCarloOfficeVisiblePageIndex(),
       carloOfficeRevealProgress
+    );
+  }
+
+  function getCarloOffice2CurrentSpeechPageInfo() {
+    return getOfficeCurrentSpeechPageInfo(
+      getCarloOffice2SpeechPages(),
+      getCarloOffice2VisiblePageIndex(),
+      carloOffice2RevealProgress
+    );
+  }
+
+  function getElisabettaOfficeCurrentSpeechPageInfo() {
+    return getOfficeCurrentSpeechPageInfo(
+      getElisabettaOfficeSpeechPages(),
+      getElisabettaOfficeVisiblePageIndex(),
+      elisabettaOfficeRevealProgress
     );
   }
 
@@ -734,6 +1049,16 @@
     return speech.slice(highlightedSpeech.length);
   }
 
+  function getCarloOffice2PendingSpeech() {
+    const { highlightedSpeech, speech } = getCarloOffice2CurrentSpeechPageInfo();
+    return speech.slice(highlightedSpeech.length);
+  }
+
+  function getElisabettaOfficePendingSpeech() {
+    const { highlightedSpeech, speech } = getElisabettaOfficeCurrentSpeechPageInfo();
+    return speech.slice(highlightedSpeech.length);
+  }
+
   function getFaustoOfficePendingSpeech() {
     const { highlightedSpeech, speech } = getFaustoOfficeCurrentSpeechPageInfo();
     return speech.slice(highlightedSpeech.length);
@@ -754,6 +1079,39 @@
       carloOfficeRevealProgress * normalizedSpeech.length
     );
   }
+
+  function syncCarloOffice2SpeechReveal() {
+    if (!carloOffice2AudioEl) return;
+    const duration = Number.isFinite(carloOffice2AudioEl.duration)
+      ? carloOffice2AudioEl.duration
+      : carloOffice2RevealDurationSeconds;
+    const revealDuration = Math.max(duration || carloOffice2RevealDurationSeconds, 0.001);
+
+    carloOffice2RevealProgress = clamp(carloOffice2AudioEl.currentTime / revealDuration, 0, 1);
+    const pages = getCarloOffice2SpeechPages();
+    const normalizedSpeech = pages.join(' ');
+    carloOffice2MutedPageIndex = getPageIndexForCharacterOffset(
+      pages,
+      carloOffice2RevealProgress * normalizedSpeech.length
+    );
+  }
+
+  function syncElisabettaOfficeSpeechReveal() {
+    if (!elisabettaOfficeAudioEl) return;
+    const duration = Number.isFinite(elisabettaOfficeAudioEl.duration)
+      ? elisabettaOfficeAudioEl.duration
+      : elisabettaOfficeRevealDurationSeconds;
+    const revealDuration = Math.max(duration || elisabettaOfficeRevealDurationSeconds, 0.001);
+
+    elisabettaOfficeRevealProgress = clamp(elisabettaOfficeAudioEl.currentTime / revealDuration, 0, 1);
+    const pages = getElisabettaOfficeSpeechPages();
+    const normalizedSpeech = pages.join(' ');
+    elisabettaOfficeMutedPageIndex = getPageIndexForCharacterOffset(
+      pages,
+      elisabettaOfficeRevealProgress * normalizedSpeech.length
+    );
+  }
+
 
   function syncFaustoOfficeSpeechReveal() {
     if (!faustoOfficeAudioEl) return;
@@ -777,19 +1135,9 @@
     onComplete?: () => void
   ) {
     if (!carloOfficeAudioEl) return;
+    targetVolume = clamp(targetVolume, 0, 1);
     if (carloOfficeFadeFrame) cancelAnimationFrame(carloOfficeFadeFrame);
     carloOfficeFadeFrame = undefined;
-
-    if (gsap && duration > 0) {
-      gsap.to(carloOfficeAudioEl, {
-        volume: targetVolume,
-        duration,
-        ease: 'power2.out',
-        overwrite: true,
-        onComplete
-      });
-      return;
-    }
 
     if (duration <= 0) {
       carloOfficeAudioEl.volume = targetVolume;
@@ -797,14 +1145,14 @@
       return;
     }
 
-    const initialVolume = carloOfficeAudioEl.volume;
+    const initialVolume = clamp(carloOfficeAudioEl.volume, 0, 1);
     const startedAt = performance.now();
     const durationMs = duration * 1000;
 
     const step = (now: number) => {
       if (!carloOfficeAudioEl) return;
       const progress = Math.min((now - startedAt) / durationMs, 1);
-      carloOfficeAudioEl.volume = initialVolume + (targetVolume - initialVolume) * progress;
+      carloOfficeAudioEl.volume = clamp(initialVolume + (targetVolume - initialVolume) * progress, 0, 1);
 
       if (progress < 1) {
         carloOfficeFadeFrame = requestAnimationFrame(step);
@@ -819,25 +1167,91 @@
     carloOfficeFadeFrame = requestAnimationFrame(step);
   }
 
+  function fadeCarloOffice2AudioVolume(
+    targetVolume: number,
+    duration: number,
+    onComplete?: () => void
+  ) {
+    if (!carloOffice2AudioEl) return;
+    targetVolume = clamp(targetVolume, 0, 1);
+    if (carloOffice2FadeFrame) cancelAnimationFrame(carloOffice2FadeFrame);
+    carloOffice2FadeFrame = undefined;
+
+    if (duration <= 0) {
+      carloOffice2AudioEl.volume = targetVolume;
+      onComplete?.();
+      return;
+    }
+
+    const initialVolume = clamp(carloOffice2AudioEl.volume, 0, 1);
+    const startedAt = performance.now();
+    const durationMs = duration * 1000;
+
+    const step = (now: number) => {
+      if (!carloOffice2AudioEl) return;
+      const progress = Math.min((now - startedAt) / durationMs, 1);
+      carloOffice2AudioEl.volume = clamp(initialVolume + (targetVolume - initialVolume) * progress, 0, 1);
+
+      if (progress < 1) {
+        carloOffice2FadeFrame = requestAnimationFrame(step);
+        return;
+      }
+
+      carloOffice2AudioEl.volume = targetVolume;
+      carloOffice2FadeFrame = undefined;
+      onComplete?.();
+    };
+
+    carloOffice2FadeFrame = requestAnimationFrame(step);
+  }
+
+  function fadeElisabettaOfficeAudioVolume(
+    targetVolume: number,
+    duration: number,
+    onComplete?: () => void
+  ) {
+    if (!elisabettaOfficeAudioEl) return;
+    targetVolume = clamp(targetVolume, 0, 1);
+    if (elisabettaOfficeFadeFrame) cancelAnimationFrame(elisabettaOfficeFadeFrame);
+    elisabettaOfficeFadeFrame = undefined;
+
+    if (duration <= 0) {
+      elisabettaOfficeAudioEl.volume = targetVolume;
+      onComplete?.();
+      return;
+    }
+
+    const initialVolume = clamp(elisabettaOfficeAudioEl.volume, 0, 1);
+    const startedAt = performance.now();
+    const durationMs = duration * 1000;
+
+    const step = (now: number) => {
+      if (!elisabettaOfficeAudioEl) return;
+      const progress = Math.min((now - startedAt) / durationMs, 1);
+      elisabettaOfficeAudioEl.volume = clamp(initialVolume + (targetVolume - initialVolume) * progress, 0, 1);
+
+      if (progress < 1) {
+        elisabettaOfficeFadeFrame = requestAnimationFrame(step);
+        return;
+      }
+
+      elisabettaOfficeAudioEl.volume = targetVolume;
+      elisabettaOfficeFadeFrame = undefined;
+      onComplete?.();
+    };
+
+    elisabettaOfficeFadeFrame = requestAnimationFrame(step);
+  }
+
   function fadeFaustoOfficeAudioVolume(
     targetVolume: number,
     duration: number,
     onComplete?: () => void
   ) {
     if (!faustoOfficeAudioEl) return;
+    targetVolume = clamp(targetVolume, 0, 1);
     if (faustoOfficeFadeFrame) cancelAnimationFrame(faustoOfficeFadeFrame);
     faustoOfficeFadeFrame = undefined;
-
-    if (gsap && duration > 0) {
-      gsap.to(faustoOfficeAudioEl, {
-        volume: targetVolume,
-        duration,
-        ease: 'power2.out',
-        overwrite: true,
-        onComplete
-      });
-      return;
-    }
 
     if (duration <= 0) {
       faustoOfficeAudioEl.volume = targetVolume;
@@ -845,14 +1259,14 @@
       return;
     }
 
-    const initialVolume = faustoOfficeAudioEl.volume;
+    const initialVolume = clamp(faustoOfficeAudioEl.volume, 0, 1);
     const startedAt = performance.now();
     const durationMs = duration * 1000;
 
     const step = (now: number) => {
       if (!faustoOfficeAudioEl) return;
       const progress = Math.min((now - startedAt) / durationMs, 1);
-      faustoOfficeAudioEl.volume = initialVolume + (targetVolume - initialVolume) * progress;
+      faustoOfficeAudioEl.volume = clamp(initialVolume + (targetVolume - initialVolume) * progress, 0, 1);
 
       if (progress < 1) {
         faustoOfficeFadeFrame = requestAnimationFrame(step);
@@ -873,22 +1287,9 @@
     onComplete?: () => void
   ) {
     if (!officeAmbientAudioEl) return;
+    targetVolume = clamp(targetVolume, 0, 1);
     if (officeAmbientFadeFrame) cancelAnimationFrame(officeAmbientFadeFrame);
     officeAmbientFadeFrame = undefined;
-
-    if (gsap && duration > 0) {
-      gsap.to(officeAmbientAudioEl, {
-        volume: targetVolume,
-        duration,
-        ease: 'power2.out',
-        overwrite: true,
-        onComplete: () => {
-          officeAmbientAudioEl.volume = targetVolume;
-          onComplete?.();
-        }
-      });
-      return;
-    }
 
     if (duration <= 0) {
       officeAmbientAudioEl.volume = targetVolume;
@@ -896,14 +1297,14 @@
       return;
     }
 
-    const initialVolume = officeAmbientAudioEl.volume;
+    const initialVolume = clamp(officeAmbientAudioEl.volume, 0, 1);
     const startedAt = performance.now();
     const durationMs = duration * 1000;
 
     const step = (now: number) => {
       if (!officeAmbientAudioEl) return;
       const progress = Math.min((now - startedAt) / durationMs, 1);
-      officeAmbientAudioEl.volume = initialVolume + (targetVolume - initialVolume) * progress;
+      officeAmbientAudioEl.volume = clamp(initialVolume + (targetVolume - initialVolume) * progress, 0, 1);
 
       if (progress < 1) {
         officeAmbientFadeFrame = requestAnimationFrame(step);
@@ -919,7 +1320,14 @@
   }
 
   function getOfficeAmbientTargetVolume() {
-    return officeAmbientVolume * (isCarloOfficeAudioActive || isFaustoOfficeAudioActive ? 0.28 : 1);
+    return officeAmbientVolume * (
+      isCarloOfficeAudioActive ||
+      isCarloOffice2AudioActive ||
+      isElisabettaOfficeAudioActive ||
+      isFaustoOfficeAudioActive
+        ? 0.28
+        : 1
+    );
   }
 
   function setOfficeAmbientVolume(duration = 0.48) {
@@ -958,33 +1366,41 @@
   async function startCarloOfficeAudio() {
     if (
       isAudioMuted ||
-      hasPlayedCarloOfficeAudio ||
+      isCarloOfficeAudioActive ||
+      (hasPlayedCarloOfficeAudio && carloOfficeRevealProgress >= 0.995) ||
       isCarloOfficeAudioStarting ||
       !carloOfficeAudioEl ||
+      cameraX >= getCarloOffice2StartCameraX() ||
       !isCarloOfficeDialogueVisible()
     ) {
       return;
     }
 
     isCarloOfficeAudioStarting = true;
+    stopAllOfficeDialogueAudio({ duration: officeDialogueAudioHandoffFadeOutDuration, except: 'carlo', resetReplay: true });
     gsap?.killTweensOf(carloOfficeAudioEl);
     if (carloOfficeFadeFrame) cancelAnimationFrame(carloOfficeFadeFrame);
     carloOfficeFadeFrame = undefined;
     carloOfficeAudioEl.pause();
-    carloOfficeAudioEl.currentTime =
-      clamp(carloOfficeMutedPageIndex / Math.max(getCarloOfficeSpeechPages().length - 1, 1), 0, 0.98) *
-      carloOfficeRevealDurationSeconds;
-    carloOfficeAudioEl.volume = carloOfficeAudioVolume;
-    carloOfficeRevealProgress = clamp(
-      carloOfficeAudioEl.currentTime / carloOfficeRevealDurationSeconds,
-      0,
-      1
+    carloOfficeRevealProgress = getOfficeResumeProgress(
+      getCarloOfficeSpeechPages(),
+      carloOfficeRevealProgress,
+      carloOfficeMutedPageIndex,
+      shouldResumeOfficeAudioFromMutedPage
     );
+    carloOfficeAudioEl.currentTime =
+      carloOfficeRevealProgress * getAudioDuration(carloOfficeAudioEl, carloOfficeRevealDurationSeconds);
+    carloOfficeAudioEl.volume = 0;
+    shouldResumeOfficeAudioFromMutedPage = false;
 
     try {
       await carloOfficeAudioEl.play();
-      hasPlayedCarloOfficeAudio = true;
+      if (!isCarloOfficeAudioStarting || isAudioMuted || !isCarloOfficeDialogueVisible()) {
+        carloOfficeAudioEl.pause();
+        return;
+      }
       isCarloOfficeAudioActive = true;
+      fadeCarloOfficeAudioVolume(carloOfficeAudioVolume, officeDialogueAudioFadeInDuration);
       setOfficeAmbientVolume();
     } catch {
       isCarloOfficeAudioActive = false;
@@ -993,10 +1409,103 @@
     }
   }
 
+  async function startCarloOffice2Audio() {
+    if (
+      isAudioMuted ||
+      isCarloOffice2AudioActive ||
+      (hasPlayedCarloOffice2Audio && carloOffice2RevealProgress >= 0.995) ||
+      isCarloOffice2AudioStarting ||
+      !carloOffice2AudioEl ||
+      cameraX >= getElisabettaOfficeStartCameraX() ||
+      !isCarloOffice2DialogueVisible()
+    ) {
+      return;
+    }
+
+    isCarloOffice2AudioStarting = true;
+    stopAllOfficeDialogueAudio({ duration: officeDialogueAudioHandoffFadeOutDuration, except: 'carlo2', resetReplay: true });
+    gsap?.killTweensOf(carloOffice2AudioEl);
+    if (carloOffice2FadeFrame) cancelAnimationFrame(carloOffice2FadeFrame);
+    carloOffice2FadeFrame = undefined;
+    carloOffice2AudioEl.pause();
+    carloOffice2RevealProgress = getOfficeResumeProgress(
+      getCarloOffice2SpeechPages(),
+      carloOffice2RevealProgress,
+      carloOffice2MutedPageIndex,
+      shouldResumeOfficeAudioFromMutedPage
+    );
+    carloOffice2AudioEl.currentTime =
+      carloOffice2RevealProgress * getAudioDuration(carloOffice2AudioEl, carloOffice2RevealDurationSeconds);
+    carloOffice2AudioEl.volume = 0;
+    shouldResumeOfficeAudioFromMutedPage = false;
+
+    try {
+      await carloOffice2AudioEl.play();
+      if (!isCarloOffice2AudioStarting || isAudioMuted || !isCarloOffice2DialogueVisible()) {
+        carloOffice2AudioEl.pause();
+        return;
+      }
+      isCarloOffice2AudioActive = true;
+      fadeCarloOffice2AudioVolume(carloOffice2AudioVolume, officeDialogueAudioFadeInDuration);
+      setOfficeAmbientVolume();
+    } catch {
+      isCarloOffice2AudioActive = false;
+    } finally {
+      isCarloOffice2AudioStarting = false;
+    }
+  }
+
+  async function startElisabettaOfficeAudio() {
+    if (
+      isAudioMuted ||
+      isElisabettaOfficeAudioActive ||
+      (hasPlayedElisabettaOfficeAudio && elisabettaOfficeRevealProgress >= 0.995) ||
+      isElisabettaOfficeAudioStarting ||
+      !elisabettaOfficeAudioEl ||
+      !isElisabettaOfficeDialogueVisible()
+    ) {
+      return;
+    }
+
+    isElisabettaOfficeAudioStarting = true;
+    stopAllOfficeDialogueAudio({ duration: officeDialogueAudioHandoffFadeOutDuration, except: 'elisabetta', resetReplay: true });
+    gsap?.killTweensOf(elisabettaOfficeAudioEl);
+    if (elisabettaOfficeFadeFrame) cancelAnimationFrame(elisabettaOfficeFadeFrame);
+    elisabettaOfficeFadeFrame = undefined;
+    elisabettaOfficeAudioEl.pause();
+    elisabettaOfficeRevealProgress = getOfficeResumeProgress(
+      getElisabettaOfficeSpeechPages(),
+      elisabettaOfficeRevealProgress,
+      elisabettaOfficeMutedPageIndex,
+      shouldResumeOfficeAudioFromMutedPage
+    );
+    elisabettaOfficeAudioEl.currentTime =
+      elisabettaOfficeRevealProgress *
+      getAudioDuration(elisabettaOfficeAudioEl, elisabettaOfficeRevealDurationSeconds);
+    elisabettaOfficeAudioEl.volume = 0;
+    shouldResumeOfficeAudioFromMutedPage = false;
+
+    try {
+      await elisabettaOfficeAudioEl.play();
+      if (!isElisabettaOfficeAudioStarting || isAudioMuted || !isElisabettaOfficeDialogueVisible()) {
+        elisabettaOfficeAudioEl.pause();
+        return;
+      }
+      isElisabettaOfficeAudioActive = true;
+      fadeElisabettaOfficeAudioVolume(elisabettaOfficeAudioVolume, officeDialogueAudioFadeInDuration);
+      setOfficeAmbientVolume();
+    } catch {
+      isElisabettaOfficeAudioActive = false;
+    } finally {
+      isElisabettaOfficeAudioStarting = false;
+    }
+  }
+
   async function startFaustoOfficeAudio() {
     if (
       isAudioMuted ||
-      hasPlayedFaustoOfficeAudio ||
+      isFaustoOfficeAudioActive ||
+      (hasPlayedFaustoOfficeAudio && faustoOfficeRevealProgress >= 0.995) ||
       isFaustoOfficeAudioStarting ||
       !faustoOfficeAudioEl ||
       !isFaustoOfficeDialogueVisible()
@@ -1005,24 +1514,30 @@
     }
 
     isFaustoOfficeAudioStarting = true;
+    stopAllOfficeDialogueAudio({ duration: officeDialogueAudioHandoffFadeOutDuration, except: 'fausto', resetReplay: true });
     gsap?.killTweensOf(faustoOfficeAudioEl);
     if (faustoOfficeFadeFrame) cancelAnimationFrame(faustoOfficeFadeFrame);
     faustoOfficeFadeFrame = undefined;
     faustoOfficeAudioEl.pause();
-    faustoOfficeAudioEl.currentTime =
-      clamp(faustoOfficeMutedPageIndex / Math.max(getFaustoOfficeSpeechPages().length - 1, 1), 0, 0.98) *
-      faustoOfficeRevealDurationSeconds;
-    faustoOfficeAudioEl.volume = faustoOfficeAudioVolume;
-    faustoOfficeRevealProgress = clamp(
-      faustoOfficeAudioEl.currentTime / faustoOfficeRevealDurationSeconds,
-      0,
-      1
+    faustoOfficeRevealProgress = getOfficeResumeProgress(
+      getFaustoOfficeSpeechPages(),
+      faustoOfficeRevealProgress,
+      faustoOfficeMutedPageIndex,
+      shouldResumeOfficeAudioFromMutedPage
     );
+    faustoOfficeAudioEl.currentTime =
+      faustoOfficeRevealProgress * getAudioDuration(faustoOfficeAudioEl, faustoOfficeRevealDurationSeconds);
+    faustoOfficeAudioEl.volume = 0;
+    shouldResumeOfficeAudioFromMutedPage = false;
 
     try {
       await faustoOfficeAudioEl.play();
-      hasPlayedFaustoOfficeAudio = true;
+      if (!isFaustoOfficeAudioStarting || isAudioMuted || !isFaustoOfficeDialogueVisible()) {
+        faustoOfficeAudioEl.pause();
+        return;
+      }
       isFaustoOfficeAudioActive = true;
+      fadeFaustoOfficeAudioVolume(faustoOfficeAudioVolume, officeDialogueAudioFadeInDuration);
       setOfficeAmbientVolume();
     } catch {
       isFaustoOfficeAudioActive = false;
@@ -1039,6 +1554,7 @@
     }
 
     isCarloOfficeAudioStarting = false;
+    syncCarloOfficeSpeechReveal();
     if (resetReplay) hasPlayedCarloOfficeAudio = false;
     if (carloOfficeAudioEl.paused || duration <= 0) {
       carloOfficeAudioEl.pause();
@@ -1055,6 +1571,56 @@
     });
   }
 
+  function stopCarloOffice2Audio(duration = carloOffice2AudioFadeOutDuration, resetReplay = false) {
+    if (!carloOffice2AudioEl) {
+      isCarloOffice2AudioActive = false;
+      isCarloOffice2AudioStarting = false;
+      return;
+    }
+
+    isCarloOffice2AudioStarting = false;
+    syncCarloOffice2SpeechReveal();
+    if (resetReplay) hasPlayedCarloOffice2Audio = false;
+    if (carloOffice2AudioEl.paused || duration <= 0) {
+      carloOffice2AudioEl.pause();
+      isCarloOffice2AudioActive = false;
+      setOfficeAmbientVolume();
+      return;
+    }
+
+    fadeCarloOffice2AudioVolume(0, duration, () => {
+      carloOffice2AudioEl.pause();
+      carloOffice2AudioEl.volume = carloOffice2AudioVolume;
+      isCarloOffice2AudioActive = false;
+      setOfficeAmbientVolume();
+    });
+  }
+
+  function stopElisabettaOfficeAudio(duration = elisabettaOfficeAudioFadeOutDuration, resetReplay = false) {
+    if (!elisabettaOfficeAudioEl) {
+      isElisabettaOfficeAudioActive = false;
+      isElisabettaOfficeAudioStarting = false;
+      return;
+    }
+
+    isElisabettaOfficeAudioStarting = false;
+    syncElisabettaOfficeSpeechReveal();
+    if (resetReplay) hasPlayedElisabettaOfficeAudio = false;
+    if (elisabettaOfficeAudioEl.paused || duration <= 0) {
+      elisabettaOfficeAudioEl.pause();
+      isElisabettaOfficeAudioActive = false;
+      setOfficeAmbientVolume();
+      return;
+    }
+
+    fadeElisabettaOfficeAudioVolume(0, duration, () => {
+      elisabettaOfficeAudioEl.pause();
+      elisabettaOfficeAudioEl.volume = elisabettaOfficeAudioVolume;
+      isElisabettaOfficeAudioActive = false;
+      setOfficeAmbientVolume();
+    });
+  }
+
   function stopFaustoOfficeAudio(duration = faustoOfficeAudioFadeOutDuration, resetReplay = false) {
     if (!faustoOfficeAudioEl) {
       isFaustoOfficeAudioActive = false;
@@ -1063,6 +1629,7 @@
     }
 
     isFaustoOfficeAudioStarting = false;
+    syncFaustoOfficeSpeechReveal();
     if (resetReplay) hasPlayedFaustoOfficeAudio = false;
     if (faustoOfficeAudioEl.paused || duration <= 0) {
       faustoOfficeAudioEl.pause();
@@ -1079,15 +1646,37 @@
     });
   }
 
+  function stopAllOfficeDialogueAudio(
+    options: {
+      duration?: number;
+      except?: 'carlo' | 'carlo2' | 'elisabetta' | 'fausto';
+      resetReplay?: boolean;
+    } = {}
+  ) {
+    const duration = options.duration ?? 0.18;
+    const resetReplay = options.resetReplay ?? true;
+
+    if (options.except !== 'carlo') stopCarloOfficeAudio(duration, resetReplay);
+    if (options.except !== 'carlo2') stopCarloOffice2Audio(duration, resetReplay);
+    if (options.except !== 'elisabetta') stopElisabettaOfficeAudio(duration, resetReplay);
+    if (options.except !== 'fausto') stopFaustoOfficeAudio(duration, resetReplay);
+  }
+
   $effect(() => {
     if (isAudioMuted) {
+      shouldResumeOfficeAudioFromMutedPage = true;
       stopAmbientAudio();
-      stopCarloOfficeAudio();
-      stopFaustoOfficeAudio();
+      stopAllOfficeDialogueAudio({ duration: 0.1, resetReplay: true });
       return;
     }
 
     void startAmbientAudio();
+    const hasVisibleDialogue =
+      isCarloOfficeDialogueVisible() ||
+      isCarloOffice2DialogueVisible() ||
+      isElisabettaOfficeDialogueVisible() ||
+      isFaustoOfficeDialogueVisible();
+    if (!hasVisibleDialogue) shouldResumeOfficeAudioFromMutedPage = false;
   });
 
   $effect(() => {
@@ -1099,14 +1688,60 @@
       return;
     }
 
+    if (!visible) {
+      hasPlayedCarloOfficeAudio = false;
+    }
+
     if (!visible && (isCarloOfficeAudioActive || isCarloOfficeAudioStarting)) {
-      stopCarloOfficeAudio();
+      stopCarloOfficeAudio(carloOfficeAudioFadeOutDuration, true);
     }
 
     if (cameraX < getCarloOfficeEnterCameraX() - carloOfficeEnterDistance) {
       hasPlayedCarloOfficeAudio = false;
-      carloOfficeRevealProgress = 0;
-      carloOfficeMutedPageIndex = 0;
+    }
+  });
+
+  $effect(() => {
+    const visible = isCarloOffice2DialogueVisible();
+
+    if (isAudioMuted) return;
+    if (visible) {
+      void startCarloOffice2Audio();
+      return;
+    }
+
+    if (!visible) {
+      hasPlayedCarloOffice2Audio = false;
+    }
+
+    if (!visible && (isCarloOffice2AudioActive || isCarloOffice2AudioStarting)) {
+      stopCarloOffice2Audio(carloOffice2AudioFadeOutDuration, true);
+    }
+
+    if (cameraX < getCarloOffice2StartCameraX() - carloOffice2EnterDistance) {
+      hasPlayedCarloOffice2Audio = false;
+    }
+  });
+
+  $effect(() => {
+    const visible = isElisabettaOfficeDialogueVisible();
+
+    if (isAudioMuted) return;
+    if (visible) {
+      void startElisabettaOfficeAudio();
+      return;
+    }
+
+    if (!visible) {
+      hasPlayedElisabettaOfficeAudio = false;
+    }
+
+    if (!visible && (isElisabettaOfficeAudioActive || isElisabettaOfficeAudioStarting)) {
+      stopElisabettaOfficeAudio(elisabettaOfficeAudioFadeOutDuration, true);
+    }
+
+    if (cameraX < getElisabettaOfficeStartCameraX() - elisabettaOfficeEnterDistance) {
+      hasPlayedElisabettaOfficeAudio = false;
     }
   });
 
@@ -1119,14 +1754,16 @@
       return;
     }
 
+    if (!visible) {
+      hasPlayedFaustoOfficeAudio = false;
+    }
+
     if (!visible && (isFaustoOfficeAudioActive || isFaustoOfficeAudioStarting)) {
-      stopFaustoOfficeAudio();
+      stopFaustoOfficeAudio(faustoOfficeAudioFadeOutDuration, true);
     }
 
     if (cameraX < getFaustoOfficeStartCameraX() - faustoOfficeEnterDistance) {
       hasPlayedFaustoOfficeAudio = false;
-      faustoOfficeRevealProgress = 0;
-      faustoOfficeMutedPageIndex = 0;
     }
   });
 
@@ -1142,6 +1779,40 @@
     syncReducedMotion();
     reducedMotionQuery.addEventListener('change', syncReducedMotion);
     window.addEventListener('keydown', onKeydown);
+    void import('$lib/scene/phaser/ParallaxPhaserGame').then(({ createParallaxPhaserGame }) => {
+      if (destroyed || !officePhaserContainerEl) return;
+
+      createParallaxPhaserGame({
+        assetVersion,
+        assets: officePhaserAssets,
+        chunks: officeBackgroundChunks,
+        chunkOffsetY: officeBackgroundOffsetY,
+        container: officePhaserContainerEl,
+        getChunkPath: officeChunkPath,
+        getViewport: () => ({
+          width: Math.max(1, viewportWidth || stageEl?.clientWidth || 1),
+          height: Math.max(1, viewportHeight || stageEl?.clientHeight || 1)
+        }),
+        layerSpeed,
+        onLoadingProgress: (progress) => {
+          phaserLoadingProgress = progress;
+        },
+        onReady: () => {
+          isPhaserReady = true;
+        },
+        sceneHeight,
+        sceneWidth
+      }).then((game) => {
+        if (destroyed) {
+          game?.destroy();
+          return;
+        }
+
+        officePhaserGame = game;
+        officePhaserGame?.setCameraX(cameraX);
+        scheduleOfficePhaserResize();
+      });
+    });
     void loadGsapWithScrollTrigger().then(({ gsap: loadedGsap, ScrollTrigger }) => {
       if (destroyed) return;
       gsap = loadedGsap;
@@ -1185,18 +1856,32 @@
       scrollTrigger = undefined;
       gsap?.killTweensOf(officeAmbientAudioEl);
       gsap?.killTweensOf(carloOfficeAudioEl);
+      gsap?.killTweensOf(carloOffice2AudioEl);
+      gsap?.killTweensOf(elisabettaOfficeAudioEl);
       gsap?.killTweensOf(faustoOfficeAudioEl);
       if (officeAmbientFadeFrame) cancelAnimationFrame(officeAmbientFadeFrame);
       if (carloOfficeFadeFrame) cancelAnimationFrame(carloOfficeFadeFrame);
+      if (carloOffice2FadeFrame) cancelAnimationFrame(carloOffice2FadeFrame);
+      if (elisabettaOfficeFadeFrame) cancelAnimationFrame(elisabettaOfficeFadeFrame);
       if (faustoOfficeFadeFrame) cancelAnimationFrame(faustoOfficeFadeFrame);
+      if (officePhaserResizeTimer) window.clearTimeout(officePhaserResizeTimer);
+      officePhaserGame?.destroy();
+      officePhaserGame = undefined;
+      officePhaserResizeTimer = undefined;
       officeAmbientFadeFrame = undefined;
       carloOfficeFadeFrame = undefined;
+      carloOffice2FadeFrame = undefined;
+      elisabettaOfficeFadeFrame = undefined;
       faustoOfficeFadeFrame = undefined;
       officeAmbientAudioEl?.pause();
       carloOfficeAudioEl?.pause();
+      carloOffice2AudioEl?.pause();
+      elisabettaOfficeAudioEl?.pause();
       faustoOfficeAudioEl?.pause();
       isAmbientAudioStarted = false;
       isCarloOfficeAudioActive = false;
+      isCarloOffice2AudioActive = false;
+      isElisabettaOfficeAudioActive = false;
       isFaustoOfficeAudioActive = false;
     };
   });
@@ -1206,7 +1891,7 @@
   bind:this={stageEl}
   class="office-stage"
   class:is-dragging={isDragging}
-  class:is-loaded={isSceneLoaded}
+  class:is-loaded={isSceneLoaded && isPhaserReady}
   data-audio-muted={isAudioMuted}
   data-progress={progress.toFixed(3)}
   aria-label="Scena parallasse dell'ufficio"
@@ -1217,6 +1902,11 @@
   onpointerup={endDrag}
   onpointercancel={endDrag}
 >
+  <div bind:this={officePhaserContainerEl} class="office-phaser-layer" aria-hidden="true"></div>
+  {#if !isPhaserReady}
+    <SceneLoadingProgress progress={phaserLoadingProgress} />
+  {/if}
+
   <aside class="scene-coordinate-indicator" aria-label="Coordinate scena per posizionamento asset">
     <div class="coordinate-indicator-title">coordinate scena</div>
     <dl>
@@ -1257,26 +1947,6 @@
 
   <div class="office-scroll-space" style={scrollSpaceStyle}>
     <div class="office-world" style={worldStyle}>
-      {#each officeBackgroundChunks as chunk (chunk.assetKey)}
-        <img
-          class="office-asset office-chunk reveal-layer background-layer"
-          src={chunkAsset(chunk)}
-          alt=""
-          draggable="false"
-          style={getChunkStyle(chunk)}
-        />
-      {/each}
-
-      {#each officeFloorAssets as item (item.id)}
-        <img
-          class="office-asset office-floor reveal-layer floor-layer"
-          src={versionedAsset(item.src)}
-          alt=""
-          draggable="false"
-          style={getFloorStyle(item)}
-        />
-      {/each}
-
       {#each officeMiddleAssets as item (item.id)}
         {#if isInteractiveAsset(item)}
           <button
@@ -1289,7 +1959,11 @@
             onpointerdown={(event) => event.stopPropagation()}
             onclick={(event) => event.stopPropagation()}
           >
-            <img src={versionedAsset(item.src)} alt="" draggable="false" />
+            <img
+              src={versionedAsset(item.src)}
+              alt=""
+              draggable="false"
+            />
             {#if item.shineEffect}
               <span
                 class="object-shine"
@@ -1298,14 +1972,6 @@
               ></span>
             {/if}
           </button>
-        {:else}
-          <img
-            class="office-asset office-middle-asset reveal-layer middle-layer"
-            src={versionedAsset(item.src)}
-            alt=""
-            draggable="false"
-            style={getForegroundStyle(item)}
-          />
         {/if}
       {/each}
 
@@ -1321,7 +1987,11 @@
             onpointerdown={(event) => event.stopPropagation()}
             onclick={(event) => event.stopPropagation()}
           >
-            <img src={versionedAsset(item.src)} alt="" draggable="false" />
+            <img
+              src={versionedAsset(item.src)}
+              alt=""
+              draggable="false"
+            />
             {#if item.shineEffect}
               <span
                 class="object-shine"
@@ -1330,14 +2000,6 @@
               ></span>
             {/if}
           </button>
-        {:else}
-          <img
-            class="office-asset office-foreground-asset reveal-layer foreground-layer"
-            src={versionedAsset(item.src)}
-            alt=""
-            draggable="false"
-            style={getForegroundStyle(item)}
-          />
         {/if}
       {/each}
 
@@ -1446,6 +2108,216 @@
           </span>
         </span>
         <img src="/assets/interviews-hover/zarri.png" alt="Carlo Zarri" draggable="false" />
+      </div>
+
+      <div
+        class="office-chef-button"
+        class:is-dialogue-visible={isCarloOffice2DialogueVisible()}
+        data-testimonial="carlo-2"
+        style={`${getCarloOffice2Style()}; --reveal-delay: 410ms;`}
+        role="button"
+        tabindex="0"
+        aria-label="Seconda testimonianza Carlo Zarri ufficio"
+        onpointerdown={(event) => {
+          event.stopPropagation();
+          hasPlayedCarloOffice2Audio = false;
+          void startCarloOffice2Audio();
+        }}
+        onkeydown={(event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          hasPlayedCarloOffice2Audio = false;
+          void startCarloOffice2Audio();
+        }}
+      >
+        <span class="speech-bubble" aria-hidden={!isCarloOffice2DialogueVisible()}>
+          <span
+            class="speech-bubble-copy has-page-controls"
+            aria-label={carloOffice2SpeechInfo.speech}
+          >
+            {#if !isAudioMuted}
+              <span class="speech-bubble-text speech-bubble-text-audio" aria-hidden="true">
+                <span class="speech-bubble-text-line">
+                  <span class="speech-bubble-text-progress">{carloOffice2SpeechInfo.highlightedSpeech}</span><span
+                    class="speech-bubble-text-pending">{getCarloOffice2PendingSpeech()}</span
+                  >
+                </span>
+              </span>
+            {:else}
+              <span class="speech-bubble-text">{carloOffice2SpeechInfo.speech}</span>
+            {/if}
+            {#if carloOffice2SpeechPageCount > 1}
+              <span
+                class="speech-bubble-page-controls"
+                aria-label={`Dialogo ${carloOffice2VisiblePageIndex + 1} di ${carloOffice2SpeechPageCount} per Carlo Zarri`}
+              >
+                <button
+                  class="speech-bubble-page-button speech-bubble-page-button-prev"
+                  type="button"
+                  aria-label="Dialogo precedente di Carlo Zarri"
+                  disabled={carloOffice2VisiblePageIndex <= 0}
+                  onpointerdown={(event) => event.stopPropagation()}
+                  onclick={rewindCarloOffice2Page}
+                >
+                  <svg
+                    class="speech-bubble-page-icon"
+                    viewBox="0 0 52 52"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      class="speech-bubble-page-icon-depth"
+                      d="M14.1 22.5 Q8 26 14.1 29.5 L34.9 41.5 Q41 45 41 38 L41 14 Q41 7 34.9 10.5 Z"
+                    />
+                    <path
+                      class="speech-bubble-page-icon-face"
+                      d="M14.1 22.5 Q8 26 14.1 29.5 L34.9 41.5 Q41 45 41 38 L41 14 Q41 7 34.9 10.5 Z"
+                    />
+                  </svg>
+                </button>
+                <span class="speech-bubble-page-counter" aria-hidden="true">
+                  {carloOffice2VisiblePageIndex + 1}/{carloOffice2SpeechPageCount}
+                </span>
+                <button
+                  class="speech-bubble-page-button speech-bubble-page-button-next"
+                  type="button"
+                  aria-label="Dialogo successivo di Carlo Zarri"
+                  disabled={carloOffice2VisiblePageIndex >= carloOffice2SpeechPageCount - 1}
+                  onpointerdown={(event) => event.stopPropagation()}
+                  onclick={advanceCarloOffice2Page}
+                >
+                  <svg
+                    class="speech-bubble-page-icon"
+                    viewBox="0 0 52 52"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      class="speech-bubble-page-icon-depth"
+                      d="M37.9 22.5 Q44 26 37.9 29.5 L17.1 41.5 Q11 45 11 38 L11 14 Q11 7 17.1 10.5 Z"
+                    />
+                    <path
+                      class="speech-bubble-page-icon-face"
+                      d="M37.9 22.5 Q44 26 37.9 29.5 L17.1 41.5 Q11 45 11 38 L11 14 Q11 7 17.1 10.5 Z"
+                    />
+                  </svg>
+                </button>
+              </span>
+            {/if}
+          </span>
+          <span class="speech-bubble-meta" aria-label="Food and Beverage Director - Carlo Zarri">
+            <span class="speech-bubble-meta-label">
+              <span>Food and Beverage Director - </span>
+              <strong>Carlo Zarri</strong>
+            </span>
+          </span>
+        </span>
+        <img src="/assets/interviews-hover/zarri.png" alt="Carlo Zarri" draggable="false" />
+      </div>
+
+      <div
+        class="office-chef-button"
+        class:is-dialogue-visible={isElisabettaOfficeDialogueVisible()}
+        data-testimonial="elisabetta"
+        style={`${getElisabettaOfficeStyle()}; --reveal-delay: 420ms;`}
+        role="button"
+        tabindex="0"
+        aria-label="Testimonianza Elisabetta Salvadori ufficio"
+        onpointerdown={(event) => {
+          event.stopPropagation();
+          hasPlayedElisabettaOfficeAudio = false;
+          void startElisabettaOfficeAudio();
+        }}
+        onkeydown={(event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          hasPlayedElisabettaOfficeAudio = false;
+          void startElisabettaOfficeAudio();
+        }}
+      >
+        <span class="speech-bubble" aria-hidden={!isElisabettaOfficeDialogueVisible()}>
+          <span
+            class="speech-bubble-copy has-page-controls"
+            aria-label={elisabettaOfficeSpeechInfo.speech}
+          >
+            {#if !isAudioMuted}
+              <span class="speech-bubble-text speech-bubble-text-audio" aria-hidden="true">
+                <span class="speech-bubble-text-line">
+                  <span class="speech-bubble-text-progress">{elisabettaOfficeSpeechInfo.highlightedSpeech}</span><span
+                    class="speech-bubble-text-pending">{getElisabettaOfficePendingSpeech()}</span
+                  >
+                </span>
+              </span>
+            {:else}
+              <span class="speech-bubble-text">{elisabettaOfficeSpeechInfo.speech}</span>
+            {/if}
+            {#if elisabettaOfficeSpeechPageCount > 1}
+              <span
+                class="speech-bubble-page-controls"
+                aria-label={`Dialogo ${elisabettaOfficeVisiblePageIndex + 1} di ${elisabettaOfficeSpeechPageCount} per Elisabetta Salvadori`}
+              >
+                <button
+                  class="speech-bubble-page-button speech-bubble-page-button-prev"
+                  type="button"
+                  aria-label="Dialogo precedente di Elisabetta Salvadori"
+                  disabled={elisabettaOfficeVisiblePageIndex <= 0}
+                  onpointerdown={(event) => event.stopPropagation()}
+                  onclick={rewindElisabettaOfficePage}
+                >
+                  <svg
+                    class="speech-bubble-page-icon"
+                    viewBox="0 0 52 52"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      class="speech-bubble-page-icon-depth"
+                      d="M14.1 22.5 Q8 26 14.1 29.5 L34.9 41.5 Q41 45 41 38 L41 14 Q41 7 34.9 10.5 Z"
+                    />
+                    <path
+                      class="speech-bubble-page-icon-face"
+                      d="M14.1 22.5 Q8 26 14.1 29.5 L34.9 41.5 Q41 45 41 38 L41 14 Q41 7 34.9 10.5 Z"
+                    />
+                  </svg>
+                </button>
+                <span class="speech-bubble-page-counter" aria-hidden="true">
+                  {elisabettaOfficeVisiblePageIndex + 1}/{elisabettaOfficeSpeechPageCount}
+                </span>
+                <button
+                  class="speech-bubble-page-button speech-bubble-page-button-next"
+                  type="button"
+                  aria-label="Dialogo successivo di Elisabetta Salvadori"
+                  disabled={elisabettaOfficeVisiblePageIndex >= elisabettaOfficeSpeechPageCount - 1}
+                  onpointerdown={(event) => event.stopPropagation()}
+                  onclick={advanceElisabettaOfficePage}
+                >
+                  <svg
+                    class="speech-bubble-page-icon"
+                    viewBox="0 0 52 52"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      class="speech-bubble-page-icon-depth"
+                      d="M37.9 22.5 Q44 26 37.9 29.5 L17.1 41.5 Q11 45 11 38 L11 14 Q11 7 17.1 10.5 Z"
+                    />
+                    <path
+                      class="speech-bubble-page-icon-face"
+                      d="M37.9 22.5 Q44 26 37.9 29.5 L17.1 41.5 Q11 45 11 38 L11 14 Q11 7 17.1 10.5 Z"
+                    />
+                  </svg>
+                </button>
+              </span>
+            {/if}
+          </span>
+          <span class="speech-bubble-meta" aria-label="Nutrition Expert - Elisabetta Salvadori">
+            <span class="speech-bubble-meta-label">
+              <span>Nutrition Expert - </span>
+              <strong>Elisabetta Salvadori</strong>
+            </span>
+          </span>
+        </span>
+        <img src="/assets/interviews-hover/eli.png" alt="Elisabetta Salvadori" draggable="false" />
       </div>
 
       <div
@@ -1577,6 +2449,38 @@
   }}
 ></audio>
 <audio
+  bind:this={carloOffice2AudioEl}
+  src="/sound/carlozarri2ufficio.mp3"
+  preload="auto"
+  onplay={() => {
+    isCarloOffice2AudioActive = true;
+    setOfficeAmbientVolume();
+  }}
+  ontimeupdate={syncCarloOffice2SpeechReveal}
+  onended={() => {
+    carloOffice2RevealProgress = 1;
+    hasPlayedCarloOffice2Audio = true;
+    isCarloOffice2AudioActive = false;
+    setOfficeAmbientVolume();
+  }}
+></audio>
+<audio
+  bind:this={elisabettaOfficeAudioEl}
+  src="/sound/elisabettaufficio.mp3"
+  preload="auto"
+  onplay={() => {
+    isElisabettaOfficeAudioActive = true;
+    setOfficeAmbientVolume();
+  }}
+  ontimeupdate={syncElisabettaOfficeSpeechReveal}
+  onended={() => {
+    elisabettaOfficeRevealProgress = 1;
+    hasPlayedElisabettaOfficeAudio = true;
+    isElisabettaOfficeAudioActive = false;
+    setOfficeAmbientVolume();
+  }}
+></audio>
+<audio
   bind:this={faustoOfficeAudioEl}
   src="/sound/fausto_ufficio.mp3"
   preload="auto"
@@ -1610,6 +2514,23 @@
 
   .office-stage::-webkit-scrollbar {
     display: none;
+  }
+
+  .office-phaser-layer {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .office-phaser-layer :global(canvas) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
   }
 
   .office-scroll-space {
@@ -1704,7 +2625,7 @@
     padding: 0;
     border: 0;
     background: transparent;
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, pointer;
+    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     pointer-events: auto;
     touch-action: none;
   }
@@ -1783,7 +2704,7 @@
     border: 0;
     background: transparent;
     color: inherit;
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, pointer;
+    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     opacity: var(--chef-entry-opacity, 0);
     pointer-events: auto;
     transform: translate3d(0, var(--chef-entry-y, 420px), 0);
@@ -1976,7 +2897,7 @@
     border-radius: 0;
     background: transparent;
     color: currentColor;
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, pointer;
+    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     transition:
       opacity 140ms ease,
       transform 210ms cubic-bezier(0.18, 1.35, 0.28, 1);
@@ -2098,16 +3019,6 @@
 
   .office-stage.is-loaded .office-title {
     animation: officeTitleIn 420ms cubic-bezier(0.22, 1, 0.36, 1) 220ms forwards;
-  }
-
-  .background-layer {
-    --reveal-delay: 40ms;
-    --scene-layer-z: 2;
-  }
-
-  .floor-layer {
-    --reveal-delay: 40ms;
-    --scene-layer-z: 3;
   }
 
   .middle-layer {

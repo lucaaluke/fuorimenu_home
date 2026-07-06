@@ -13,6 +13,7 @@
   import { createSceneController } from '$lib/scene/controller';
   import { loadGsap, type Gsap } from '$lib/scene/gsap-loader';
   import { clamp, px } from '$lib/scene/math';
+  import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
   import { getSceneAssetStyle } from '$lib/scene/scene-utils';
   import type { InteractiveSceneAsset, SceneAsset } from '$lib/scene/scene-asset.types';
   import { createViewportObserver } from '$lib/scene/viewport';
@@ -47,16 +48,19 @@
   const kitchenAsset = (name: string) => `/assets/${name}?v=${kitchenAssetVersion}`;
   let gsap: Gsap | undefined;
   const testimonialHandoffSticky = {
-    maxFactor: 0.66,
-    minFactor: 0.22,
-    releaseAfterNext: 0.009,
-    zoneBeforeNext: 0.064
+    maxFactor: 0.86,
+    minFactor: 0.52,
+    zoneBeforeDisappearPx: 200
   };
+  const firstKitchenDialogueStartCameraX = 600;
   const tailStartX = 23600;
   const carloSpeech =
     "C'erano grosse difficoltà su Santa Giulia. Il 30 di gennaio era ancora un cantiere, quindi si entrava con l'elmetto col giubbotto catarifrangente; la situazione era veramente drammatica.\nDa dicembre 2025 abbiamo cambiato completamente la strategia per quel sito, perché era un sito che si sapeva che avrebbe avuto delle grosse difficoltà, perché a volte si faceva anche fino a 11.000 spettatori per tre gare al giorno.";
   const kitchenAmbientFadeInDuration = 1.2;
   const kitchenAmbientFadeOutDuration = 0.42;
+  const testimonialAudioFadeInDuration = 0.04;
+  const testimonialAudioFadeOutDuration = 0.08;
+  const testimonialAudioHandoffFadeOutDuration = 0;
   const faustoSecondAudioPauseMs = 700;
   const faustoSecondAudioStartTime = 25.9;
   const faustoSecondSpeech =
@@ -248,6 +252,7 @@
   let isDragging = $state(false);
   let isSceneLoaded = $state(false);
   let hasPointerScenePosition = $state(false);
+  let isPointerOverTestimonialHitbox = $state(false);
   let pointerSceneY = $state(0);
   let pointerSceneX = $state({
     background: 0,
@@ -287,7 +292,9 @@
 	      background: (localX + cameraX * resolvedLayerSpeed.background) / sceneScale,
 	      middle: (localX + cameraX * resolvedLayerSpeed.middle) / sceneScale,
 	      foreground: (localX + cameraX * resolvedLayerSpeed.foreground) / sceneScale
-	    };
+    };
+    isPointerOverTestimonialHitbox = isPointerInsideVisibleTestimonial(event);
+    kitchenPhaserGame?.setObjectHoverSuppressed(isPointerOverTestimonialHitbox);
     nearestSceneAsset = getNearestSceneAsset();
 	  }
 
@@ -319,6 +326,11 @@
     return index >= 0 ? kitchenTestimonials[index + 1] : undefined;
   }
 
+  function getTestimonialEnterProgress(testimonial: KitchenTestimonial) {
+    if (testimonial.id !== 'carlo' || maxScrollX <= 0) return testimonial.enterProgress;
+    return clamp(firstKitchenDialogueStartCameraX / maxScrollX, 0, 1);
+  }
+
   function isTestimonialAudioUnfinished(testimonial: KitchenTestimonial) {
     const audio = getTestimonialAudioEl(testimonial);
     const state = testimonialAudioState[testimonial.id];
@@ -339,14 +351,15 @@
     );
     if (!activeTestimonial || !isTestimonialAudioUnfinished(activeTestimonial)) return delta;
 
-    const nextTestimonial = getNextTestimonial(activeTestimonial);
-    if (!nextTestimonial) return delta;
+    const exitProgress = activeTestimonial.exitProgress;
+    if (exitProgress === undefined || maxScrollX <= 0) return delta;
 
+    const zoneBeforeDisappear = testimonialHandoffSticky.zoneBeforeDisappearPx / maxScrollX;
     const stickyStart = Math.max(
-      activeTestimonial.enterProgress,
-      nextTestimonial.enterProgress - testimonialHandoffSticky.zoneBeforeNext
+      getTestimonialEnterProgress(activeTestimonial),
+      exitProgress - zoneBeforeDisappear
     );
-    const stickyEnd = nextTestimonial.enterProgress + testimonialHandoffSticky.releaseAfterNext;
+    const stickyEnd = exitProgress;
     if (narrativeProgress < stickyStart || narrativeProgress > stickyEnd) return delta;
 
     const releaseProgress = clamp(
@@ -363,8 +376,10 @@
   }
 
   function getTitleStyle() {
+    const topbarGutter = viewportWidth <= 760 ? 24 : 80;
+
     return [
-      `left: ${scenePx(92 * sceneScale - cameraX * resolvedLayerSpeed.title)}`,
+      `left: ${scenePx(topbarGutter - cameraX * resolvedLayerSpeed.title)}`,
       `top: ${scenePx(viewportHeight / 2 - 132 * sceneScale)}`,
       `font-size: ${scenePx(180 * sceneScale)}`
     ].join(';');
@@ -397,7 +412,7 @@
 	  }
 
   function getNearestSceneAsset() {
-    if (!hasPointerScenePosition) return undefined;
+    if (!hasPointerScenePosition || isPointerOverTestimonialHitbox) return undefined;
 
     let nearest: { id: string; distance: number } | undefined;
 
@@ -414,6 +429,29 @@
     }
 
     return nearest;
+  }
+
+  function isPointerInsideVisibleTestimonial(event: PointerEvent) {
+    const target = event.target;
+    if (!(target instanceof Element)) return false;
+
+    const testimonialEl = target.closest<HTMLElement>('.chef-button.is-dialogue-visible');
+    if (!testimonialEl) return false;
+
+    const pointerX = event.clientX;
+    const pointerY = event.clientY;
+    const hitboxPadding = 10;
+    const testimonialRect = testimonialEl.getBoundingClientRect();
+    const bubbleRect = testimonialEl.querySelector<HTMLElement>('.speech-bubble')?.getBoundingClientRect();
+    const hitRects = [testimonialRect, bubbleRect].filter((rect): rect is DOMRect => Boolean(rect));
+
+    return hitRects.some(
+      (rect) =>
+        pointerX >= rect.left - hitboxPadding &&
+        pointerX <= rect.right + hitboxPadding &&
+        pointerY >= rect.top - hitboxPadding &&
+        pointerY <= rect.bottom + hitboxPadding
+    );
   }
 
 	  function getInteractiveAssetStyle(asset: InteractiveSceneAsset) {
@@ -451,7 +489,7 @@
   }
 
   function getRawTestimonialPresence(testimonial: KitchenTestimonial) {
-    const enter = clamp((narrativeProgress - testimonial.enterProgress) / 0.012, 0, 1);
+    const enter = clamp((narrativeProgress - getTestimonialEnterProgress(testimonial)) / 0.012, 0, 1);
     const exit =
       testimonial.exitProgress === undefined
         ? 1
@@ -813,7 +851,7 @@
             secondPart: true
           });
     fausto2AudioEl.muted = false;
-    fausto2AudioEl.volume = 1;
+    fausto2AudioEl.volume = 0;
     faustoSpeechPart = 2;
     testimonialRevealProgress.fausto = options.resumeProgress ?? 0;
     activeTestimonialAudioId = 'fausto';
@@ -822,6 +860,7 @@
     try {
       await fausto2AudioEl.play();
       if (playbackToken === state.playbackToken) state.hasPlayed = true;
+      fadeAudioVolume(fausto2AudioEl, 1, testimonialAudioFadeInDuration);
     } catch {
       if (activeTestimonialAudioId === 'fausto') activeTestimonialAudioId = undefined;
     } finally {
@@ -917,13 +956,18 @@
   }
 
   function onPointerLeave() {
-    if (!isDragging) hasPointerScenePosition = false;
+    if (!isDragging) {
+      hasPointerScenePosition = false;
+      isPointerOverTestimonialHitbox = false;
+      kitchenPhaserGame?.setObjectHoverSuppressed(false);
+    }
   }
 
   function endDrag(event: PointerEvent) {
     isDragging = false;
     kitchenController?.endDrag();
     updatePointerScenePosition(event);
+    kitchenPhaserGame?.setObjectHoverSuppressed(isPointerOverTestimonialHitbox);
     if (stageEl.hasPointerCapture(event.pointerId)) {
       stageEl.releasePointerCapture(event.pointerId);
     }
@@ -1118,12 +1162,25 @@
       const isDialogueVisible = isTestimonialDialogueVisible(testimonial);
 
       if (isDialogueVisible) {
-        if (!state.hasPlayed && !state.isStarting) void playTestimonialAudio(testimonial);
+        if (!state.hasPlayed && !state.isStarting) {
+          if (testimonial.id === 'fausto' && faustoSpeechPart === 2) {
+            void playFaustoSecondAudio({
+              resumeProgress: testimonialRevealProgress.fausto,
+              forceReplay: true
+            });
+          } else {
+            void playTestimonialAudio(testimonial, {
+              resumeProgress: testimonialRevealProgress[testimonial.id],
+              forceReplay: true
+            });
+          }
+        }
         return;
       }
 
       if (!isInDialogueRange && (state.hasPlayed || dismissedTestimonialIds[testimonial.id])) {
-        resetTestimonialReplay(testimonial);
+        state.hasPlayed = false;
+        dismissedTestimonialIds[testimonial.id] = false;
       }
 
       if (
@@ -1188,7 +1245,7 @@
     return getTestimonialAudioEl(testimonial);
   }
 
-  function pauseAllTestimonialAudioForMute(duration = kitchenAmbientFadeOutDuration) {
+  function pauseAllTestimonialAudioForMute(duration = testimonialAudioFadeOutDuration) {
     clearFaustoSecondAudioTimer();
     kitchenTestimonials.forEach((testimonial) => {
       const state = testimonialAudioState[testimonial.id];
@@ -1267,8 +1324,9 @@
 
   function unlockRelevantTestimonialAudio() {
     kitchenTestimonials.forEach((testimonial) => {
-      const unlockStart = testimonial.enterProgress - 0.04;
-      const unlockEnd = (testimonial.exitProgress ?? testimonial.enterProgress + 0.06) + 0.03;
+      const enterProgress = getTestimonialEnterProgress(testimonial);
+      const unlockStart = enterProgress - 0.04;
+      const unlockEnd = (testimonial.exitProgress ?? enterProgress + 0.06) + 0.03;
       if (narrativeProgress < unlockStart || narrativeProgress > unlockEnd) return;
       void unlockTestimonialAudio(testimonial);
     });
@@ -1348,12 +1406,16 @@
 
     state.isStarting = true;
     if (state.unlockPromise) await state.unlockPromise;
-    if (isAudioMuted || state.hasPlayed || !audio) {
+    if (isAudioMuted || (!options.forceReplay && state.hasPlayed) || !audio) {
       state.isStarting = false;
       return;
     }
 
-    stopAllTestimonialAudio({ duration: 0, except: testimonial.id, resetReplay: false });
+    stopAllTestimonialAudio({
+      duration: testimonialAudioHandoffFadeOutDuration,
+      except: testimonial.id,
+      resetReplay: true
+    });
     if (testimonial.id === 'fausto') clearFaustoSecondAudioTimer();
 
     gsap?.killTweensOf(audio);
@@ -1370,7 +1432,7 @@
       fausto2AudioEl.volume = 1;
     }
     audio.muted = false;
-    audio.volume = 1;
+    audio.volume = 0;
     dismissedTestimonialIds[testimonial.id] = false;
     if (testimonial.id === 'fausto') faustoSpeechPart = 1;
     if (options.resumeProgress === undefined) {
@@ -1384,6 +1446,7 @@
     try {
       await audio.play();
       if (playbackToken === state.playbackToken) state.hasPlayed = true;
+      fadeAudioVolume(audio, 1, testimonialAudioFadeInDuration);
     } catch {
       if (activeTestimonialAudioId === testimonial.id) activeTestimonialAudioId = undefined;
     } finally {
@@ -1399,7 +1462,7 @@
     const state = testimonialAudioState[testimonial.id];
     if (!audio) return;
 
-    const duration = options.duration ?? 0.46;
+    const duration = options.duration ?? testimonialAudioFadeOutDuration;
     const resetReplay = options.resetReplay ?? true;
     if (state.isStopping && duration > 0) return;
 
@@ -1408,26 +1471,26 @@
     state.isStopping = duration > 0 && !audio.paused;
     if (resetReplay) state.hasPlayed = false;
 
+    if (testimonial.id === 'fausto' && audio === fausto2AudioEl) {
+      syncFaustoSecondSpeechReveal();
+    } else {
+      syncTestimonialSpeechReveal(testimonial);
+    }
+    syncMutedTestimonialPageIndexFromReveal(testimonial);
     gsap?.killTweensOf(audio);
 
     const afterStop = () => {
       audio.pause();
-      audio.currentTime =
-        testimonial.id === 'fausto' && audio === fausto2AudioEl
-          ? faustoSecondAudioStartTime
-          : (testimonial.audioStartTime ?? 0);
       audio.volume = 1;
       if (testimonial.id === 'fausto') {
         clearFaustoSecondAudioTimer();
         if (fausto2AudioEl && audio !== fausto2AudioEl) {
           gsap?.killTweensOf(fausto2AudioEl);
           fausto2AudioEl.pause();
-          fausto2AudioEl.currentTime = faustoSecondAudioStartTime;
           fausto2AudioEl.volume = 1;
         }
       }
       state.isStopping = false;
-      resetTestimonialSpeechReveal(testimonial);
       if (activeTestimonialAudioId === testimonial.id) activeTestimonialAudioId = undefined;
     };
 
@@ -1511,6 +1574,7 @@
           },
           onReady: () => {
             isPhaserReady = true;
+            kitchenPhaserGame?.setObjectHoverSuppressed(isPointerOverTestimonialHitbox);
           },
           sceneHeight: kitchenConstructionSceneHeight
         }).then((game) => {
@@ -1573,7 +1637,7 @@
   bind:this={stageEl}
   class="kitchen-stage"
   class:is-dragging={isDragging}
-  class:is-loaded={isSceneLoaded}
+  class:is-loaded={isSceneLoaded && isPhaserReady}
   style={`--kitchen-cursor: ${cursorCss}; --kitchen-pointer-cursor: ${pointerCursorCss};`}
   data-active-chef={activeChefId ?? ''}
   data-narrative-progress={narrativeProgress.toFixed(3)}
@@ -1624,13 +1688,10 @@
 		  </aside>
 
   {#if browser}
-    <div bind:this={phaserContainerEl} class="kitchen-phaser-layer" aria-hidden="true">
-      {#if !isPhaserReady}
-        <div class="kitchen-phaser-loader">
-          {Math.round(phaserLoadingProgress * 100)}%
-        </div>
-      {/if}
-    </div>
+    <div bind:this={phaserContainerEl} class="kitchen-phaser-layer" aria-hidden="true"></div>
+    {#if !isPhaserReady}
+      <SceneLoadingProgress progress={phaserLoadingProgress} />
+    {/if}
   {/if}
 		
   {#if showLegacyKitchenOverlays}
@@ -1741,7 +1802,7 @@
 
 <audio bind:this={toolShedAudioEl} src="/sound/toolbox.mp3" preload="auto"></audio>
 <audio bind:this={standMixerAudioEl} src="/sound/mixer.mp3" preload="auto"></audio>
-<audio bind:this={constructionAudioEl} src="/sound/cantieresuoni.mp3" preload="auto"></audio>
+<audio bind:this={constructionAudioEl} src="/sound/cantiere.mp3" preload="auto"></audio>
 <audio bind:this={kitchenAmbientAudioEl} src="/sound/cucinasuoni.mp3" preload="auto"></audio>
 <audio
   bind:this={carloAudioEl}
@@ -1846,21 +1907,6 @@
     pointer-events: auto;
   }
 
-  .kitchen-phaser-loader {
-    position: absolute;
-    top: var(--layout-page-gutter);
-    left: var(--layout-page-gutter);
-    padding: 8px 10px;
-    border: 2px solid var(--color-border-primary);
-    border-radius: var(--radius-s);
-    background: rgb(248 243 233 / 0.9);
-    color: var(--color-text-primary);
-    font-family: var(--font-text);
-    font-size: 12px;
-    font-weight: 800;
-    line-height: 1;
-  }
-	
 	  .scene-coordinate-indicator {
     position: fixed;
     z-index: 130;
