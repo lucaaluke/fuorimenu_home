@@ -58,6 +58,9 @@
     "C'erano grosse difficoltà su Santa Giulia. Il 30 di gennaio era ancora un cantiere, quindi si entrava con l'elmetto col giubbotto catarifrangente; la situazione era veramente drammatica.\nDa dicembre 2025 abbiamo cambiato completamente la strategia per quel sito, perché era un sito che si sapeva che avrebbe avuto delle grosse difficoltà, perché a volte si faceva anche fino a 11.000 spettatori per tre gare al giorno.";
   const kitchenAmbientFadeInDuration = 1.2;
   const kitchenAmbientFadeOutDuration = 0.42;
+  const testimonialAudioFadeInDuration = 0.08;
+  const testimonialAudioFadeOutDuration = 0.12;
+  const testimonialAudioHandoffFadeOutDuration = 0.06;
   const faustoSecondAudioPauseMs = 700;
   const faustoSecondAudioStartTime = 25.9;
   const faustoSecondSpeech =
@@ -816,7 +819,7 @@
             secondPart: true
           });
     fausto2AudioEl.muted = false;
-    fausto2AudioEl.volume = 1;
+    fausto2AudioEl.volume = 0;
     faustoSpeechPart = 2;
     testimonialRevealProgress.fausto = options.resumeProgress ?? 0;
     activeTestimonialAudioId = 'fausto';
@@ -825,6 +828,7 @@
     try {
       await fausto2AudioEl.play();
       if (playbackToken === state.playbackToken) state.hasPlayed = true;
+      fadeAudioVolume(fausto2AudioEl, 1, testimonialAudioFadeInDuration);
     } catch {
       if (activeTestimonialAudioId === 'fausto') activeTestimonialAudioId = undefined;
     } finally {
@@ -1121,12 +1125,23 @@
       const isDialogueVisible = isTestimonialDialogueVisible(testimonial);
 
       if (isDialogueVisible) {
-        if (!state.hasPlayed && !state.isStarting) void playTestimonialAudio(testimonial);
+        if (!state.hasPlayed && !state.isStarting) {
+          const resumeInfo = getMutedTestimonialResumeInfo(testimonial);
+          if (testimonial.id === 'fausto' && resumeInfo.part === 2) {
+            void resumeFaustoSecondAudioFromMutedPage(resumeInfo.progress);
+          } else {
+            void playTestimonialAudio(testimonial, {
+              resumeProgress: resumeInfo.progress,
+              forceReplay: true
+            });
+          }
+        }
         return;
       }
 
       if (!isInDialogueRange && (state.hasPlayed || dismissedTestimonialIds[testimonial.id])) {
-        resetTestimonialReplay(testimonial);
+        state.hasPlayed = false;
+        dismissedTestimonialIds[testimonial.id] = false;
       }
 
       if (
@@ -1191,7 +1206,7 @@
     return getTestimonialAudioEl(testimonial);
   }
 
-  function pauseAllTestimonialAudioForMute(duration = kitchenAmbientFadeOutDuration) {
+  function pauseAllTestimonialAudioForMute(duration = testimonialAudioFadeOutDuration) {
     clearFaustoSecondAudioTimer();
     kitchenTestimonials.forEach((testimonial) => {
       const state = testimonialAudioState[testimonial.id];
@@ -1351,12 +1366,16 @@
 
     state.isStarting = true;
     if (state.unlockPromise) await state.unlockPromise;
-    if (isAudioMuted || state.hasPlayed || !audio) {
+    if (isAudioMuted || (!options.forceReplay && state.hasPlayed) || !audio) {
       state.isStarting = false;
       return;
     }
 
-    stopAllTestimonialAudio({ duration: 0, except: testimonial.id, resetReplay: false });
+    stopAllTestimonialAudio({
+      duration: testimonialAudioHandoffFadeOutDuration,
+      except: testimonial.id,
+      resetReplay: true
+    });
     if (testimonial.id === 'fausto') clearFaustoSecondAudioTimer();
 
     gsap?.killTweensOf(audio);
@@ -1373,7 +1392,7 @@
       fausto2AudioEl.volume = 1;
     }
     audio.muted = false;
-    audio.volume = 1;
+    audio.volume = 0;
     dismissedTestimonialIds[testimonial.id] = false;
     if (testimonial.id === 'fausto') faustoSpeechPart = 1;
     if (options.resumeProgress === undefined) {
@@ -1387,6 +1406,7 @@
     try {
       await audio.play();
       if (playbackToken === state.playbackToken) state.hasPlayed = true;
+      fadeAudioVolume(audio, 1, testimonialAudioFadeInDuration);
     } catch {
       if (activeTestimonialAudioId === testimonial.id) activeTestimonialAudioId = undefined;
     } finally {
@@ -1402,7 +1422,7 @@
     const state = testimonialAudioState[testimonial.id];
     if (!audio) return;
 
-    const duration = options.duration ?? 0.46;
+    const duration = options.duration ?? testimonialAudioFadeOutDuration;
     const resetReplay = options.resetReplay ?? true;
     if (state.isStopping && duration > 0) return;
 
@@ -1415,22 +1435,16 @@
 
     const afterStop = () => {
       audio.pause();
-      audio.currentTime =
-        testimonial.id === 'fausto' && audio === fausto2AudioEl
-          ? faustoSecondAudioStartTime
-          : (testimonial.audioStartTime ?? 0);
       audio.volume = 1;
       if (testimonial.id === 'fausto') {
         clearFaustoSecondAudioTimer();
         if (fausto2AudioEl && audio !== fausto2AudioEl) {
           gsap?.killTweensOf(fausto2AudioEl);
           fausto2AudioEl.pause();
-          fausto2AudioEl.currentTime = faustoSecondAudioStartTime;
           fausto2AudioEl.volume = 1;
         }
       }
       state.isStopping = false;
-      resetTestimonialSpeechReveal(testimonial);
       if (activeTestimonialAudioId === testimonial.id) activeTestimonialAudioId = undefined;
     };
 

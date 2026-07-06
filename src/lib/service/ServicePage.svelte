@@ -103,7 +103,7 @@
   </header>
 
   <section class="service-shell" aria-label="Scena parallasse del servizio">
-    <ServiceScene />
+    <ServiceScene {isAudioMuted} />
   </section>
 </main>
 

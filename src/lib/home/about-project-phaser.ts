@@ -26,6 +26,13 @@ type Bounds = {
   bottom: number;
 };
 
+export type AboutProjectProjectedRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
 function getPixelRatio() {
   return Math.max(1, window.devicePixelRatio ?? 1);
 }
@@ -45,6 +52,31 @@ function getAssetBounds(assets: AboutProjectPhaserAsset[]): Bounds {
       bottom: Number.NEGATIVE_INFINITY
     }
   );
+}
+
+export function getAboutProjectProjectedRect(
+  assets: AboutProjectPhaserAsset[],
+  assetName: string,
+  viewport: { width: number; height: number }
+): AboutProjectProjectedRect | undefined {
+  const asset = assets.find((item) => item.name === assetName);
+  if (!asset) return undefined;
+
+  const bounds = getAssetBounds(assets);
+  const boundsWidth = Math.max(1, bounds.right - bounds.left);
+  const boundsHeight = Math.max(1, bounds.bottom - bounds.top);
+  const sceneScale = Math.min((viewport.width * 0.92) / boundsWidth, (viewport.height * 0.8) / boundsHeight);
+  const contentWidth = boundsWidth * sceneScale;
+  const contentHeight = boundsHeight * sceneScale;
+  const offsetX = (viewport.width - contentWidth) / 2;
+  const offsetY = viewport.height - contentHeight;
+
+  return {
+    left: offsetX + (asset.x - bounds.left) * sceneScale,
+    top: offsetY + (asset.y - bounds.top) * sceneScale,
+    width: asset.width * sceneScale,
+    height: asset.height * sceneScale
+  };
 }
 
 function setCanvasCssSize(game: Phaser.Game | undefined, width: number, height: number) {

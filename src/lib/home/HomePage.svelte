@@ -4,6 +4,7 @@
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
   import {
     createAboutProjectPhaserGame,
+    getAboutProjectProjectedRect,
     type AboutProjectPhaserAsset,
     type AboutProjectPhaserGameHandle
   } from '$lib/home/about-project-phaser';
@@ -46,6 +47,7 @@
   let aboutScreenEl = $state<HTMLElement>();
   let aboutProjectEl = $state<HTMLElement>();
   let aboutProjectPhaserEl = $state<HTMLElement>();
+  let aboutProjectTeamLabelStyle = $state('');
   let isAboutProjectTeamVisible = $state(false);
   let aboutTransitionId = 0;
   let aboutProjectPhaserHandle: AboutProjectPhaserGameHandle | undefined;
@@ -1646,6 +1648,30 @@
     aboutProjectResizeObserver = undefined;
     aboutProjectPhaserHandle?.destroy();
     aboutProjectPhaserHandle = undefined;
+    aboutProjectTeamLabelStyle = '';
+  }
+
+  function updateAboutProjectTeamLabel(container = aboutProjectPhaserEl) {
+    if (!container) {
+      aboutProjectTeamLabelStyle = '';
+      return;
+    }
+
+    const { width, height } = container.getBoundingClientRect();
+    const projectedGerri = getAboutProjectProjectedRect(aboutProjectAssets, 'gerri', {
+      width: Math.max(1, width),
+      height: Math.max(1, height)
+    });
+
+    if (!projectedGerri) {
+      aboutProjectTeamLabelStyle = '';
+      return;
+    }
+
+    const labelGap = clamp(height * 0.028, 14, 26);
+    const labelX = projectedGerri.left + projectedGerri.width * 0.5;
+    const labelY = projectedGerri.top - labelGap;
+    aboutProjectTeamLabelStyle = `--team-label-x:${fixed(labelX, 2)}px;--team-label-y:${fixed(labelY, 2)}px;`;
   }
 
   async function ensureAboutProjectPhaser() {
@@ -1664,9 +1690,11 @@
     }
 
     aboutProjectPhaserHandle = handle;
+    updateAboutProjectTeamLabel(container);
     aboutProjectResizeObserver = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
       aboutProjectPhaserHandle?.resize(Math.max(1, width), Math.max(1, height));
+      updateAboutProjectTeamLabel(container);
     });
     aboutProjectResizeObserver.observe(container);
   }
@@ -2696,6 +2724,44 @@
           </section>
           <section class="about-project-slide about-project-team-slide" aria-label="Team Fuorimenù">
             <div bind:this={aboutProjectPhaserEl} class="about-project-phaser" aria-hidden="true"></div>
+            <div
+              class="about-project-team-label"
+              class:is-visible={aboutProjectTeamLabelStyle.length > 0}
+              style={aboutProjectTeamLabelStyle}
+              data-node-id="495:3613"
+            >
+              <span class="about-project-team-name" data-node-id="495:3056">
+                <span>Chiara</span>
+                <span>Geronimi</span>
+              </span>
+              <span class="about-project-team-links" data-node-id="495:3612">
+                <button
+                  class="about-project-team-link about-project-team-link-instagram"
+                  type="button"
+                  aria-label="Instagram di Chiara Geronimi"
+                  data-node-id="495:3087"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="5" y="5" width="14" height="14" rx="3.4" />
+                    <circle cx="12" cy="12" r="3.1" />
+                    <circle class="about-project-team-icon-dot" cx="16.1" cy="7.9" r="0.8" />
+                  </svg>
+                </button>
+                <button
+                  class="about-project-team-link about-project-team-link-email"
+                  type="button"
+                  aria-label="Email di Chiara Geronimi"
+                  data-node-id="495:3133"
+                >
+                  <svg viewBox="0 0 34 24" aria-hidden="true">
+                    <rect x="2.2" y="3.4" width="29.6" height="17.2" rx="0.6" />
+                    <path d="M3.4 4.4L17 14.2L30.6 4.4" />
+                    <path d="M3.5 19.6L13.2 11.5" />
+                    <path d="M30.5 19.6L20.8 11.5" />
+                  </svg>
+                </button>
+              </span>
+            </div>
           </section>
         </div>
       </section>
@@ -4320,6 +4386,118 @@
   :global(.about-project-phaser canvas) {
     position: absolute;
     inset: 0;
+  }
+
+  .about-project-team-label {
+    position: absolute;
+    z-index: 5;
+    left: var(--team-label-x, 50%);
+    top: var(--team-label-y, 24%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    width: max-content;
+    min-width: 112px;
+    color: var(--brand-500);
+    opacity: 0;
+    visibility: hidden;
+    transform: translate3d(-50%, -100%, 0);
+    transition:
+      opacity 180ms ease,
+      visibility 180ms ease;
+    pointer-events: none;
+  }
+
+  .about-project-team-label.is-visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .about-project-team-name {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--brand-500);
+    font-family: var(--font-text);
+    font-size: clamp(15px, 1.36vw, 19.55px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0;
+    text-align: center;
+    word-break: break-word;
+  }
+
+  .about-project-team-links {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 19px;
+    color: var(--brand-500);
+  }
+
+  .about-project-team-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-decoration: none;
+    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+    transform: translateZ(0);
+    transition: transform 130ms ease;
+  }
+
+  .about-project-team-link:hover,
+  .about-project-team-link:focus-visible {
+    transform: scale(1.08);
+  }
+
+  .about-project-team-link:active {
+    transform: scale(0.94);
+  }
+
+  .about-project-team-link:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 4px;
+  }
+
+  .about-project-team-link-instagram {
+    width: 19px;
+    height: 19px;
+  }
+
+  .about-project-team-link-email {
+    width: 26px;
+    height: 19px;
+  }
+
+  .about-project-team-link svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .about-project-team-link rect,
+  .about-project-team-link path,
+  .about-project-team-link circle {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.85;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .about-project-team-link .about-project-team-icon-dot {
+    fill: currentColor;
+    stroke: none;
   }
 
   .about-screen.is-full-interview .about-top-bar {
