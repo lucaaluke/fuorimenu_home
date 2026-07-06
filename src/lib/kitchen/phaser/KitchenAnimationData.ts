@@ -50,6 +50,16 @@ const S_ALARM_CLOCK_ASSET_ID = 'S-sveglia';
 const S_ALARM_CLOCK_WOBBLE_ANGLE = 5;
 const S_ALARM_CLOCK_WOBBLE_STEP_DURATION_MS = 90;
 const S_ALARM_CLOCK_WOBBLE_PAUSE_MS = 900;
+const S_STOVE_CONTROLS_ASSET_ID = '2-S-fornelli-b';
+const S_STOVE_CONTROLS_JUMP_HEIGHT = 8;
+const S_STOVE_CONTROLS_JUMP_DURATION_MS = 360;
+const S_STOVE_CONTROLS_SHAKE_ANGLE = 2;
+const S_STOVE_CONTROLS_SEQUENCE_INTERVAL_MS = 1450;
+const S_STOVE_HOOD_ASSET_ID = '2-cappe-fornelli';
+const S_STOVE_HOOD_TOP_STRETCH_HEIGHT = 20;
+const S_STOVE_HOOD_TOP_STRETCH_EXTRA_TOP = 100;
+const S_STOVE_HOOD_TOP_STRETCH_OVERLAP = 10;
+const S_STOVE_HOOD_TOP_STRETCH_TEXTURE_KEY = 'kitchen-animation-2-cappe-fornelli-top-stretch';
 
 export function startKitchenSceneAnimations(
   scene: Phaser.Scene,
@@ -62,6 +72,8 @@ export function startKitchenSceneAnimations(
   const coffeeMachine = assetSprites.find(({ asset }) => asset.id === S_COFFEE_MACHINE_ASSET_ID)?.sprite;
   const kitPulizieA = assetSprites.find(({ asset }) => asset.id === S_KIT_PULIZIE_A_ASSET_ID)?.sprite;
   const alarmClock = assetSprites.find(({ asset }) => asset.id === S_ALARM_CLOCK_ASSET_ID)?.sprite;
+  const stoveControls = assetSprites.find(({ asset }) => asset.id === S_STOVE_CONTROLS_ASSET_ID)?.sprite;
+  const stoveHood = assetSprites.find(({ asset }) => asset.id === S_STOVE_HOOD_ASSET_ID)?.sprite;
 
   if (sCono) {
     scene.time.addEvent({
@@ -91,6 +103,14 @@ export function startKitchenSceneAnimations(
 
   if (alarmClock) {
     startAlarmClockWobbleAnimation(scene, alarmClock);
+  }
+
+  if (stoveControls) {
+    startStoveControlsJumpShakeAnimation(scene, stoveControls, getSceneScale);
+  }
+
+  if (stoveHood) {
+    startStoveHoodTopStretch(scene, stoveHood);
   }
 }
 
@@ -249,6 +269,160 @@ function playAlarmClockWobble(
       scene.time.delayedCall(S_ALARM_CLOCK_WOBBLE_PAUSE_MS, onComplete);
     }
   });
+}
+
+function startStoveControlsJumpShakeAnimation(
+  scene: Phaser.Scene,
+  sourceSprite: Phaser.GameObjects.Sprite,
+  getSceneScale: () => number
+) {
+  const state = {
+    angle: 0,
+    jumpOffset: 0
+  };
+  const animatedSprite = scene.add.sprite(
+    sourceSprite.x,
+    sourceSprite.y,
+    sourceSprite.texture.key,
+    sourceSprite.frame.name
+  );
+
+  animatedSprite.setOrigin(0.5, 0.5);
+  animatedSprite.setScrollFactor(sourceSprite.scrollFactorX, sourceSprite.scrollFactorY);
+  animatedSprite.setDepth(sourceSprite.depth);
+  sourceSprite.setVisible(false);
+
+  const syncAnimatedSprite = () => {
+    animatedSprite.setPosition(
+      sourceSprite.x + sourceSprite.displayWidth / 2,
+      sourceSprite.y + sourceSprite.displayHeight / 2 + state.jumpOffset
+    );
+    animatedSprite.setDisplaySize(sourceSprite.displayWidth, sourceSprite.displayHeight);
+    animatedSprite.setScrollFactor(sourceSprite.scrollFactorX, sourceSprite.scrollFactorY);
+    animatedSprite.setDepth(sourceSprite.depth);
+    animatedSprite.setAngle(state.angle);
+    animatedSprite.setVisible(sourceSprite.active);
+  };
+
+  const playAnimation = () => {
+    if (!sourceSprite.active || !animatedSprite.active) return;
+    playStoveControlsJumpShake(scene, state, getSceneScale(), playAnimation);
+  };
+
+  scene.events.on('postupdate', syncAnimatedSprite);
+  scene.events.once('shutdown', () => {
+    scene.events.off('postupdate', syncAnimatedSprite);
+    animatedSprite.destroy();
+  });
+
+  syncAnimatedSprite();
+  playAnimation();
+}
+
+function playStoveControlsJumpShake(
+  scene: Phaser.Scene,
+  state: { angle: number; jumpOffset: number },
+  sceneScale: number,
+  onComplete: () => void
+) {
+  const jumpHeight = Math.max(3, Math.round(S_STOVE_CONTROLS_JUMP_HEIGHT * sceneScale));
+
+  state.angle = 0;
+  state.jumpOffset = 0;
+  scene.tweens.killTweensOf(state);
+  scene.tweens.add({
+    targets: state,
+    jumpOffset: -jumpHeight,
+    angle: S_STOVE_CONTROLS_SHAKE_ANGLE,
+    duration: S_STOVE_CONTROLS_JUMP_DURATION_MS * 0.36,
+    ease: 'Sine.easeOut',
+    yoyo: true,
+    onComplete: () => {
+      scene.tweens.add({
+        targets: state,
+        angle: -S_STOVE_CONTROLS_SHAKE_ANGLE,
+        duration: 85,
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: 1,
+        onComplete: () => {
+          state.jumpOffset = 0;
+          state.angle = 0;
+          scene.time.delayedCall(S_STOVE_CONTROLS_SEQUENCE_INTERVAL_MS, onComplete);
+        }
+      });
+    }
+  });
+}
+
+function startStoveHoodTopStretch(scene: Phaser.Scene, sourceSprite: Phaser.GameObjects.Sprite) {
+  const sourceImage = sourceSprite.texture.getSourceImage(sourceSprite.frame.name);
+  if (!(sourceImage instanceof HTMLImageElement) && !(sourceImage instanceof HTMLCanvasElement)) return;
+
+  const cropY = findFirstOpaqueRow(sourceImage, sourceSprite.width, sourceSprite.height) ?? 0;
+  const cropHeight = Math.min(S_STOVE_HOOD_TOP_STRETCH_HEIGHT, sourceSprite.height - cropY);
+  if (cropHeight <= 0) return;
+
+  const stretchTexture = createCroppedTexture(
+    scene,
+    S_STOVE_HOOD_TOP_STRETCH_TEXTURE_KEY,
+    sourceImage,
+    0,
+    cropY,
+    sourceSprite.width,
+    cropHeight
+  );
+  if (!stretchTexture) return;
+
+  const stretchSprite = scene.add.sprite(sourceSprite.x, 0, stretchTexture.key);
+  stretchSprite.setOrigin(0, 0);
+  stretchSprite.setScrollFactor(sourceSprite.scrollFactorX, sourceSprite.scrollFactorY);
+  stretchSprite.setDepth(sourceSprite.depth + 0.1);
+
+  const syncStretchSprite = () => {
+    const scaleY = sourceSprite.displayHeight / sourceSprite.height;
+    const visibleTopY = sourceSprite.y + cropY * scaleY;
+
+    stretchSprite.setPosition(sourceSprite.x, -S_STOVE_HOOD_TOP_STRETCH_EXTRA_TOP);
+    stretchSprite.setDisplaySize(
+      sourceSprite.displayWidth,
+      Math.max(0, visibleTopY + S_STOVE_HOOD_TOP_STRETCH_EXTRA_TOP + S_STOVE_HOOD_TOP_STRETCH_OVERLAP)
+    );
+    stretchSprite.setScrollFactor(sourceSprite.scrollFactorX, sourceSprite.scrollFactorY);
+    stretchSprite.setDepth(sourceSprite.depth + 0.1);
+    stretchSprite.setVisible(sourceSprite.active && visibleTopY > 0);
+  };
+
+  scene.events.on('postupdate', syncStretchSprite);
+  scene.events.once('shutdown', () => {
+    scene.events.off('postupdate', syncStretchSprite);
+    stretchSprite.destroy();
+  });
+
+  syncStretchSprite();
+}
+
+function findFirstOpaqueRow(
+  sourceImage: HTMLImageElement | HTMLCanvasElement,
+  width: number,
+  height: number
+) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) return undefined;
+
+  context.drawImage(sourceImage, 0, 0, width, height);
+  const { data } = context.getImageData(0, 0, width, height);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (data[(y * width + x) * 4 + 3] > 0) return y;
+    }
+  }
+
+  return undefined;
 }
 
 function startCoffeeDripAnimation(

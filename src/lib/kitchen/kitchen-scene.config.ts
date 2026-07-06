@@ -10,8 +10,9 @@ const kitchenTailY = -137;
 export const kitchenConstructionSceneHeight = 1330;
 const kitchenConstructionChunkWidth = 2048;
 const kitchenConstructionChunkHeight = kitchenConstructionSceneHeight;
-const kitchenConstructionChunkFrameCount = 16;
+const kitchenConstructionChunkFrameCount = 23;
 const kitchenConstructionLeadingEmptyChunkCount = 1;
+const kitchenConstructionTrailingEmptyWidth = 2000;
 const kitchenConstructionFloorHeight = 166.2;
 export const kitchenConstructionFloorTopY = kitchenConstructionSceneHeight;
 const kitchenConstructionFloorTileWidth = kitchenConstructionFloorHeight;
@@ -44,6 +45,8 @@ const kitchenConstructionExistingObjectNames = new Set([
 ]);
 
 const kitchenConstructionObjectSourceByName: Record<string, string> = {
+  '2-S-fornelli-a': 'kitchen/objects/2_S_fornelli-a.png',
+  '2-S-fornelli-b': 'kitchen/objects/2_S_fornelli-b.png',
   '2-cappe-fornelli': 'kitchen/objects/2_cappe-fornelli.png',
   '2-carrello-brocche': 'kitchen/objects/2_carrello-brocche.png',
   '2-carrello-pentole': 'kitchen/objects/2_carrello-pentole.png',
@@ -113,14 +116,10 @@ function isKitchenMiddlegroundNote(value: unknown): boolean {
   );
 }
 
-const kitchenConstructionSceneWidth = Math.ceil(
-  Math.max(
-    46600,
-    ...(objectsPosition as unknown[])
-      .filter(isKitchenObjectPosition)
-      .map((position) => (position.x + position.width) * kitchenConstructionPositionScale)
-  )
-);
+const kitchenConstructionSceneWidth =
+  kitchenConstructionChunkWidth *
+    (kitchenConstructionLeadingEmptyChunkCount + kitchenConstructionChunkFrameCount) +
+  kitchenConstructionTrailingEmptyWidth;
 
 export const kitchenSceneConfig = {
   sceneWidth: kitchenConstructionSceneWidth,

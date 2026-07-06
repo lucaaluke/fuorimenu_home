@@ -354,6 +354,22 @@
     "height": 972
   },
   {
+    "name": "2_S_fornelli-a",
+    "type": "RECTANGLE",
+    "x": 112309,
+    "y": 1414,
+    "width": 1114,
+    "height": 972
+  },
+  {
+    "name": "2_S_fornelli-b",
+    "type": "RECTANGLE",
+    "x": 112642,
+    "y": 1430,
+    "width": 182,
+    "height": 62
+  }, 
+  {
     "name": "S_sveglia",
     "type": "RECTANGLE",
     "x": 80104,
