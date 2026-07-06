@@ -15,6 +15,7 @@
   import { loadGsap, type Gsap } from '$lib/scene/gsap-loader';
   import { clamp, px } from '$lib/scene/math';
   import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
+  import SceneProgressBar from '$lib/scene/SceneProgressBar.svelte';
   import { getSceneAssetStyle } from '$lib/scene/scene-utils';
   import type { InteractiveSceneAsset, SceneAsset } from '$lib/scene/scene-asset.types';
   import { createViewportObserver } from '$lib/scene/viewport';
@@ -1674,6 +1675,8 @@
   onpointerup={endDrag}
   onpointercancel={endDrag}
 >
+  <SceneProgressBar progress={narrativeProgress} />
+
   <aside class="scene-coordinate-indicator" aria-label="Coordinate scena per posizionamento asset">
     <div class="coordinate-indicator-title">coordinate scena</div>
     <dl>

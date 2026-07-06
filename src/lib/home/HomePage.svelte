@@ -47,6 +47,8 @@
   let aboutScreenEl = $state<HTMLElement>();
   let aboutProjectEl = $state<HTMLElement>();
   let aboutProjectPhaserEl = $state<HTMLElement>();
+  let fullInterviewScrollEl = $state<HTMLElement>();
+  let fullInterviewScrollbarThumbStyle = $state('height: 100%; transform: translate3d(0, 0, 0);');
   let aboutProjectTeamLabelStyle = $state('');
   let isAboutProjectTeamVisible = $state(false);
   let aboutTransitionId = 0;
@@ -58,6 +60,7 @@
   let cardEnterTween: ReturnType<Gsap['timeline']> | undefined;
   let roleHoverResizeObserver: ResizeObserver | undefined;
   let roleHoverFitFrame = 0;
+  let fullInterviewScrollbarFrame = 0;
   const animations = createAnimationCueManager();
   const sceneResources = createSceneResourceScope();
 
@@ -67,6 +70,7 @@
   type HomeAudioId = (typeof homeAudioIds)[number];
   type RoleItem = {
     title: AudioRole;
+    displayTitle?: string;
     description: string;
     speaker: string;
     dialogue: string;
@@ -1032,6 +1036,7 @@
     },
     {
       title: 'servizio',
+      displayTitle: 'sala',
       description: 'Distribuzione e assistenza',
       speaker: 'Fausto Meli',
       dialogue: 'il mio ruolo ... seguimi nella mensa per saperne di più',
@@ -1718,9 +1723,13 @@
     activeInterviewName = undefined;
   }
 
-  function openFullInterview() {
+  async function openFullInterview() {
     if (!activeInterviewDetail || !activeFullInterviewContent) return;
     aboutView = 'interview';
+    await tick();
+    fullInterviewScrollEl?.scrollTo({ top: 0, behavior: 'auto' });
+    queueFullInterviewScrollbarUpdate();
+    window.setTimeout(queueFullInterviewScrollbarUpdate, 80);
   }
 
   function returnToInterviewDetail() {
@@ -1740,6 +1749,35 @@
     event.preventDefault();
     event.stopPropagation();
     scroller.scrollTop = nextScrollTop;
+    updateFullInterviewScrollbar();
+  }
+
+  function updateFullInterviewScrollbar() {
+    const scroller = fullInterviewScrollEl;
+    if (!scroller) return;
+
+    const viewportHeight = scroller.clientHeight;
+    const scrollHeight = scroller.scrollHeight;
+    const maxScrollTop = scrollHeight - viewportHeight;
+    const scrollbarInset = 4;
+    const scrollbarTravelHeight = Math.max(1, viewportHeight - scrollbarInset * 2);
+    const thumbHeight = maxScrollTop > 0
+      ? clamp((viewportHeight / scrollHeight) * scrollbarTravelHeight, 42, scrollbarTravelHeight)
+      : scrollbarTravelHeight;
+    const currentScrollTop = clamp(scroller.scrollTop, 0, Math.max(0, maxScrollTop));
+    const thumbY = maxScrollTop > 0
+      ? scrollbarInset + ((scrollbarTravelHeight - thumbHeight) * currentScrollTop) / maxScrollTop
+      : scrollbarInset;
+
+    fullInterviewScrollbarThumbStyle = `height: ${fixed(thumbHeight)}px; transform: translate3d(0, ${fixed(thumbY)}px, 0);`;
+  }
+
+  function queueFullInterviewScrollbarUpdate() {
+    if (fullInterviewScrollbarFrame) window.cancelAnimationFrame(fullInterviewScrollbarFrame);
+    fullInterviewScrollbarFrame = window.requestAnimationFrame(() => {
+      fullInterviewScrollbarFrame = 0;
+      updateFullInterviewScrollbar();
+    });
   }
 
   function handleInterviewsWheel(event: WheelEvent) {
@@ -2215,12 +2253,15 @@
     sceneResources.addEventListener(window, 'keydown', onKeydown as EventListener);
     sceneResources.addEventListener(window, 'pointerdown', onPointerDownAudioUnlock, { passive: true });
     sceneResources.addEventListener(window, 'resize', queueRoleHoverTextFit, { passive: true });
+    sceneResources.addEventListener(window, 'resize', queueFullInterviewScrollbarUpdate, { passive: true });
     });
 
     return () => {
       isDestroyed = true;
       if (roleHoverFitFrame) window.cancelAnimationFrame(roleHoverFitFrame);
       roleHoverFitFrame = 0;
+      if (fullInterviewScrollbarFrame) window.cancelAnimationFrame(fullInterviewScrollbarFrame);
+      fullInterviewScrollbarFrame = 0;
       roleHoverResizeObserver?.disconnect();
       roleHoverResizeObserver = undefined;
       flowTween?.kill();
@@ -2534,7 +2575,7 @@
           </p>
         </div>
         <div class="role-card-copy">
-          <h2>{item.title}</h2>
+          <h2>{item.displayTitle ?? item.title}</h2>
           <p>{item.description}</p>
         </div>
         {#if item.personSrc}
@@ -2785,27 +2826,34 @@
             <img src={activeInterviewDetail.portraitSrc} alt="" draggable="false" />
           </div>
           <article class="about-full-interview-copy">
-            <header
-              class="about-full-interview-header"
-              class:is-stefano={activeInterviewDetail.name === 'Stefano Paganini'}
-            >
-              <h3 id="about-full-interview-title" data-node-id="495:1427">{activeInterviewDetail.name}</h3>
-              <p data-node-id="495:1428">{activeInterviewDetail.role}</p>
-            </header>
-            <div
-              class="about-full-interview-scroll"
-              onwheel={handleFullInterviewTranscriptWheel}
-            >
-              <p class="about-full-interview-quote" data-node-id="495:1430">
-                {activeFullInterviewContent.quote}
-              </p>
-              <div class="about-full-interview-transcript" data-node-id="495:1432">
-                {#each activeFullInterviewContent.transcript as section}
-                  <section class="about-full-interview-transcript-section">
-                    <p class="about-full-interview-question"><strong><em>{section.question}</em></strong></p>
-                    <p>{section.answer}</p>
-                  </section>
-                {/each}
+            <div class="about-full-interview-scroll-frame">
+              <div
+                bind:this={fullInterviewScrollEl}
+                class="about-full-interview-scroll"
+                onscroll={updateFullInterviewScrollbar}
+                onwheel={handleFullInterviewTranscriptWheel}
+              >
+                <header
+                  class="about-full-interview-header"
+                  class:is-stefano={activeInterviewDetail.name === 'Stefano Paganini'}
+                >
+                  <h3 id="about-full-interview-title" data-node-id="495:1427">{activeInterviewDetail.name}</h3>
+                  <p data-node-id="495:1428">{activeInterviewDetail.role}</p>
+                </header>
+                <p class="about-full-interview-quote" data-node-id="495:1430">
+                  {activeFullInterviewContent.quote}
+                </p>
+                <div class="about-full-interview-transcript" data-node-id="495:1432">
+                  {#each activeFullInterviewContent.transcript as section}
+                    <section class="about-full-interview-transcript-section">
+                      <p class="about-full-interview-question"><strong><em>{section.question}</em></strong></p>
+                      <p>{section.answer}</p>
+                    </section>
+                  {/each}
+                </div>
+              </div>
+              <div class="about-full-interview-scrollbar" aria-hidden="true">
+                <span style={fullInterviewScrollbarThumbStyle}></span>
               </div>
             </div>
           </article>
@@ -2900,9 +2948,9 @@
                           </span>
                         </span>
                       </button>
-                    </div>
-                  </div>
                 </div>
+              </div>
+            </div>
               </section>
             {/key}
           {:else}
@@ -4595,7 +4643,7 @@
   .about-full-interview-copy {
     position: relative;
     box-sizing: border-box;
-    width: min(641px, calc(100vw - var(--about-full-text-left) - 40px));
+    width: min(682px, calc(100vw - var(--about-full-text-left) - 24px));
     min-height: 740px;
     margin-left: var(--about-full-text-left);
     padding: 37px 0 56px;
@@ -4630,37 +4678,57 @@
     margin-top: 8px;
   }
 
+  .about-full-interview-scroll-frame {
+    position: relative;
+    width: min(630px, 100%);
+    max-height: min(650px, calc(var(--app-viewport-height) - 214px));
+    margin-top: 0;
+  }
+
   .about-full-interview-scroll {
     box-sizing: border-box;
-    width: min(589px, 100%);
-    max-height: min(520px, calc(var(--app-viewport-height) - 342px));
-    margin-top: 44px;
-    padding: 22px 22px 92px 0;
+    width: 100%;
+    max-height: inherit;
+    padding: 0 34px 92px 0;
     overflow-x: hidden;
     overflow-y: scroll;
     overscroll-behavior: contain;
-    scrollbar-color: var(--color-text-primary) var(--color-surface-page);
-    scrollbar-width: thin;
+    scrollbar-width: none;
   }
 
   .about-full-interview-scroll::-webkit-scrollbar {
-    width: 8px;
+    display: none;
   }
 
-  .about-full-interview-scroll::-webkit-scrollbar-track {
+  .about-full-interview-scrollbar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    width: 8px;
+    box-sizing: border-box;
+    overflow: hidden;
     border: 1px solid var(--color-text-primary);
     background: var(--color-surface-page);
+    pointer-events: none;
   }
 
-  .about-full-interview-scroll::-webkit-scrollbar-thumb {
-    border: 1px solid var(--color-surface-page);
+  .about-full-interview-scrollbar span {
+    position: absolute;
+    top: 0;
+    left: 1px;
+    width: 4px;
+    min-height: 42px;
+    box-sizing: border-box;
     background: var(--color-text-primary);
+    will-change: transform, height;
   }
 
   .about-full-interview-quote {
     position: relative;
     width: min(641px, 100%);
-    margin: 0;
+    margin: 44px 0 0;
     padding: 0;
     color: #294485;
     font-family: var(--font-text);
@@ -5396,7 +5464,7 @@
 
   .reel-frame {
     position: relative; width: 100%; height: 100%;
-    overflow: hidden; border: var(--card-border-width) solid var(--color-border-dark); border-radius: var(--radius-m);
+    overflow: hidden; border: var(--card-border-width) solid var(--color-border-primary); border-radius: var(--radius-m);
     box-shadow:
       var(--reel-shadow-x, 0px) var(--reel-shadow-y, 36px) 80px rgb(var(--shadow-brand-rgb) / .22),
       0 10px 26px rgb(var(--shadow-dark-rgb) / .28);
@@ -5656,11 +5724,14 @@
   }
 
   .role-grid {
+    --role-grid-height: min(620px, calc(var(--app-viewport-height) - 190px));
+    --role-card-max-width: min(386px, calc(var(--role-grid-height) * 0.7127));
+
     position: absolute; z-index: 2;
     top: 130px; left: var(--layout-page-gutter); right: var(--layout-page-gutter);
-    height: min(620px, calc(var(--app-viewport-height) - 190px));
+    height: var(--role-grid-height);
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 386px));
+    grid-template-columns: repeat(3, minmax(0, var(--role-card-max-width)));
     justify-content: space-between;
     align-items: start;
     column-gap: var(--spacing-5);
@@ -5679,6 +5750,7 @@
     position: relative;
     width: 100%;
     aspect-ratio: 373.448 / 524;
+    max-height: 100%;
     overflow: visible;
     isolation: isolate;
     min-height: 0;
@@ -5690,12 +5762,14 @@
     transform: translateY(var(--role-card-y, 38vh));
     transform-style: flat;
     transform-origin: 50% 50%;
+    -webkit-transform: translateY(var(--role-card-y, 38vh)) translateZ(0);
     box-shadow: 0 20px 46px rgb(var(--shadow-brand-rgb) / var(--role-shadow-alpha, 0));
     transition:
       opacity 120ms linear,
       transform 180ms ease-out,
       box-shadow 180ms ease;
     will-change: opacity, transform;
+    -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
   }
 
@@ -5808,8 +5882,11 @@
     border-radius: var(--role-card-radius);
     background: var(--color-surface-page);
     transform: translateY(var(--role-card-lift-y, 0px));
+    -webkit-transform: translateY(var(--role-card-lift-y, 0px)) translateZ(0);
     transition: transform 210ms cubic-bezier(0.18, 1.35, 0.28, 1);
     will-change: transform;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   .role-card-top::before {
@@ -5818,7 +5895,7 @@
     inset: 0;
     background: var(--role-card-fill, transparent);
     content: '';
-    mix-blend-mode: plus-darker;
+    mix-blend-mode: multiply;
     opacity: 0;
     pointer-events: none;
     transition: opacity 180ms ease;
@@ -5849,7 +5926,7 @@
     inset: 0;
     background: var(--role-card-fill, transparent);
     opacity: 0;
-    mix-blend-mode: plus-darker;
+    mix-blend-mode: multiply;
     transition: opacity 180ms ease;
     pointer-events: none;
   }
@@ -6123,6 +6200,47 @@
     opacity: 1;
   }
 
+  @supports (mix-blend-mode: plus-darker) {
+    .role-card-top::before,
+    .role-card-bg-overlay {
+      mix-blend-mode: plus-darker;
+    }
+  }
+
+  @media (min-width: 701px) and (max-width: 1180px) {
+    .role-grid {
+      --role-grid-height: min(590px, calc(var(--app-viewport-height) - 176px));
+
+      top: 122px;
+      column-gap: clamp(12px, 2vw, 24px);
+    }
+
+    .role-card {
+      --role-card-radius: clamp(34px, 5.5vw, 54px);
+    }
+
+    .role-card-copy {
+      left: var(--spacing-4);
+      right: var(--spacing-4);
+    }
+
+    .role-card-copy h2 {
+      font-size: clamp(34px, 5.2vw, 52px);
+      line-height: 1.24;
+    }
+
+    .role-card-copy p {
+      margin-top: -2px;
+      font-size: clamp(11px, 1.55vw, 14px);
+      line-height: 1.35;
+    }
+
+    .role-hover-panel p {
+      font-size: var(--role-hover-font-size, clamp(9.5px, 1.45vw, 13px));
+      line-height: 1.42;
+    }
+  }
+
   @media (max-width: 700px) {
     :global(:root) {
       --home-scroll-cue-bottom: clamp(24px, 6vh, 48px);
@@ -6236,13 +6354,16 @@
     .about-full-interview-header p {
       font-size: 14px;
     }
-    .about-full-interview-scroll {
+    .about-full-interview-scroll-frame {
       width: 100%;
-      max-height: 38svh;
-      margin-top: 34px;
-      padding: 18px 14px 84px 0;
+      max-height: 48svh;
+      margin-top: 0;
+    }
+    .about-full-interview-scroll {
+      padding: 0 14px 84px 0;
     }
     .about-full-interview-quote {
+      margin-top: 34px;
       font-size: clamp(18px, 5.4vw, 24px);
     }
     .about-full-interview-transcript {
@@ -6320,11 +6441,16 @@
     .floating-fusillo { width: clamp(82px, 26vw, 118px); }
     .roles-top-bar { height: var(--layout-topbar-height-mobile); padding: var(--layout-topbar-padding-mobile); }
     .role-grid {
-      top: 104px; left: var(--layout-page-gutter-mobile);
+      --role-grid-height: calc(var(--app-viewport-height) - 132px);
+
+      top: 104px;
+      left: var(--layout-page-gutter-mobile);
+      right: auto;
+      box-sizing: border-box;
       width: calc(100vw - var(--spacing-8));
-      height: calc(var(--app-viewport-height) - 132px);
+      height: var(--role-grid-height);
       grid-template-columns: 1fr;
-      grid-template-rows: repeat(3, minmax(0, 1fr));
+      grid-template-rows: repeat(3, minmax(118px, 1fr));
       gap: 12px;
       justify-content: stretch;
       align-items: stretch;

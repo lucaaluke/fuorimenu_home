@@ -5,6 +5,7 @@
   import { createViewportObserver } from '$lib/scene/viewport';
   import type { SceneChunk } from '$lib/scene/scene-asset.types';
   import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
+  import SceneProgressBar from '$lib/scene/SceneProgressBar.svelte';
   import type { ParallaxPhaserGameHandle } from '$lib/scene/phaser/ParallaxPhaserGame';
   import {
     resolvedServiceSceneConfig,
@@ -2124,6 +2125,8 @@
   onpointerup={endDrag}
   onpointercancel={endDrag}
 >
+  <SceneProgressBar {progress} />
+
   <div bind:this={servicePhaserContainerEl} class="service-phaser-layer" aria-hidden="true"></div>
   {#if !isPhaserReady}
     <SceneLoadingProgress progress={phaserLoadingProgress} />

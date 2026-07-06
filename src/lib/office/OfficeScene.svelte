@@ -12,6 +12,7 @@
   import { loadGsapWithScrollTrigger, type Gsap } from '$lib/scene/gsap-loader';
   import type { InteractiveSceneAsset, SceneAsset, SceneChunk } from '$lib/scene/scene-asset.types';
   import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
+  import SceneProgressBar from '$lib/scene/SceneProgressBar.svelte';
   import { getSceneAssetStyle } from '$lib/scene/scene-utils';
   import { createViewportObserver } from '$lib/scene/viewport';
   import type { ParallaxPhaserGameHandle } from '$lib/scene/phaser/ParallaxPhaserGame';
@@ -1941,6 +1942,8 @@
   onpointerup={endDrag}
   onpointercancel={endDrag}
 >
+  <SceneProgressBar {progress} />
+
   <div bind:this={officePhaserContainerEl} class="office-phaser-layer" aria-hidden="true"></div>
   {#if !isPhaserReady}
     <SceneLoadingProgress progress={phaserLoadingProgress} />
