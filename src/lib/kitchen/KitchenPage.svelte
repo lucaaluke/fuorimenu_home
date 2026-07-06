@@ -117,15 +117,20 @@
 </main>
 
 <style>
+  :global(html),
   :global(body) {
+    width: 100%;
+    height: 100%;
     margin: 0;
+    overflow: hidden;
     background: var(--color-surface-page);
+    overscroll-behavior: none;
   }
 
   .game-page {
     position: relative;
-    min-height: var(--app-viewport-height);
-    overflow-x: hidden;
+    height: var(--app-viewport-height);
+    overflow: hidden;
     color: var(--color-text-primary);
     background: var(--color-surface-page);
     font-family: var(--font-text);
@@ -419,6 +424,7 @@
   .game-shell {
     position: relative;
     height: var(--app-viewport-height);
+    overflow: hidden;
   }
 
   @media (max-width: 760px) {

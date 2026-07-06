@@ -121,6 +121,9 @@ export function createParallaxMainSceneClass(
       this.load.on('progress', (progress: number) => {
         dependencies.onLoadingProgress?.(progress);
       });
+      this.load.on('loaderror', (file: { key?: string; src?: string; url?: string }) => {
+        console.warn('[ParallaxMainScene] Asset load failed', file.key, file.url ?? file.src);
+      });
 
       const loadedChunkKeys = new Set<string>();
       for (const chunk of dependencies.chunks) {

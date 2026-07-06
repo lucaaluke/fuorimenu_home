@@ -2797,7 +2797,7 @@
               onwheel={handleFullInterviewTranscriptWheel}
             >
               <p class="about-full-interview-quote" data-node-id="495:1430">
-                <span class="about-full-interview-quote-mark" aria-hidden="true">“</span>{activeFullInterviewContent.quote}<span class="about-full-interview-quote-mark" aria-hidden="true">”</span>
+                {activeFullInterviewContent.quote}
               </p>
               <div class="about-full-interview-transcript" data-node-id="495:1432">
                 {#each activeFullInterviewContent.transcript as section}
@@ -4669,15 +4669,6 @@
     line-height: 1.6;
   }
 
-  .about-full-interview-quote-mark {
-    color: var(--brand-100);
-    font-family: Georgia, serif;
-    font-size: 54px;
-    font-weight: 700;
-    line-height: 0;
-    vertical-align: -0.24em;
-  }
-
   .about-full-interview-transcript {
     width: min(545px, 100%);
     margin-top: 26px;
@@ -6253,9 +6244,6 @@
     }
     .about-full-interview-quote {
       font-size: clamp(18px, 5.4vw, 24px);
-    }
-    .about-full-interview-quote-mark {
-      font-size: 42px;
     }
     .about-full-interview-transcript {
       width: 100%;

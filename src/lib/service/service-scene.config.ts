@@ -18,7 +18,7 @@ const serviceLayerSpeed = {
 export const serviceSceneConfig = {
   sceneWidth: 0,
   sceneHeight: serviceSceneHeight,
-  assetVersion: '20260704-service-sfondo-1',
+  assetVersion: '20260706-service-ascii-assets-1',
   layerSpeed: serviceLayerSpeed
 } as const;
 
@@ -75,7 +75,7 @@ export const serviceForegroundAssets: SceneAsset[] = [
   serviceLayerAsset('1_bidoni', 109761, 1777, 4606, 1330),
   serviceLayerAsset('1_carrellini', 6379, 1899, 1623, 764),
   serviceLayerAsset('1_posate', 8998, 1812, 1969, 1009),
-  serviceLayerAsset('1_tè', 13136, 1689, 1623, 973),
+  serviceLayerAsset('1_te', 13136, 1689, 1623, 973),
   serviceLayerAsset('1_mobilecloche', 19454, 1679, 1757, 1122),
   serviceLayerAsset('1_cloche', 20646, 1668, 1428, 415, 'primopiano', 'foreground', {
     hoverAnimation: 'shake',
@@ -128,7 +128,7 @@ export const serviceForegroundAssets: SceneAsset[] = [
 export const serviceMiddleAssets: SceneAsset[] = [
   serviceLayerAsset('2_mobileconlampada', 4745, 314, 1371, 2078, 'secondopiano', 'middle'),
   serviceLayerAsset('2_mobilepiatti', 7771, 1522, 1699, 873, 'secondopiano', 'middle'),
-  serviceLayerAsset('2_mobilecaffè', 11005, 328, 2753, 2203, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_mobilecaffe', 11005, 328, 2753, 2203, 'secondopiano', 'middle'),
   serviceLayerAsset('2_banconecibo', 14619, 1255, 5893, 1136, 'secondopiano', 'middle'),
   serviceLayerAsset('2_spaghetti', 21970, 1373, 5232, 1024, 'secondopiano', 'middle'),
   serviceLayerAsset('2_mobilemascotte', 31871, 1284, 5663, 1111, 'secondopiano', 'middle'),
