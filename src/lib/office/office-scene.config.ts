@@ -19,7 +19,7 @@ function getLayerSceneWidth(assets: SceneAsset[], speed: number) {
 export const officeSceneConfig = {
   sceneWidth: 33068,
   sceneHeight: officeSceneHeight,
-  assetVersion: '20260703-office-slices-1',
+  assetVersion: '20260708-office-assets-1',
   layerSpeed: {
     background: 1,
     middle: 1.5,
@@ -101,7 +101,8 @@ export const officeForegroundAssets: SceneAsset[] = [
   officeLayerAsset('primopiano', '1_postazione1', 83817, 1744, 1829, 916),
   officeLayerAsset('primopiano', '1_postazione2', 85915, 1769, 1830, 891),
   officeLayerAsset('primopiano', '1_poltroncine', 92587, 2018, 2861, 653),
-  officeLayerAsset('primopiano', '1_megatavolo', 99371, 297, 5723, 2375),
+  officeLayerAsset('primopiano', '1_megatavolo', 99371, 0, 5723, 2659),
+  officeInteractiveAsset('primopiano', 'easteregg', 101517, 0, 310, 1167, 'Easter egg interattivo ufficio'),
   officeLayerAsset('primopiano', '1_mobiletv', 105482, 579, 759, 2081),
   officeLayerAsset('primopiano', '1_divano-1', 108060, 1956, 1620, 705),
   officeLayerAsset('primopiano', '1_tavolinopianta', 110232, 1921, 846, 740),

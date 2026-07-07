@@ -108,17 +108,20 @@
   const testimonialAudioFadeInDuration = 0.18;
   const testimonialAudioFadeOutDuration = 0.18;
   const testimonialAudioHandoffFadeOutDuration = 0.16;
-  const faustoSecondAudioPauseMs = 700;
-  const faustoSecondAudioStartTime = 25.9;
   const kitchenDialogueCameraRanges = {
     carlo: { enter: 600, dialogueStart: 600, exit: 4700 },
     paganini: { enter: 4900, dialogueStart: 4900, exit: 7500 },
-    fausto: { enter: 8700, dialogueStart: 8700, exit: 15700 },
-    future: { enter: 15900, dialogueStart: 15900, exit: 19300 }
+    fausto: { enter: 8700, dialogueStart: 8700, exit: 12500 },
+    fausto2: { enter: 12700, dialogueStart: 12700, exit: 15000 },
+    marco: { enter: 15200, dialogueStart: 15200, exit: 18100 }
   } as const;
+  const faustoSpeech =
+    "Sei istituti alberghieri, tra cui l'Istituto di Busto Arsizio, l'Istituto Lagrange di Milano, l'Istituto di Bormio, l'Istituto di Cortina e l'Istituto di Brunico ci hanno aiutato per effettuare tutte le tipologie di servizi. Io avevo 8 chef, quindi uno per ogni sito, con cui avevo più contatti diretti. Ogni chef aveva questa sua brigata in base alla grandezza del luogo dove operava. Brunico aveva uno chef, due sous-chef e 15 ragazzi. La grande difficoltà che ho trovato io personalmente, è che, lavorando per un'azienda americana, loro hanno uno stile completamente diverso. Non posso dire che loro siano più bravi, non lo dirò mai. Posso dire che loro sono più pignoli? Sì. Per i primi 3-4 mesi entrare nella loro fase di lavoro non è stato semplice.";
   const faustoSecondSpeech =
-    'Io avevo 8 chef, quindi uno per ogni sito, con cui avevo più contatti diretti. Ogni chef aveva questa sua brigata in base alla grandezza del luogo dove operava. Brunico aveva uno chef, due sous-chef e 15 ragazzi.';
-  type KitchenTestimonialId = 'carlo' | 'paganini' | 'fausto';
+    "Gli operatori normali lavoravano le 8 ore, 40 ore settimanali. I ragazzi in stage delle scuole invece lavoravano solo nelle ore di servizio, le ore di punta diciamo. Per quanto riguarda gli chef (e me) la sveglia era alle 06:30 e si andava a dormire intorno all'1:00. Perché poi capitava di spostarsi: sei a Santa Giulia, ma visto che sei a Milano fai un salto a Rho, hai ancora mezz'oretta di tempo e vai ad Assago perché comunque il controllo deve essere fatto. L'orologio è la prima cosa che guardi al mattino ed è l'ultima cosa che guardi quando vai a dormire.";
+  const marcoSpeech =
+    "Noi quello che facevamo durante il giorno era sì quello per il primo servizio che andava in cronologia di orario, però nei tempi morti, diciamo, o comunque in cui non c'era il servizio, si preparavano le basi per i giorni successivi. Quindi uno staff lavorava per l'altro e viceversa: io lasciavo pronto il lavoro per quelli della sera, quelli della sera lasciavano pronte le basi per quelli della mattina. I lavori che richiedevano lunghe cotture o grandi volumi potevano essere già prodotti e messi in frigorifero, pronti all'uso. Un prodotto che è stato trattato in questo modo, in 15 minuti, non si fa altro che aprire la busta da sottovuoto e rigenerarlo in un forno, a secondo del tipo di consistenza e cottura che deve avere un prodotto. E questo dà una resa perfetta che si usa in ristorazione professionale. Si faceva una stima statistica di quanti produrne. Oggi abbiamo 500 persone, 150 stinchi freschi basteranno. Si tende ad avere sempre di più e non di meno. Con quello che rimaneva si dava comunque la possibilità di poter mantenere un prodotto integro, fresco, da poter utilizzare al servizio successivo.";
+  type KitchenTestimonialId = 'carlo' | 'paganini' | 'fausto' | 'fausto2' | 'marco';
   type KitchenTestimonial = {
     id: KitchenTestimonialId;
     ariaLabel: string;
@@ -135,8 +138,6 @@
     revealDurationSeconds?: number;
     rolePrefix: string;
     revealSpeechWithAudio?: boolean;
-    secondRevealDurationSeconds?: number;
-    secondSpeech?: string;
     speech: string;
     widthMax?: number;
     widthMin?: number;
@@ -171,7 +172,7 @@
       enterProgress: 0.168,
       exitProgress: 0.235,
       dialogueVisibleThreshold: 0.16,
-      imageAspectRatio: 519 / 283,
+      imageAspectRatio: 519 / 315,
       imageAlt: '',
       imageSrc: '/images/stefano-paganini-figma.svg',
       metaLabel: 'Executive Chef - Stefano Paganini',
@@ -187,24 +188,59 @@
     },
     {
       id: 'fausto',
-      ariaLabel: 'Testimonianza Fausto',
-      audioStartTime: 17.8,
-      audioSrc: '/sound/fausto.mp3',
+      ariaLabel: 'Prima testimonianza Fausto Meli',
+      audioSrc: '/sound/faustocucina1.mp3',
       dialogueVisibleThreshold: 0.16,
       enterProgress: 0.248,
+      exitProgress: 0.44,
+      imageAspectRatio: 1394 / 574,
+      imageAlt: '',
+      imageSrc: '/images/fausto.svg',
+      metaLabel: 'Executive Chef - Fausto Meli',
+      name: 'Fausto Meli',
+      rolePrefix: 'Executive Chef - ',
+      revealSpeechWithAudio: true,
+      speech: faustoSpeech,
+      widthMax: 360,
+      widthMin: 305,
+      widthVw: 0.235,
+      bottomOffset: 600
+    },
+    {
+      id: 'fausto2',
+      ariaLabel: 'Seconda testimonianza Fausto Meli',
+      audioSrc: '/sound/fausto2ok.mp3',
+      dialogueVisibleThreshold: 0.16,
+      enterProgress: 0.47,
       exitProgress: 0.55,
       imageAspectRatio: 1394 / 574,
       imageAlt: '',
       imageSrc: '/images/fausto.svg',
-      metaLabel: 'Executive Chef - Fausto',
-      name: 'Fausto',
-      revealDurationSeconds: 12,
+      metaLabel: 'Executive Chef - Fausto Meli',
+      name: 'Fausto Meli',
       rolePrefix: 'Executive Chef - ',
       revealSpeechWithAudio: true,
-      secondRevealDurationSeconds: 15,
-      secondSpeech: faustoSecondSpeech,
-      speech:
-        "Sei istituti alberghieri, tra cui l'Istituto di Busto Arsizio, l'Istituto Lagrange di Milano, l'Istituto di Bormio, l'Istituto di Cortina e l'Istituto di Brunico ci hanno aiutato per effettuare tutte le tipologie di servizi.",
+      speech: faustoSecondSpeech,
+      widthMax: 360,
+      widthMin: 305,
+      widthVw: 0.235,
+      bottomOffset: 600
+    },
+    {
+      id: 'marco',
+      ariaLabel: 'Testimonianza Marco Frassante',
+      audioSrc: '/sound/marcofrassantecucina.mp3',
+      dialogueVisibleThreshold: 0.16,
+      enterProgress: 0.57,
+      exitProgress: 1,
+      imageAspectRatio: 2960 / 1276,
+      imageAlt: '',
+      imageSrc: '/assets/interviews-hover/marco.png',
+      metaLabel: 'Executive Chef - Marco Frassante',
+      name: 'Marco Frassante',
+      rolePrefix: 'Executive Chef - ',
+      revealSpeechWithAudio: true,
+      speech: marcoSpeech,
       widthMax: 360,
       widthMin: 305,
       widthVw: 0.235,
@@ -214,6 +250,8 @@
   const carloTestimonial = kitchenTestimonials[0];
   const paganiniTestimonial = kitchenTestimonials[1];
   const faustoTestimonial = kitchenTestimonials[2];
+  const fausto2Testimonial = kitchenTestimonials[3];
+  const marcoTestimonial = kitchenTestimonials[4];
   const kitchenProgressTicks = $derived(getKitchenProgressTicks());
   const testimonialAudioState: Record<
     KitchenTestimonialId,
@@ -241,6 +279,20 @@
       playbackToken: 0
     },
     fausto: {
+      hasPlayed: false,
+      hasUnlocked: false,
+      isStarting: false,
+      isStopping: false,
+      playbackToken: 0
+    },
+    fausto2: {
+      hasPlayed: false,
+      hasUnlocked: false,
+      isStarting: false,
+      isStopping: false,
+      playbackToken: 0
+    },
+    marco: {
       hasPlayed: false,
       hasUnlocked: false,
       isStarting: false,
@@ -291,8 +343,7 @@
   let paganiniAudioEl: HTMLAudioElement;
   let faustoAudioEl: HTMLAudioElement;
   let fausto2AudioEl: HTMLAudioElement;
-  let faustoSecondAudioTimer: ReturnType<typeof setTimeout> | undefined;
-  let faustoSpeechPart = $state<1 | 2>(1);
+  let marcoAudioEl: HTMLAudioElement;
   let hasPlayedToolShedHover = false;
   let hasPlayedStandMixerHover = false;
   let isAmbientAudioStarted = false;
@@ -300,17 +351,23 @@
   let dismissedTestimonialIds = $state<Record<KitchenTestimonialId, boolean>>({
     carlo: false,
     paganini: false,
-    fausto: false
+    fausto: false,
+    fausto2: false,
+    marco: false
   });
   let testimonialRevealProgress = $state<Record<KitchenTestimonialId, number>>({
     carlo: 0,
     paganini: 0,
-    fausto: 0
+    fausto: 0,
+    fausto2: 0,
+    marco: 0
   });
   let mutedTestimonialPageIndex = $state<Record<KitchenTestimonialId, number>>({
     carlo: 0,
     paganini: 0,
-    fausto: 0
+    fausto: 0,
+    fausto2: 0,
+    marco: 0
   });
   let hasTrackedAudioMuted = false;
   let wasAudioMuted = false;
@@ -395,7 +452,7 @@
 
   function scrollBy(delta: number) {
     if (!isSceneInteractive) return;
-    kitchenController?.scrollBy(applyTestimonialHandoffResistance(delta));
+    kitchenController?.scrollBy(delta);
   }
 
   function getNextTestimonial(testimonial: KitchenTestimonial) {
@@ -414,7 +471,8 @@
     return [
       cameraXToProgress(kitchenDialogueCameraRanges.paganini.dialogueStart),
       cameraXToProgress(kitchenDialogueCameraRanges.fausto.dialogueStart),
-      cameraXToProgress(kitchenDialogueCameraRanges.future.dialogueStart)
+      cameraXToProgress(kitchenDialogueCameraRanges.fausto2.dialogueStart),
+      cameraXToProgress(kitchenDialogueCameraRanges.marco.dialogueStart)
     ];
   }
 
@@ -448,27 +506,45 @@
     return !Number.isFinite(audio.duration) || audio.currentTime < audio.duration - 0.2;
   }
 
-  function applyTestimonialHandoffResistance(delta: number) {
-    if (delta <= 0 || !activeTestimonialAudioId) return delta;
-
+  function getActiveUnfinishedTestimonial() {
     const activeTestimonial = kitchenTestimonials.find(
       (testimonial) => testimonial.id === activeTestimonialAudioId
     );
-    if (!activeTestimonial || !isTestimonialAudioUnfinished(activeTestimonial)) return delta;
+    if (activeTestimonial && isTestimonialAudioUnfinished(activeTestimonial)) {
+      return activeTestimonial;
+    }
 
-    const exitProgress = getTestimonialExitProgress(activeTestimonial);
-    if (exitProgress === undefined || maxScrollX <= 0) return delta;
+    return kitchenTestimonials.find((testimonial) => isTestimonialAudioUnfinished(testimonial));
+  }
 
-    const zoneBeforeDisappear = testimonialHandoffSticky.zoneBeforeDisappearPx / maxScrollX;
+  function getTestimonialExitCameraX(testimonial: KitchenTestimonial) {
+    const range = getTestimonialCameraRange(testimonial);
+    if (!range) return undefined;
+
+    return clamp(Math.max(range.exit, range.enter + viewportWidth * 0.32), 0, maxScrollX);
+  }
+
+  function applyTestimonialScrollResistance(nextValue: number, baseValue: number) {
+    const delta = nextValue - baseValue;
+    if (delta <= 0 || maxScrollX <= 0) return nextValue;
+
+    const activeTestimonial = getActiveUnfinishedTestimonial();
+    if (!activeTestimonial) return nextValue;
+
+    const range = getTestimonialCameraRange(activeTestimonial);
+    const exitCameraX = getTestimonialExitCameraX(activeTestimonial);
+    if (!range || exitCameraX === undefined) return nextValue;
+
+    const enterCameraX = clamp(range.enter, 0, maxScrollX);
     const stickyStart = Math.max(
-      getTestimonialEnterProgress(activeTestimonial),
-      exitProgress - zoneBeforeDisappear
+      enterCameraX,
+      exitCameraX - testimonialHandoffSticky.zoneBeforeDisappearPx
     );
-    const stickyEnd = exitProgress;
-    if (narrativeProgress < stickyStart || narrativeProgress > stickyEnd) return delta;
+    const stickyEnd = exitCameraX;
+    if (cameraX < stickyStart || cameraX > stickyEnd) return nextValue;
 
     const releaseProgress = clamp(
-      (narrativeProgress - stickyStart) / Math.max(stickyEnd - stickyStart, 0.001),
+      (cameraX - stickyStart) / Math.max(stickyEnd - stickyStart, 1),
       0,
       1
     );
@@ -477,7 +553,7 @@
       smoothProgress(releaseProgress) *
         (testimonialHandoffSticky.maxFactor - testimonialHandoffSticky.minFactor);
 
-    return delta * factor;
+    return baseValue + delta * factor;
   }
 
   function getTitleStyle() {
@@ -687,11 +763,8 @@
   }
 
   function getTestimonialBubbleCopyHeight() {
-    if (viewportWidth <= 760) {
-      return 106;
-    }
-
-    return 132;
+    if (viewportWidth <= 760) return 142;
+    return 172;
   }
 
   function getTestimonialBubbleMetaHeight() {
@@ -712,14 +785,53 @@
   }
 
   function getTestimonialVisualTopOffset(testimonial: KitchenTestimonial, chefHeight: number) {
-    if (testimonial.id !== 'fausto') return 0;
+    if (testimonial.id !== 'fausto' && testimonial.id !== 'fausto2') return 0;
 
     const translateY = clamp(viewportWidth * 0.08, 92, 145);
     return Math.min(0, (translateY - chefHeight * 0.22) * 0.45);
   }
 
+  function getMarcoTestimonialStyle(presence: number) {
+    const assetWidth = 1276;
+    const assetHeight = 2960;
+    const characterScale = viewportWidth <= 760 ? 1.08 : 1.14;
+    const kitchenMatchingWidth = Math.max(315, Math.min(370, viewportWidth * 0.245));
+    const kitchenMatchingHeight = kitchenMatchingWidth * (565 / 185) * characterScale;
+    const width = kitchenMatchingHeight / (assetHeight / assetWidth);
+    const chefHeight = width * (assetHeight / assetWidth);
+    const dialogueHeight = getTestimonialBubbleHeight();
+    const gap = viewportWidth <= 760 ? 14 : 12;
+    const characterLift = viewportWidth <= 760 ? 102 : 182;
+    const topInset = testimonialDialogueTopInset;
+    const testimonialTop = topInset + dialogueHeight + gap - characterLift;
+    const bottomOffset = testimonialTop + chefHeight - viewportHeight;
+    const entryY = (1 - presence) * Math.max(360, Math.min(520, viewportHeight * 0.54));
+    const bubbleWidth = getTestimonialBubbleWidth();
+    const bubbleLeft = viewportWidth <= 760 ? 24 : 80;
+    const characterLeft = bubbleLeft + bubbleWidth / 2 - width / 2;
+    const bubbleOffsetX = 0;
+    const bubbleArrowLeft = clamp(bubbleWidth / 2 - bubbleOffsetX, 18, bubbleWidth - 18);
+    const dialogueTop = topInset - testimonialTop;
+
+    return [
+      `left: ${scenePx(characterLeft)}`,
+      `bottom: ${scenePx(-bottomOffset)}`,
+      `width: ${scenePx(width)}`,
+      `--chef-entry-y: ${scenePx(entryY)}`,
+      `--chef-entry-opacity: ${presence.toFixed(3)}`,
+      `--speech-bubble-width: ${scenePx(bubbleWidth)}`,
+      `--speech-bubble-copy-height: ${scenePx(getTestimonialBubbleCopyHeight())}`,
+      `--speech-bubble-meta-height: ${scenePx(getTestimonialBubbleMetaHeight())}`,
+      `--speech-bubble-offset-x: ${scenePx(bubbleOffsetX)}`,
+      `--speech-bubble-arrow-left: ${scenePx(bubbleArrowLeft)}`,
+      `--speech-bubble-top: ${scenePx(dialogueTop)}`
+    ].join(';');
+  }
+
   function getTestimonialStyle(testimonial: KitchenTestimonial) {
     const presence = getTestimonialPresence(testimonial);
+    if (testimonial.id === 'marco') return getMarcoTestimonialStyle(presence);
+
     const entryY = (1 - presence) * Math.max(420, Math.min(560, viewportHeight * 0.58));
     const width = Math.max(
       testimonial.widthMin ?? 315,
@@ -752,13 +864,7 @@
   }
 
   function getTestimonialSpeech(testimonial: KitchenTestimonial) {
-    if (isAudioMuted && testimonial.id === 'fausto' && testimonial.secondSpeech) {
-      return `${testimonial.speech} ${testimonial.secondSpeech}`;
-    }
-
-    return testimonial.id === 'fausto' && faustoSpeechPart === 2 && testimonial.secondSpeech
-      ? testimonial.secondSpeech
-      : testimonial.speech;
+    return testimonial.speech;
   }
 
   function getTestimonialSpeechPageCharacters() {
@@ -766,15 +872,18 @@
     const bubbleWidth = getTestimonialBubbleWidth();
     const fontSize = isMobile ? 13 : 15;
     const horizontalPadding = isMobile ? 36 : 40;
+    const verticalPadding = isMobile ? 36 : 34;
+    const pageControlsHeight = 34;
     const copyHeight = getTestimonialBubbleCopyHeight();
     const lineHeight = fontSize * 1.34;
-    const lines = Math.max(3, Math.floor(copyHeight / lineHeight) - 1);
+    const textHeight = copyHeight - verticalPadding - pageControlsHeight - 8;
+    const lines = Math.max(3, Math.floor(textHeight / lineHeight));
     const charactersPerLine = Math.max(
       18,
       Math.floor((bubbleWidth - horizontalPadding) / (fontSize * 0.56))
     );
 
-    return Math.max(90, Math.floor(charactersPerLine * lines * 0.82));
+    return Math.max(88, Math.floor(charactersPerLine * lines * 0.82));
   }
 
   function paginateTestimonialSpeech(speech: string) {
@@ -808,10 +917,6 @@
   }
 
   function getMutedResumeSpeech(testimonial: KitchenTestimonial) {
-    if (testimonial.id === 'fausto' && testimonial.secondSpeech) {
-      return `${testimonial.speech} ${testimonial.secondSpeech}`;
-    }
-
     return testimonial.speech;
   }
 
@@ -863,28 +968,6 @@
     const pageIndex = clamp(mutedTestimonialPageIndex[testimonial.id], 0, Math.max(pages.length - 1, 0));
     const pageStart = getPageStartCharacterIndex(pages, pageIndex);
 
-    if (testimonial.id === 'fausto' && testimonial.secondSpeech) {
-      const firstSpeech = testimonial.speech.trim();
-      const secondSpeech = testimonial.secondSpeech.trim();
-      const pageMiddle = pageStart + (pages[pageIndex]?.length ?? 0) / 2;
-
-      if (pageMiddle > firstSpeech.length) {
-        return {
-          part: 2 as const,
-          progress: clamp(
-            (pageStart - firstSpeech.length - 1) / Math.max(secondSpeech.length, 1),
-            0,
-            0.98
-          )
-        };
-      }
-
-      return {
-        part: 1 as const,
-        progress: clamp(pageStart / Math.max(firstSpeech.length, 1), 0, 0.98)
-      };
-    }
-
     const normalizedSpeech = pages.join(' ');
     return {
       part: 1 as const,
@@ -894,19 +977,8 @@
 
   function syncMutedTestimonialPageIndexFromReveal(testimonial: KitchenTestimonial) {
     const pages = paginateTestimonialSpeech(getMutedResumeSpeech(testimonial));
-    let characterOffset = 0;
-
-    if (testimonial.id === 'fausto' && testimonial.secondSpeech) {
-      const firstSpeech = testimonial.speech.trim();
-      const secondSpeech = testimonial.secondSpeech.trim();
-      characterOffset =
-        faustoSpeechPart === 2
-          ? firstSpeech.length + 1 + testimonialRevealProgress.fausto * secondSpeech.length
-          : testimonialRevealProgress.fausto * firstSpeech.length;
-    } else {
-      const normalizedSpeech = pages.join(' ');
-      characterOffset = testimonialRevealProgress[testimonial.id] * normalizedSpeech.length;
-    }
+    const normalizedSpeech = pages.join(' ');
+    const characterOffset = testimonialRevealProgress[testimonial.id] * normalizedSpeech.length;
 
     mutedTestimonialPageIndex[testimonial.id] = getPageIndexForCharacterOffset(
       pages,
@@ -914,31 +986,49 @@
     );
   }
 
-  function hasNextMutedTestimonialPage(testimonial: KitchenTestimonial) {
-    return isAudioMuted && getMutedTestimonialPageIndex(testimonial) < getTestimonialSpeechPages(testimonial).length - 1;
+  function getTestimonialPageStartProgress(pages: string[], pageIndex: number) {
+    const normalizedSpeech = pages.join(' ');
+    const pageStart = getPageStartCharacterIndex(pages, pageIndex);
+    return clamp(pageStart / Math.max(normalizedSpeech.length, 1), 0, 0.98);
   }
 
-  function hasPreviousMutedTestimonialPage(testimonial: KitchenTestimonial) {
-    return isAudioMuted && getMutedTestimonialPageIndex(testimonial) > 0;
-  }
-
-  function advanceMutedTestimonialPage(event: PointerEvent | MouseEvent, testimonial: KitchenTestimonial) {
-    event.stopPropagation();
+  function setTestimonialPage(testimonial: KitchenTestimonial, pageIndex: number) {
     const pages = getTestimonialSpeechPages(testimonial);
-    mutedTestimonialPageIndex[testimonial.id] = clamp(
-      mutedTestimonialPageIndex[testimonial.id] + 1,
-      0,
-      Math.max(pages.length - 1, 0)
-    );
+    const nextPageIndex = clamp(pageIndex, 0, Math.max(pages.length - 1, 0));
+
+    if (isAudioMuted) {
+      mutedTestimonialPageIndex[testimonial.id] = nextPageIndex;
+      return;
+    }
+
+    const audio = getTestimonialAudioEl(testimonial);
+    if (!audio) {
+      mutedTestimonialPageIndex[testimonial.id] = nextPageIndex;
+      return;
+    }
+
+    const progress = getTestimonialPageStartProgress(pages, nextPageIndex);
+    mutedTestimonialPageIndex[testimonial.id] = nextPageIndex;
+    testimonialRevealProgress[testimonial.id] = progress;
+    audio.currentTime = getAudioTimeForRevealProgress(testimonial, audio, progress);
   }
 
-  function rewindMutedTestimonialPage(event: PointerEvent | MouseEvent, testimonial: KitchenTestimonial) {
+  function hasNextTestimonialPage(testimonial: KitchenTestimonial) {
+    return getVisibleTestimonialPageIndex(testimonial) < getTestimonialSpeechPages(testimonial).length - 1;
+  }
+
+  function hasPreviousTestimonialPage(testimonial: KitchenTestimonial) {
+    return getVisibleTestimonialPageIndex(testimonial) > 0;
+  }
+
+  function advanceTestimonialPage(event: PointerEvent | MouseEvent, testimonial: KitchenTestimonial) {
     event.stopPropagation();
-    mutedTestimonialPageIndex[testimonial.id] = clamp(
-      mutedTestimonialPageIndex[testimonial.id] - 1,
-      0,
-      Math.max(getTestimonialSpeechPages(testimonial).length - 1, 0)
-    );
+    setTestimonialPage(testimonial, getVisibleTestimonialPageIndex(testimonial) + 1);
+  }
+
+  function rewindTestimonialPage(event: PointerEvent | MouseEvent, testimonial: KitchenTestimonial) {
+    event.stopPropagation();
+    setTestimonialPage(testimonial, getVisibleTestimonialPageIndex(testimonial) - 1);
   }
 
   function getCurrentSpeechPageInfo(testimonial: KitchenTestimonial) {
@@ -1001,10 +1091,6 @@
     testimonialAudioState[testimonial.id].hasPlayed = false;
     dismissedTestimonialIds[testimonial.id] = false;
     resetTestimonialSpeechReveal(testimonial);
-    if (testimonial.id === 'fausto') {
-      faustoSpeechPart = 1;
-      clearFaustoSecondAudioTimer();
-    }
   }
 
   function completeTestimonialSpeechReveal(testimonial: KitchenTestimonial) {
@@ -1015,75 +1101,6 @@
     completeTestimonialSpeechReveal(testimonial);
     dismissedTestimonialIds[testimonial.id] = true;
     if (activeTestimonialAudioId === testimonial.id) activeTestimonialAudioId = undefined;
-  }
-
-  function clearFaustoSecondAudioTimer() {
-    if (!faustoSecondAudioTimer) return;
-    clearTimeout(faustoSecondAudioTimer);
-    faustoSecondAudioTimer = undefined;
-  }
-
-  function queueFaustoSecondAudio() {
-    clearFaustoSecondAudioTimer();
-    activeTestimonialAudioId = 'fausto';
-    faustoSecondAudioTimer = setTimeout(() => {
-      faustoSecondAudioTimer = undefined;
-      void playFaustoSecondAudio();
-    }, faustoSecondAudioPauseMs);
-  }
-
-  async function playFaustoSecondAudio(options: { resumeProgress?: number; forceReplay?: boolean } = {}) {
-    if (isAudioMuted || dismissedTestimonialIds.fausto || !fausto2AudioEl) return;
-    const state = testimonialAudioState.fausto;
-
-    gsap?.killTweensOf(fausto2AudioEl);
-    state.isStarting = true;
-    state.isStopping = false;
-    fausto2AudioEl.pause();
-    fausto2AudioEl.currentTime =
-      options.resumeProgress === undefined
-        ? faustoSecondAudioStartTime
-        : getAudioTimeForRevealProgress(faustoTestimonial, fausto2AudioEl, options.resumeProgress, {
-            secondPart: true
-          });
-    fausto2AudioEl.muted = false;
-    fausto2AudioEl.volume = 0;
-    faustoSpeechPart = 2;
-    testimonialRevealProgress.fausto = options.resumeProgress ?? 0;
-    activeTestimonialAudioId = 'fausto';
-    const playbackToken = ++state.playbackToken;
-
-    try {
-      await fausto2AudioEl.play();
-      if (playbackToken === state.playbackToken) state.hasPlayed = true;
-      fadeAudioVolume(fausto2AudioEl, testimonialAudioVolume, testimonialAudioFadeInDuration);
-    } catch {
-      if (activeTestimonialAudioId === 'fausto') activeTestimonialAudioId = undefined;
-    } finally {
-      state.isStarting = false;
-    }
-  }
-
-  function finishFaustoFirstDialogue() {
-    completeTestimonialSpeechReveal(faustoTestimonial);
-    queueFaustoSecondAudio();
-  }
-
-  function finishFaustoSecondDialogue() {
-    completeTestimonialSpeechReveal(faustoTestimonial);
-    if (activeTestimonialAudioId === 'fausto') activeTestimonialAudioId = undefined;
-  }
-
-  function syncFaustoSecondSpeechReveal() {
-    if (!fausto2AudioEl) return;
-
-    const revealDuration = faustoTestimonial.secondRevealDurationSeconds ?? 1;
-    testimonialRevealProgress.fausto = clamp(
-      (fausto2AudioEl.currentTime - faustoSecondAudioStartTime) /
-        Math.max(revealDuration, 0.001),
-      0,
-      1
-    );
   }
 
   function syncTestimonialSpeechReveal(testimonial: KitchenTestimonial) {
@@ -1106,22 +1123,15 @@
   function getAudioTimeForRevealProgress(
     testimonial: KitchenTestimonial,
     audio: HTMLAudioElement,
-    revealProgress: number,
-    options: { secondPart?: boolean } = {}
+    revealProgress: number
   ) {
-    const startTime = options.secondPart
-      ? faustoSecondAudioStartTime
-      : (testimonial.audioStartTime ?? 0);
-    const fallbackDuration = options.secondPart
-      ? (testimonial.secondRevealDurationSeconds ?? 1)
-      : (testimonial.revealDurationSeconds ?? 1);
+    const startTime = testimonial.audioStartTime ?? 0;
+    const fallbackDuration = testimonial.revealDurationSeconds ?? 1;
     const audioDuration =
       Number.isFinite(audio.duration) && audio.duration > startTime
         ? audio.duration - startTime
         : fallbackDuration;
-    const revealDuration =
-      (options.secondPart ? testimonial.secondRevealDurationSeconds : testimonial.revealDurationSeconds) ??
-      audioDuration;
+    const revealDuration = testimonial.revealDurationSeconds ?? audioDuration;
 
     return startTime + clamp(revealProgress, 0, 0.98) * Math.max(revealDuration, 0.001);
   }
@@ -1421,17 +1431,10 @@
 
       if (isDialogueVisible) {
         if (!state.hasPlayed && !state.isStarting) {
-          if (testimonial.id === 'fausto' && faustoSpeechPart === 2) {
-            void playFaustoSecondAudio({
-              resumeProgress: testimonialRevealProgress.fausto,
-              forceReplay: true
-            });
-          } else {
-            void playTestimonialAudio(testimonial, {
-              resumeProgress: testimonialRevealProgress[testimonial.id],
-              forceReplay: true
-            });
-          }
+          void playTestimonialAudio(testimonial, {
+            resumeProgress: testimonialRevealProgress[testimonial.id],
+            forceReplay: true
+          });
         }
         return;
       }
@@ -1492,23 +1495,19 @@
     if (testimonial.id === 'carlo') return carloAudioEl;
     if (testimonial.id === 'paganini') return paganiniAudioEl;
     if (testimonial.id === 'fausto') return faustoAudioEl;
+    if (testimonial.id === 'fausto2') return fausto2AudioEl;
+    if (testimonial.id === 'marco') return marcoAudioEl;
     return undefined;
   }
 
   function getActiveTestimonialAudioEl(testimonial: KitchenTestimonial) {
-    if (testimonial.id === 'fausto' && fausto2AudioEl && !fausto2AudioEl.paused) {
-      return fausto2AudioEl;
-    }
-
     return getTestimonialAudioEl(testimonial);
   }
 
   function pauseAllTestimonialAudioForMute(duration = testimonialAudioFadeOutDuration) {
-    clearFaustoSecondAudioTimer();
     kitchenTestimonials.forEach((testimonial) => {
       const state = testimonialAudioState[testimonial.id];
       const audioElements = [getTestimonialAudioEl(testimonial)];
-      if (testimonial.id === 'fausto') audioElements.push(fausto2AudioEl);
 
       state.playbackToken += 1;
       state.isStarting = false;
@@ -1531,31 +1530,9 @@
   function syncMutedTestimonialPagesFromAudio() {
     kitchenTestimonials.forEach((testimonial) => {
       if (!isTestimonialDialogueVisible(testimonial)) return;
-      if (testimonial.id === 'fausto' && faustoSpeechPart === 2) {
-        syncFaustoSecondSpeechReveal();
-      } else {
-        syncTestimonialSpeechReveal(testimonial);
-      }
+      syncTestimonialSpeechReveal(testimonial);
       syncMutedTestimonialPageIndexFromReveal(testimonial);
     });
-  }
-
-  async function resumeFaustoSecondAudioFromMutedPage(resumeProgress: number) {
-    const state = testimonialAudioState.fausto;
-    if (!fausto2AudioEl) return;
-
-    stopAllTestimonialAudio({ duration: 0, except: 'fausto', resetReplay: false });
-    clearFaustoSecondAudioTimer();
-    if (faustoAudioEl) {
-      gsap?.killTweensOf(faustoAudioEl);
-      faustoAudioEl.pause();
-      faustoAudioEl.currentTime = faustoTestimonial.audioStartTime ?? 0;
-      faustoAudioEl.volume = 1;
-    }
-
-    state.hasPlayed = false;
-    dismissedTestimonialIds.fausto = false;
-    await playFaustoSecondAudio({ resumeProgress, forceReplay: true });
   }
 
   function resumeVisibleTestimonialAudioFromMutedPage() {
@@ -1568,11 +1545,6 @@
     const state = testimonialAudioState[testimonial.id];
     state.hasPlayed = false;
     dismissedTestimonialIds[testimonial.id] = false;
-
-    if (testimonial.id === 'fausto' && resumeInfo.part === 2) {
-      void resumeFaustoSecondAudioFromMutedPage(resumeInfo.progress);
-      return;
-    }
 
     void playTestimonialAudio(testimonial, {
       resumeProgress: resumeInfo.progress,
@@ -1617,22 +1589,6 @@
         audio.pause();
         audio.currentTime = testimonial.audioStartTime ?? 0;
 
-        if (testimonial.id === 'fausto' && fausto2AudioEl) {
-          const previousSecondMuted = fausto2AudioEl.muted;
-          const previousSecondVolume = fausto2AudioEl.volume;
-
-          try {
-            fausto2AudioEl.muted = true;
-            fausto2AudioEl.volume = 0;
-            await fausto2AudioEl.play();
-            fausto2AudioEl.pause();
-            fausto2AudioEl.currentTime = faustoSecondAudioStartTime;
-          } finally {
-            fausto2AudioEl.volume = previousSecondVolume;
-            fausto2AudioEl.muted = previousSecondMuted;
-          }
-        }
-
         state.hasUnlocked = true;
       } catch {
         state.hasUnlocked = false;
@@ -1674,8 +1630,6 @@
       except: testimonial.id,
       resetReplay: true
     });
-    if (testimonial.id === 'fausto') clearFaustoSecondAudioTimer();
-
     gsap?.killTweensOf(audio);
     state.isStopping = false;
     audio.pause();
@@ -1683,16 +1637,9 @@
       options.resumeProgress === undefined
         ? (testimonial.audioStartTime ?? 0)
         : getAudioTimeForRevealProgress(testimonial, audio, options.resumeProgress);
-    if (testimonial.id === 'fausto' && fausto2AudioEl) {
-      gsap?.killTweensOf(fausto2AudioEl);
-      fausto2AudioEl.pause();
-      fausto2AudioEl.currentTime = faustoSecondAudioStartTime;
-      fausto2AudioEl.volume = 1;
-    }
     audio.muted = false;
     audio.volume = 0;
     dismissedTestimonialIds[testimonial.id] = false;
-    if (testimonial.id === 'fausto') faustoSpeechPart = 1;
     if (options.resumeProgress === undefined) {
       resetTestimonialSpeechReveal(testimonial);
     } else {
@@ -1729,25 +1676,13 @@
     state.isStopping = duration > 0 && !audio.paused;
     if (resetReplay) state.hasPlayed = false;
 
-    if (testimonial.id === 'fausto' && audio === fausto2AudioEl) {
-      syncFaustoSecondSpeechReveal();
-    } else {
-      syncTestimonialSpeechReveal(testimonial);
-    }
+    syncTestimonialSpeechReveal(testimonial);
     syncMutedTestimonialPageIndexFromReveal(testimonial);
     gsap?.killTweensOf(audio);
 
     const afterStop = () => {
       audio.pause();
       audio.volume = 1;
-      if (testimonial.id === 'fausto') {
-        clearFaustoSecondAudioTimer();
-        if (fausto2AudioEl && audio !== fausto2AudioEl) {
-          gsap?.killTweensOf(fausto2AudioEl);
-          fausto2AudioEl.pause();
-          fausto2AudioEl.volume = 1;
-        }
-      }
       state.isStopping = false;
       if (activeTestimonialAudioId === testimonial.id) activeTestimonialAudioId = undefined;
     };
@@ -1858,6 +1793,7 @@
     import('$lib/kitchen/kitchen-scroll-controller').then(({ mountKitchenScrollController }) => {
       if (destroyed) return;
       mountKitchenScrollController({
+        applyScrollResistance: applyTestimonialScrollResistance,
         bridge,
         config: kitchenSceneConfig,
         getViewport: () => ({ width: viewportWidth, height: viewportHeight }),
@@ -2070,8 +2006,8 @@
                 class="speech-bubble-page-button speech-bubble-page-button-prev"
                 type="button"
                 aria-label={`Dialogo precedente di ${testimonial.name}`}
-                disabled={!hasPreviousMutedTestimonialPage(testimonial)}
-                onpointerdown={(event) => rewindMutedTestimonialPage(event, testimonial)}
+                disabled={!hasPreviousTestimonialPage(testimonial)}
+                onpointerdown={(event) => rewindTestimonialPage(event, testimonial)}
                 onclick={(event) => event.stopPropagation()}
               >
                 <svg
@@ -2097,8 +2033,8 @@
                 class="speech-bubble-page-button speech-bubble-page-button-next"
                 type="button"
                 aria-label={`Dialogo successivo di ${testimonial.name}`}
-                disabled={!hasNextMutedTestimonialPage(testimonial)}
-                onpointerdown={(event) => advanceMutedTestimonialPage(event, testimonial)}
+                disabled={!hasNextTestimonialPage(testimonial)}
+                onpointerdown={(event) => advanceTestimonialPage(event, testimonial)}
                 onclick={(event) => event.stopPropagation()}
               >
                 <svg
@@ -2173,7 +2109,7 @@
 ></audio>
 <audio
   bind:this={faustoAudioEl}
-  src="/sound/fausto.mp3"
+  src="/sound/faustocucina1.mp3"
   preload="auto"
   onplay={() => {
     if (!faustoAudioEl?.muted) activeTestimonialAudioId = 'fausto';
@@ -2183,22 +2119,37 @@
     if (activeTestimonialAudioId === 'fausto') activeTestimonialAudioId = undefined;
   }}
   onended={() => {
-    finishFaustoFirstDialogue();
+    finishTestimonialDialogue(faustoTestimonial);
   }}
 ></audio>
 <audio
   bind:this={fausto2AudioEl}
-  src="/sound/fausto2.mp3"
+  src="/sound/fausto2ok.mp3"
   preload="auto"
   onplay={() => {
-    if (!fausto2AudioEl?.muted) activeTestimonialAudioId = 'fausto';
+    if (!fausto2AudioEl?.muted) activeTestimonialAudioId = 'fausto2';
   }}
-  ontimeupdate={syncFaustoSecondSpeechReveal}
+  ontimeupdate={() => syncTestimonialSpeechReveal(fausto2Testimonial)}
   onpause={() => {
-    if (activeTestimonialAudioId === 'fausto') activeTestimonialAudioId = undefined;
+    if (activeTestimonialAudioId === 'fausto2') activeTestimonialAudioId = undefined;
   }}
   onended={() => {
-    finishFaustoSecondDialogue();
+    finishTestimonialDialogue(fausto2Testimonial);
+  }}
+></audio>
+<audio
+  bind:this={marcoAudioEl}
+  src="/sound/marcofrassantecucina.mp3"
+  preload="auto"
+  onplay={() => {
+    if (!marcoAudioEl?.muted) activeTestimonialAudioId = 'marco';
+  }}
+  ontimeupdate={() => syncTestimonialSpeechReveal(marcoTestimonial)}
+  onpause={() => {
+    if (activeTestimonialAudioId === 'marco') activeTestimonialAudioId = undefined;
+  }}
+  onended={() => {
+    finishTestimonialDialogue(marcoTestimonial);
   }}
 ></audio>
 
@@ -2486,6 +2437,8 @@
   }
 
   .chef-button img {
+    position: relative;
+    z-index: 0;
     display: block;
     width: 100%;
     height: auto;
@@ -2493,7 +2446,8 @@
     user-select: none;
   }
 
-  .chef-button[data-testimonial='fausto'] img {
+  .chef-button[data-testimonial='fausto'] img,
+  .chef-button[data-testimonial='fausto2'] img {
     width: auto;
     max-width: 100%;
     max-height: clamp(720px, 58vw, 900px);
@@ -2515,7 +2469,7 @@
     height: calc(var(--speech-bubble-copy-height, 132px) + var(--speech-bubble-meta-height, 34px) - 2px);
     color: var(--color-text-primary);
     font-family: var(--font-text);
-    text-align: right;
+    text-align: left;
     opacity: 0;
     transform: translate3d(calc(-50% + var(--speech-bubble-offset-x, 0px)), 18px, 0);
     transition:
@@ -2546,7 +2500,6 @@
   .speech-bubble-copy {
     position: relative;
     z-index: 1;
-    flex: 1;
     box-sizing: border-box;
     display: flex;
     align-items: center;
@@ -2571,7 +2524,7 @@
   .speech-bubble-copy.has-page-controls {
     flex-direction: column;
     align-items: stretch;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 8px;
     padding: 14px 20px 18px;
   }
@@ -2584,10 +2537,10 @@
   }
 
   .speech-bubble-copy.has-page-controls .speech-bubble-text {
-    flex: 1 1 auto;
-    display: block;
+    flex: 1;
+    display: grid;
+    align-items: center;
     min-height: 0;
-    overflow: hidden;
   }
 
   .speech-bubble-text-audio {
@@ -2651,9 +2604,7 @@
     justify-content: center;
     gap: 8px;
     width: 100%;
-    flex: 0 0 28px;
     min-height: 24px;
-    margin-top: auto;
     color: var(--color-text-primary);
     line-height: 1;
     pointer-events: auto;
