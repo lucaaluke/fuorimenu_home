@@ -161,41 +161,41 @@
   const serviceLunchboxAsset = serviceForegroundAssets.find((asset) => asset.id === '1_Lunchbox');
   const serviceLunchboxHoverText =
     'Per gestire allergie e intolleranze alimentari, il servizio prevede sempre alternative dedicate';
-  const serviceAmbientVolume = 0.42;
-  const serviceAmbientDuckedVolume = 0.16;
+  const serviceAmbientVolume = 0.28;
+  const serviceAmbientDuckedVolume = 0.1;
   const serviceAmbientFadeInDuration = 1.2;
   const serviceAmbientFadeOutDuration = 0.36;
-  const carloServiceAudioVolume = 1;
-  const serviceAudioFadeInDuration = 0.04;
-  const serviceAudioHandoffFadeOutDuration = 0;
-  const carloServiceAudioFadeOutDuration = 0.08;
+  const carloServiceAudioVolume = 0.86;
+  const serviceAudioFadeInDuration = 0.18;
+  const serviceAudioHandoffFadeOutDuration = 0.16;
+  const carloServiceAudioFadeOutDuration = 0.18;
   const carloServiceRevealDurationSeconds = 75.68;
   const carloServiceEndCameraX = 5000;
   const carloServiceSpeech =
     "I sette clienti quali sono? Primo, ovviamente gli atleti. Possono mangiare 24 ore al giorno. Poi il secondo gruppo sono i volontari: sono 18.000 persone; la maggior parte lavorano anche all'aperto, quindi devi dargli dei pasti molto caldi. Il terzo sono la workforce. Sono quelli, come lo ero io, che hanno dei ruoli di management, o anche semplicemente dei ruoli esecutivi. La famiglia olimpica sono presidenti dei Comitati Olimpici Nazionali, sono, in questo caso da noi, Mattarella, Meloni. Questi, devo dire molto onestamente, non sono pretenziosi. Questo gruppo dice \"No signori, non vogliamo mandare il messaggio che noi ci trattiamo bene\". Il quinto gruppo è formato dai media. Sono divisi in due gruppi: i giornalisti e le televisioni. All'interno delle televisioni ci sono anche i giornalisti, però ci sono quei poveri cameraman che anche loro, magari alle 7 del mattino, sono lì con le telecamere che nevica. Il sesto gruppo è il gruppo delle hospitality: questi sono i VIP, gli sponsor, che non hanno problemi di budget. E poi ci sono gli spettatori. A Milano son stati quasi un milione e mezzo. Quindi la mia programmazione generale per i 22 giorni di gara è stata sui 3 milioni circa di pasti.";
-  const elisabettaServiceAudioVolume = 1;
-  const elisabettaServiceAudioFadeOutDuration = 0.08;
+  const elisabettaServiceAudioVolume = 0.86;
+  const elisabettaServiceAudioFadeOutDuration = 0.18;
   const elisabettaServiceRevealDurationSeconds = 27.14;
   const elisabettaServiceStartCameraX = 5200;
   const elisabettaServiceEndCameraX = 7200;
   const elisabettaServiceSpeech =
     "L'obiettivo principale del cibo nel villaggio noi lo chiamavamo “Food for Fuel”, cioè quello di dare agli atleti esattamente tutto quello di cui hanno bisogno per aiutarli nelle loro performance, quindi è chiaro che ci sono dei pilastri fondamentali: carboidrati, proteine sempre presenti in rotazione. E poi ovviamente l'atro aspetto fondamentale è quello della Food Safety.";
-  const marcoServiceAudioVolume = 1;
-  const marcoServiceAudioFadeOutDuration = 0.08;
+  const marcoServiceAudioVolume = 0.86;
+  const marcoServiceAudioFadeOutDuration = 0.18;
   const marcoServiceRevealDurationSeconds = 23.17;
   const marcoServiceStartCameraX = 7400;
   const marcoServiceEndCameraX = 10400;
   const marcoServiceSpeech =
     "Noi facevamo un menù di 5 giorni che andava a ripetersi. Quello che chiedevano chiaramente era roba fresca, fatta bene, preparata al momento e la disponibilità di orari. Le colazioni partivano alle 5 del mattino. Poi c'erano due persone giù di cucina, più la sala, che allestivano il breakfast: cereali, frutta, verdura, anche la pasta di prima mattina, perché gli atleti comunque hanno bisogno di una dieta particolare.";
-  const faustoServiceAudioVolume = 1;
-  const faustoServiceAudioFadeOutDuration = 0.08;
+  const faustoServiceAudioVolume = 0.86;
+  const faustoServiceAudioFadeOutDuration = 0.18;
   const faustoServiceRevealDurationSeconds = 39.94;
   const faustoServiceStartCameraX = 10600;
   const faustoServiceEndCameraX = 13600;
   const faustoServiceSpeech =
     "C'erano sul buffet di benvenuto con il calice piccoli assaggi. Poi l'ospite si spostava nella sala centrale dove c'erano vari buffet, tra cui uno di salumi e formaggi, ovviamente i formaggi locali: il taleggio, il puzzone di Moena... Poi c'erano due primi, sempre caldi, a disposizione dei nostri ospiti. Una polenta sempre fissa e tre dolci a rotazione. Non erano previsti superalcolici. Di alcolico avevamo lo sponsor della birra, e i vini, principalmente Prosecco e poi qualche vino della Valtellina, qualche vino del Veneto e così via.";
-  const niniServiceAudioVolume = 1;
-  const niniServiceAudioFadeOutDuration = 0.08;
+  const niniServiceAudioVolume = 0.86;
+  const niniServiceAudioFadeOutDuration = 0.18;
   const niniServiceRevealDurationSeconds = 34;
   const niniServiceStartCameraX = 13800;
   const niniServiceEndCameraX = 16300;
@@ -1456,7 +1456,7 @@
   }
 
   async function startAmbientAudio() {
-    if (isAudioMuted || isAmbientAudioStarted || !serviceAmbientAudioEl) return;
+    if (!isSceneRevealed || isAudioMuted || isAmbientAudioStarted || !serviceAmbientAudioEl) return;
 
     serviceAmbientAudioEl.loop = true;
     serviceAmbientAudioEl.volume = 0;
@@ -2041,10 +2041,12 @@
 
     if (isAudioMuted) {
       shouldResumeServiceAudioFromMutedPage = true;
-      stopAllServiceAudio({ duration: 0.1, resetReplay: true });
+      stopAllServiceAudio({ duration: serviceAudioHandoffFadeOutDuration, resetReplay: true });
       stopAmbientAudio();
       return;
     }
+
+    if (!isSceneRevealed) return;
 
     void startAmbientAudio();
 
@@ -3173,7 +3175,7 @@
 
   .service-mascot-hotspot {
     position: absolute;
-    z-index: 5;
+    z-index: 7;
     display: block;
     padding: 0;
     border: 0;
