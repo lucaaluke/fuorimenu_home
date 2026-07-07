@@ -1,4 +1,7 @@
 <script lang="ts">
+  import VolumeMaxIcon from '$lib/VolumeMaxIcon.svelte';
+  import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
+  import { readAudioMutedPreference, writeAudioMutedPreference } from '$lib/scene/audio-preference';
   import { onMount } from 'svelte';
 
   type Props = {
@@ -7,10 +10,12 @@
     standaloneTopOffset?: string;
   };
 
-  let { onFullInterviewChange, standalone = false, standaloneTopOffset = '0px' }: Props = $props();
+  let { onFullInterviewChange, standalone = false, standaloneTopOffset = 'var(--interviste-navbar-height)' }: Props = $props();
   let activeInterviewName = $state<string>();
   let isFullInterview = $state(false);
+  let isAudioMuted = $state(true);
   let miniPortraitImages: HTMLImageElement[] = [];
+  const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
 
   type MiniPortraitBounds = {
     left: number;
@@ -755,7 +760,18 @@
     if (image) fitMiniPortrait(image);
   }
 
+  function reloadHome(event: MouseEvent) {
+    event.preventDefault();
+    window.location.assign('/?view=brand');
+  }
+
+  function toggleAudioMuted() {
+    isAudioMuted = !isAudioMuted;
+    writeAudioMutedPreference(isAudioMuted);
+  }
+
   onMount(() => {
+    isAudioMuted = readAudioMutedPreference(isAudioMuted);
     fitAllMiniPortraits();
     window.addEventListener('resize', fitAllMiniPortraits);
 
@@ -765,6 +781,7 @@
   });
 </script>
 
+{#snippet intervisteContent()}
 {#if isFullInterview}
 {#if activeInterviewDetail && activeFullInterviewContent}
   <section
@@ -935,8 +952,269 @@
   </div>
 </section>
 {/if}
+{/snippet}
+
+{#if standalone}
+  <main class="interviste-page" aria-label="Interviste Fuorimenù">
+    <header class="interviste-top-bar" aria-label="Navigazione principale">
+      <a class="logo press-ring-control" href="/?view=brand" aria-label="Vai al brand screen Fuorimenù" onclick={reloadHome}>
+        <span class="topbar-control-content">FM</span>
+      </a>
+      <button
+        class="icon-button top-bar-audio press-ring-control"
+        type="button"
+        aria-label={audioLabel}
+        aria-pressed={isAudioMuted}
+        onclick={toggleAudioMuted}
+      >
+        <span class="topbar-control-content" aria-hidden="true">
+          {#if isAudioMuted}
+            <VolumeOffIcon class="volume-icon" />
+          {:else}
+            <VolumeMaxIcon class="volume-icon volume-max-icon" />
+          {/if}
+        </span>
+      </button>
+      <a
+        class="icon-button top-bar-menu press-ring-control"
+        href="/?about=gate"
+        aria-label="Torna al menu about Fuorimenù"
+      >
+        <span class="topbar-control-content" aria-hidden="true">
+          <span class="close-icon"></span>
+        </span>
+      </a>
+    </header>
+
+    {@render intervisteContent()}
+  </main>
+{:else}
+  {@render intervisteContent()}
+{/if}
 
 <style>
+.interviste-page {
+  --interviste-navbar-height: 136px;
+  --interviste-navbar-padding-x: var(--layout-page-gutter);
+  --button-depth-x: 0px;
+  --button-depth-y: 6px;
+  --press-ring-opacity: 0;
+  --press-ring-inner-size: 0px;
+  --press-ring-y: 0px;
+  --press-content-scale: 1;
+  --topbar-control-bg: var(--color-surface-page);
+  --topbar-control-fg: var(--color-text-primary);
+  --topbar-control-hover-bg: var(--color-surface-page);
+  --topbar-control-hover-fg: var(--color-text-primary);
+  --topbar-control-depth: var(--color-text-primary);
+  --button-hover-scale: 1;
+  --button-lift-x: 0px;
+  --button-lift-y: 0px;
+  --topbar-lift-ease: cubic-bezier(0.18, 1.35, 0.28, 1);
+
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100svh;
+  min-height: 100vh;
+  overflow: hidden;
+  background: var(--color-surface-page);
+  color: var(--color-text-primary);
+}
+
+.interviste-top-bar {
+  position: fixed;
+  z-index: 20;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
+  height: var(--interviste-navbar-height);
+  padding: 0 var(--interviste-navbar-padding-x);
+  pointer-events: none;
+}
+
+.logo,
+.icon-button {
+  pointer-events: auto;
+}
+
+.logo {
+  color: var(--color-text-primary);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.top-bar-audio {
+  justify-self: center;
+}
+
+.top-bar-menu {
+  justify-self: end;
+}
+
+.icon-button {
+  display: grid;
+  width: var(--button-icon-size);
+  height: var(--button-icon-size);
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+  appearance: none;
+}
+
+.logo,
+.icon-button {
+  position: relative;
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: var(--radius-full);
+  color: var(--topbar-control-fg);
+  background: transparent;
+  isolation: isolate;
+  transform: scale(var(--button-hover-scale));
+  transition:
+    color 160ms ease,
+    transform 210ms var(--topbar-lift-ease),
+    opacity 0.2s ease;
+  will-change: transform;
+}
+
+.logo::before,
+.icon-button::before,
+.logo::after,
+.icon-button::after {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--topbar-control-fg);
+  border-radius: var(--radius-full);
+  content: '';
+  pointer-events: none;
+}
+
+.logo::before,
+.icon-button::before {
+  display: none;
+}
+
+.logo::after,
+.icon-button::after {
+  z-index: 1;
+  border-color: currentColor;
+  background: transparent;
+  box-shadow: inset 0 0 0 var(--press-ring-inner-size) currentColor;
+  opacity: var(--press-ring-opacity);
+  transform: translateY(var(--press-ring-y));
+  transition:
+    border-color 160ms ease,
+    box-shadow 170ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 120ms ease;
+}
+
+.topbar-control-content {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  transform: scale(var(--press-content-scale));
+  transition:
+    color 160ms ease,
+    transform 170ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.logo:hover,
+.logo:focus-visible,
+.icon-button:hover,
+.icon-button:focus-visible {
+  --button-lift-x: 0px;
+  --button-lift-y: 0px;
+  --button-hover-scale: 1;
+  --press-ring-opacity: 1;
+  color: var(--topbar-control-hover-fg);
+}
+
+.logo:hover::after,
+.logo:focus-visible::after,
+.icon-button:hover::after,
+.icon-button:focus-visible::after {
+  border-color: currentColor;
+  background: transparent;
+}
+
+.logo:active,
+.icon-button:active {
+  --button-lift-x: 0px;
+  --button-lift-y: 0px;
+  --button-hover-scale: 1;
+  --press-ring-opacity: 1;
+  --press-ring-inner-size: 5px;
+  --press-content-scale: 0.83;
+}
+
+.logo:focus-visible,
+.icon-button:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: var(--unit-4);
+}
+
+:global(.volume-icon) {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+}
+
+:global(.volume-max-icon) {
+  stroke-width: 2.33333;
+}
+
+:global(.volume-slash) {
+  stroke-width: 2.8;
+}
+
+.top-bar-menu .topbar-control-content {
+  width: 24px;
+  height: 24px;
+}
+
+.close-icon,
+.close-icon::before {
+  display: block;
+  width: 24px;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+.close-icon {
+  position: relative;
+  transform: rotate(45deg);
+}
+
+.close-icon::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  content: '';
+  transform: rotate(90deg);
+}
+
 .about-full-interview {
   --about-full-text-left: clamp(420px, 39.68vw, 600px);
   --about-full-portrait-width: 271px;
@@ -2068,6 +2346,25 @@
 }
 
   @media (max-width: 700px) {
+  .interviste-page {
+    --interviste-navbar-height: var(--layout-topbar-height-mobile);
+    --interviste-navbar-padding-x: var(--layout-page-gutter-mobile);
+  }
+
+  .interviste-top-bar {
+    padding: var(--layout-topbar-padding-mobile);
+  }
+
+  .logo,
+  .icon-button {
+    width: var(--button-icon-size);
+    height: var(--button-icon-size);
+  }
+
+  .logo {
+    font-size: 34px;
+  }
+
   .about-interviews {
     inset: var(--layout-topbar-height-mobile) 0 0;
   }

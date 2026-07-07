@@ -55,6 +55,9 @@
   let aboutProjectPhaserHandle: AboutProjectPhaserGameHandle | undefined;
   let aboutProjectResizeObserver: ResizeObserver | undefined;
   let aboutProjectPhaserRequestId = 0;
+  let copiedAboutProjectEmail = $state('');
+  let aboutProjectEmailCopyNonce = $state(0);
+  let aboutProjectEmailCopyTimeout: ReturnType<typeof window.setTimeout> | undefined;
   let gsap: Gsap;
   let flowTween: ReturnType<Gsap['to']> | undefined;
   let cardEnterTween: ReturnType<Gsap['timeline']> | undefined;
@@ -133,6 +136,12 @@
     quote: string;
     transcript: InterviewTranscriptSection[];
   };
+  type AboutProjectTeamContact = {
+    firstName: string;
+    lastName: string;
+    email: string;
+    instagramUrl: string;
+  };
 
   const roleAudio: Record<AudioRole, AudioCueConfig> = {
     ufficio: {
@@ -180,6 +189,44 @@
     ...asset,
     src: `/assets/about/${asset.name}.png`
   }));
+  const aboutProjectTeamContacts: AboutProjectTeamContact[] = [
+    {
+      firstName: 'Chiara',
+      lastName: 'Geronimi',
+      email: 'chiara.geronimi@mail.polimi.it',
+      instagramUrl: 'https://www.instagram.com/chiarageronimii/'
+    },
+    {
+      firstName: 'Luca',
+      lastName: 'Verde',
+      email: 'lucaaverde@icloud.com',
+      instagramUrl: 'https://www.instagram.com/lucaaverde_/'
+    },
+    {
+      firstName: 'Nicole',
+      lastName: 'Mordocco',
+      email: 'mordocconicole@gmail.com',
+      instagramUrl: 'https://www.instagram.com/nicolemordocco/'
+    },
+    {
+      firstName: 'Alessandro',
+      lastName: 'Porri',
+      email: 'alessandro.porri.05@gmail.com',
+      instagramUrl: 'https://www.instagram.com/aleporri_/'
+    },
+    {
+      firstName: 'Filippo',
+      lastName: 'Tamagnini',
+      email: 'filippo.tamagnini@mail.polimi.it',
+      instagramUrl: 'https://www.instagram.com/filippotamagnini/'
+    },
+    {
+      firstName: 'Francesca',
+      lastName: 'Vigevani',
+      email: 'vigevanifrancesca@gmail.com',
+      instagramUrl: 'https://www.instagram.com/fraavigevani/'
+    }
+  ];
   const interviewChefs: InterviewChef[] = [
     {
       number: '01',
@@ -1699,6 +1746,46 @@
     aboutProjectTeamLabelStyle = `--team-label-x:${fixed(labelX, 2)}px;--team-label-y:${fixed(labelY, 2)}px;`;
   }
 
+  async function writeTextToClipboard(text: string) {
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.setAttribute('readonly', '');
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    textArea.style.top = '0';
+    document.body.appendChild(textArea);
+    textArea.select();
+
+    try {
+      document.execCommand('copy');
+    } finally {
+      textArea.remove();
+    }
+  }
+
+  async function copyAboutProjectEmail(contact: AboutProjectTeamContact) {
+    try {
+      await writeTextToClipboard(contact.email);
+    } catch (error) {
+      console.warn('Unable to copy team email to clipboard', error);
+      return;
+    }
+
+    copiedAboutProjectEmail = contact.email;
+    aboutProjectEmailCopyNonce += 1;
+
+    if (aboutProjectEmailCopyTimeout) window.clearTimeout(aboutProjectEmailCopyTimeout);
+    aboutProjectEmailCopyTimeout = window.setTimeout(() => {
+      if (copiedAboutProjectEmail === contact.email) copiedAboutProjectEmail = '';
+      aboutProjectEmailCopyTimeout = undefined;
+    }, 1600);
+  }
+
   async function ensureAboutProjectPhaser() {
     const requestId = ++aboutProjectPhaserRequestId;
     await tick();
@@ -2050,15 +2137,21 @@
       animations.setGsap(gsap);
       audioCues.setGsap(gsap);
 
-    const requestedView = new URLSearchParams(window.location.search).get('view');
+    const searchParams = new URLSearchParams(window.location.search);
+    const requestedView = searchParams.get('view');
+    const requestedAbout = searchParams.get('about');
     const shouldOpenCards = requestedView === 'cards';
     const shouldOpenBrand = requestedView === 'brand';
-    const shouldSkipIntro = shouldOpenCards || shouldOpenBrand;
+    const shouldOpenAboutGate = requestedAbout === 'gate';
+    const shouldSkipIntro = shouldOpenCards || shouldOpenBrand || shouldOpenAboutGate;
     const initialFlowValue = shouldOpenCards ? rolesScrollVisible : shouldOpenBrand ? brandCopyScrollEnd : 0;
     const flowState = { value: 0 };
     let targetFlowValue = initialFlowValue;
     let isAutoScrolling = false;
     consumeRequestedViewParam(requestedView);
+    if (shouldOpenAboutGate) {
+      window.history.replaceState(window.history.state, document.title, '/');
+    }
     randomizeBrandLetters();
     if (shouldSkipIntro) {
       isAudioGateVisible = false;
@@ -2275,6 +2368,9 @@
     sceneResources.addEventListener(window, 'pointerdown', onPointerDownAudioUnlock, { passive: true });
     sceneResources.addEventListener(window, 'resize', queueRoleHoverTextFit, { passive: true });
     sceneResources.addEventListener(window, 'resize', queueFullInterviewScrollbarUpdate, { passive: true });
+    if (shouldOpenAboutGate) {
+      void openAbout();
+    }
     });
 
     return () => {
@@ -2283,6 +2379,8 @@
       roleHoverFitFrame = 0;
       if (fullInterviewScrollbarFrame) window.cancelAnimationFrame(fullInterviewScrollbarFrame);
       fullInterviewScrollbarFrame = 0;
+      if (aboutProjectEmailCopyTimeout) window.clearTimeout(aboutProjectEmailCopyTimeout);
+      aboutProjectEmailCopyTimeout = undefined;
       roleHoverResizeObserver?.disconnect();
       roleHoverResizeObserver = undefined;
       flowTween?.kill();
@@ -2790,44 +2888,59 @@
           </section>
           <section class="about-project-slide about-project-team-slide" aria-label="Team Fuorimenù">
             <div bind:this={aboutProjectPhaserEl} class="about-project-phaser" aria-hidden="true"></div>
-            <div
-              class="about-project-team-label"
-              class:is-visible={aboutProjectTeamLabelStyle.length > 0}
-              style={aboutProjectTeamLabelStyle}
-              data-node-id="495:3613"
-            >
-              <span class="about-project-team-name" data-node-id="495:3056">
-                <span>Chiara</span>
-                <span>Geronimi</span>
-              </span>
-              <span class="about-project-team-links" data-node-id="495:3612">
-                <button
-                  class="about-project-team-link about-project-team-link-instagram"
-                  type="button"
-                  aria-label="Instagram di Chiara Geronimi"
-                  data-node-id="495:3087"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="5" y="5" width="14" height="14" rx="3.4" />
-                    <circle cx="12" cy="12" r="3.1" />
-                    <circle class="about-project-team-icon-dot" cx="16.1" cy="7.9" r="0.8" />
-                  </svg>
-                </button>
-                <button
-                  class="about-project-team-link about-project-team-link-email"
-                  type="button"
-                  aria-label="Email di Chiara Geronimi"
-                  data-node-id="495:3133"
-                >
-                  <svg viewBox="0 0 34 24" aria-hidden="true">
-                    <rect x="2.2" y="3.4" width="29.6" height="17.2" rx="0.6" />
-                    <path d="M3.4 4.4L17 14.2L30.6 4.4" />
-                    <path d="M3.5 19.6L13.2 11.5" />
-                    <path d="M30.5 19.6L20.8 11.5" />
-                  </svg>
-                </button>
-              </span>
+            <div class="about-project-team-grid" aria-label="Contatti team Fuorimenù">
+              {#each aboutProjectTeamContacts as contact}
+                <div class="about-project-team-slot">
+                  <span class="about-project-team-name" data-node-id="495:3056">
+                    <span>{contact.firstName}</span>
+                    <span>{contact.lastName}</span>
+                  </span>
+                  <span class="about-project-team-links" data-node-id="495:3612">
+                    <a
+                      class="about-project-team-link about-project-team-link-instagram"
+                      href={contact.instagramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Instagram di ${contact.firstName} ${contact.lastName}`}
+                      data-node-id="495:3087"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="5" y="5" width="14" height="14" rx="3.4" />
+                        <circle cx="12" cy="12" r="3.1" />
+                        <circle class="about-project-team-icon-dot" cx="16.1" cy="7.9" r="0.8" />
+                      </svg>
+                    </a>
+                    <button
+                      class="about-project-team-link about-project-team-link-email"
+                      type="button"
+                      aria-label={copiedAboutProjectEmail === contact.email
+                        ? `Email di ${contact.firstName} ${contact.lastName} copiata`
+                        : `Copia email di ${contact.firstName} ${contact.lastName}`}
+                      title={contact.email}
+                      data-node-id="495:3133"
+                      onclick={() => void copyAboutProjectEmail(contact)}
+                    >
+                      <svg viewBox="0 0 34 24" aria-hidden="true">
+                        <rect x="2.2" y="3.4" width="29.6" height="17.2" rx="0.6" />
+                        <path d="M3.4 4.4L17 14.2L30.6 4.4" />
+                        <path d="M3.5 19.6L13.2 11.5" />
+                        <path d="M30.5 19.6L20.8 11.5" />
+                      </svg>
+                      {#if copiedAboutProjectEmail === contact.email}
+                        {#key aboutProjectEmailCopyNonce}
+                          <span class="about-project-email-copy-popover" aria-hidden="true">Copiato!</span>
+                        {/key}
+                      {/if}
+                    </button>
+                  </span>
+                </div>
+              {/each}
             </div>
+            <span class="visually-hidden" aria-live="polite">
+              {#if copiedAboutProjectEmail}
+                Email copiata negli appunti
+              {/if}
+            </span>
           </section>
         </div>
       </section>
@@ -4462,6 +4575,28 @@
     inset: 0;
   }
 
+  .about-project-team-grid {
+    position: absolute;
+    z-index: 6;
+    left: max(var(--layout-page-gutter), 10vw);
+    right: max(var(--layout-page-gutter), 10vw);
+    top: clamp(28px, 5svh, 62px);
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: clamp(6px, 1.6vw, 28px);
+    color: var(--brand-500);
+  }
+
+  .about-project-team-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: clamp(8px, 1.2vw, 16px);
+    min-width: 0;
+    color: var(--brand-500);
+  }
+
   .about-project-team-label {
     position: absolute;
     z-index: 5;
@@ -4497,7 +4632,7 @@
     justify-content: center;
     color: var(--brand-500);
     font-family: var(--font-text);
-    font-size: clamp(15px, 1.36vw, 19.55px);
+    font-size: clamp(11px, 1.36vw, 19.55px);
     font-weight: 800;
     line-height: 1;
     letter-spacing: 0;
@@ -4505,15 +4640,30 @@
     word-break: break-word;
   }
 
+  @media (max-width: 1180px) {
+    .about-project-team-grid {
+      left: max(var(--layout-page-gutter), 10vw);
+      right: max(var(--layout-page-gutter), 10vw);
+      top: 50%;
+      transform: translateY(calc(-50% - 150px));
+      gap: clamp(8px, 1.4vw, 18px);
+    }
+
+    .about-project-team-name {
+      font-size: clamp(12px, 1.65vw, 18px);
+    }
+  }
+
   .about-project-team-links {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 19px;
+    gap: clamp(7px, 1.3vw, 19px);
     color: var(--brand-500);
   }
 
   .about-project-team-link {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -4543,13 +4693,46 @@
   }
 
   .about-project-team-link-instagram {
-    width: 19px;
-    height: 19px;
+    width: 22px;
+    height: 22px;
   }
 
   .about-project-team-link-email {
     width: 26px;
     height: 19px;
+  }
+
+  .about-project-email-copy-popover {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 9px);
+    z-index: 8;
+    padding: 5px 9px 6px;
+    border-radius: 4px;
+    background: var(--brand-500);
+    color: var(--background-50);
+    font-family: var(--font-text);
+    font-size: clamp(10px, 0.85vw, 13px);
+    font-style: italic;
+    font-weight: 300;
+    line-height: 1;
+    letter-spacing: 0;
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translate3d(-50%, 4px, 0);
+    opacity: 0;
+    animation: aboutProjectEmailCopiedIn 1600ms ease both;
+  }
+
+  .about-project-email-copy-popover::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    width: 8px;
+    height: 8px;
+    background: inherit;
+    transform: translate3d(-50%, -5px, 0) rotate(45deg);
   }
 
   .about-project-team-link svg {
@@ -4887,6 +5070,22 @@
     width: 24px;
     height: 24px;
     fill: currentColor;
+  }
+
+  @keyframes aboutProjectEmailCopiedIn {
+    0% {
+      opacity: 0;
+      transform: translate3d(-50%, 6px, 0) scale(0.96);
+    }
+    12%,
+    78% {
+      opacity: 1;
+      transform: translate3d(-50%, 0, 0) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translate3d(-50%, -4px, 0) scale(0.98);
+    }
   }
 
   .paganini-video-button:hover,
@@ -6486,6 +6685,16 @@
     }
     .about-project-team-slide {
       padding: 0;
+    }
+    .about-project-team-grid {
+      left: max(var(--layout-page-gutter-mobile), 6vw);
+      right: max(var(--layout-page-gutter-mobile), 6vw);
+      top: 50%;
+      transform: translateY(calc(-50% - 150px));
+      gap: clamp(4px, 1.5vw, 10px);
+    }
+    .about-project-team-name {
+      font-size: clamp(10px, 2.3vw, 13px);
     }
     .about-project-intro {
       height: 100%;
