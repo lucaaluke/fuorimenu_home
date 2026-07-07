@@ -62,6 +62,24 @@
     '2-S-fornelli-a':
       'Si devono gestire bene i tempi di preparazione e i tempi del servizio per non accavallare le cose.'
   };
+  const kitchenSTooltipSoundFileById = {
+    cone: '/sound/conook.mp3',
+    cleaningKit: '/sound/spruzzinook.mp3',
+    coffeeCup: '/sound/tazzinaok.mp3',
+    alarmClock: '/sound/svegliaok.mp3',
+    stove: '/sound/fornellook.mp3',
+    standMixer: '/sound/mixer.mp3',
+    toolbox: '/sound/toolbox.mp3'
+  } as const;
+  const kitchenSTooltipSoundById: Record<string, keyof typeof kitchenSTooltipSoundFileById> = {
+    'S-cono': 'cone',
+    'S-kit-pulizie-a': 'cleaningKit',
+    'S-macchinetta-caffe': 'coffeeCup',
+    'S-sveglia': 'alarmClock',
+    '2-S-fornelli-a': 'stove',
+    'S-planetaria': 'standMixer',
+    'S-cassetta-attrezzi': 'toolbox'
+  };
   const initialKitchenState: KitchenControllerState = {
     cameraX: 0,
     targetCameraX: 0,
@@ -321,6 +339,11 @@
   let pointerLocalY = $state(0);
   let toolShedAudioEl: HTMLAudioElement;
   let standMixerAudioEl: HTMLAudioElement;
+  let coneHoverAudioEl: HTMLAudioElement;
+  let cleaningKitHoverAudioEl: HTMLAudioElement;
+  let coffeeCupHoverAudioEl: HTMLAudioElement;
+  let alarmClockHoverAudioEl: HTMLAudioElement;
+  let stoveHoverAudioEl: HTMLAudioElement;
   let constructionAudioEl: HTMLAudioElement;
   let kitchenAmbientAudioEl: HTMLAudioElement;
   let carloAudioEl: HTMLAudioElement;
@@ -410,7 +433,10 @@
     };
     isPointerOverTestimonialHitbox = isPointerInsideVisibleTestimonial(event);
     kitchenPhaserGame?.setObjectHoverSuppressed(isPointerOverTestimonialHitbox);
-    hoveredKitchenSTooltipId = getHoveredKitchenSTooltipId();
+const hoveredId = getHoveredKitchenSTooltipId();
+nearestSceneAsset = getNearestSceneAsset();
+hoveredKitchenSTooltipId = hoveredId;
+setHoveredKitchenSTooltipId?.(hoveredId);
 	  }
 
 	  function syncViewport() {
@@ -616,6 +642,13 @@
     }
 
     return undefined;
+  }
+
+  function setHoveredKitchenSTooltipId(nextId: string | undefined) {
+    if (hoveredKitchenSTooltipId === nextId) return;
+
+    hoveredKitchenSTooltipId = nextId;
+    if (nextId) playKitchenSTooltipHoverSound(nextId);
   }
 
   function isPointerInsideVisibleTestimonial(event: PointerEvent) {
@@ -1126,7 +1159,7 @@
     if (!isDragging) {
       hasPointerScenePosition = false;
       isPointerOverTestimonialHitbox = false;
-      hoveredKitchenSTooltipId = undefined;
+      setHoveredKitchenSTooltipId(undefined);
       kitchenPhaserGame?.setObjectHoverSuppressed(false);
     }
   }
@@ -1168,12 +1201,55 @@
     gain.connect(toolShedAudioContext.destination);
   }
 
-  function playHoverSound(audio: HTMLAudioElement | undefined, volume = 0.78) {
+  function playHoverSound(audio: HTMLAudioElement | undefined, volume = 0.78, startTime = 0.35) {
     if (isAudioMuted || !audio) return;
     audio.pause();
-    audio.currentTime = 0.35;
+    audio.currentTime = startTime;
     audio.volume = volume;
     void audio.play().catch(() => {});
+  }
+
+  function getKitchenSTooltipHoverAudio(soundId: keyof typeof kitchenSTooltipSoundFileById) {
+    if (soundId === 'cone') return coneHoverAudioEl;
+    if (soundId === 'cleaningKit') return cleaningKitHoverAudioEl;
+    if (soundId === 'coffeeCup') return coffeeCupHoverAudioEl;
+    if (soundId === 'alarmClock') return alarmClockHoverAudioEl;
+    if (soundId === 'stove') return stoveHoverAudioEl;
+    if (soundId === 'standMixer') return standMixerAudioEl;
+    if (soundId === 'toolbox') return toolShedAudioEl;
+    return undefined;
+  }
+
+  function getKitchenSTooltipHoverVolume(soundId: keyof typeof kitchenSTooltipSoundFileById) {
+    if (soundId === 'standMixer') return 0.24;
+    if (soundId === 'toolbox') return 0.34;
+    if (soundId === 'alarmClock') return 0.46;
+    if (soundId === 'stove') return 0.42;
+    return 0.58;
+  }
+
+  function playKitchenSTooltipHoverSound(assetId: string) {
+    const soundId = kitchenSTooltipSoundById[assetId];
+    if (!soundId) return;
+
+    if (soundId === 'toolbox') {
+      boostToolShedAudio();
+      void toolShedAudioContext?.resume();
+    }
+
+    playHoverSound(getKitchenSTooltipHoverAudio(soundId), getKitchenSTooltipHoverVolume(soundId), 0);
+  }
+
+  function pauseAllKitchenHoverSounds() {
+    [
+      toolShedAudioEl,
+      standMixerAudioEl,
+      coneHoverAudioEl,
+      cleaningKitHoverAudioEl,
+      coffeeCupHoverAudioEl,
+      alarmClockHoverAudioEl,
+      stoveHoverAudioEl
+    ].forEach((audio) => audio?.pause());
   }
 
   function getKitchenAmbientMix() {
@@ -1342,8 +1418,7 @@
     }
 
     if (!wasAudioMuted) syncMutedTestimonialPagesFromAudio();
-    toolShedAudioEl?.pause();
-    standMixerAudioEl?.pause();
+    pauseAllKitchenHoverSounds();
     pauseAllTestimonialAudioForMute();
     stopAmbientAudio();
     wasAudioMuted = muted;
@@ -1755,6 +1830,7 @@
       if (phaserResizeTimer) clearTimeout(phaserResizeTimer);
       cancelFallbackAudioFade(constructionAudioEl);
       cancelFallbackAudioFade(kitchenAmbientAudioEl);
+      pauseAllKitchenHoverSounds();
 	      constructionAudioEl?.pause();
       kitchenAmbientAudioEl?.pause();
       stopAllTestimonialAudio({ duration: 0, resetReplay: false });
@@ -1976,6 +2052,11 @@
 
 <audio bind:this={toolShedAudioEl} src="/sound/toolbox.mp3" preload="auto"></audio>
 <audio bind:this={standMixerAudioEl} src="/sound/mixer.mp3" preload="auto"></audio>
+<audio bind:this={coneHoverAudioEl} src="/sound/conook.mp3" preload="auto"></audio>
+<audio bind:this={cleaningKitHoverAudioEl} src="/sound/spruzzinook.mp3" preload="auto"></audio>
+<audio bind:this={coffeeCupHoverAudioEl} src="/sound/tazzinaok.mp3" preload="auto"></audio>
+<audio bind:this={alarmClockHoverAudioEl} src="/sound/svegliaok.mp3" preload="auto"></audio>
+<audio bind:this={stoveHoverAudioEl} src="/sound/fornellook.mp3" preload="auto"></audio>
 <audio bind:this={constructionAudioEl} src="/sound/cantiere.mp3" preload="auto"></audio>
 <audio bind:this={kitchenAmbientAudioEl} src="/sound/kitchen_backgroundok.mp3" preload="auto"></audio>
 <audio
