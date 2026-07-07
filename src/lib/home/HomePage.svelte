@@ -807,6 +807,7 @@
   const nextCharacters  = parseMessage(nextMessage,  'persone');
   const audioGateCharacters = parseMessage(audioGateMessage, '');
   const introWords      = groupWords(introCharacters);
+  const nextWords       = groupWords(nextCharacters);
   const audioGateWords  = groupWords(audioGateCharacters);
   const audioGateOrbitDotCount = 64;
   const audioGateOrbitRadius = 49;
@@ -1607,18 +1608,6 @@
     );
   }
 
-  async function openTemporaryAboutShortcut() {
-    if (isAboutOpen) return;
-    isAudioGateVisible = false;
-    isAudioGateOpening = false;
-    await openAbout();
-  }
-
-  function openTemporaryCardsShortcut() {
-    if (isAboutOpen) return;
-    window.location.assign('/?view=cards');
-  }
-
   function closeAbout() {
     if (isAboutClosing) return;
     const transitionId = ++aboutTransitionId;
@@ -2411,25 +2400,6 @@
   </section>
 {/if}
 
-{#if !isAboutOpen}
-  <button
-    class="temporary-cards-shortcut"
-    type="button"
-    aria-label="Vai alle card"
-    onclick={openTemporaryCardsShortcut}
-  >
-    cards
-  </button>
-  <button
-    class="temporary-about-shortcut"
-    type="button"
-    aria-label="Apri about"
-    onclick={openTemporaryAboutShortcut}
-  >
-    about
-  </button>
-{/if}
-
 {#if !isAudioGateVisible && !isAboutOpen}
   <button
     class="icon-button persistent-top-audio press-ring-control"
@@ -2495,15 +2465,24 @@
 
 <section bind:this={nextScreen} class="next-screen" aria-labelledby="next-message">
   <p id="next-message" class="next-message" aria-label={nextMessage}>
-    {#each nextCharacters as { letter, isSpace, isAccent }, index}
-      {#if index === 20 || index === 41}
-        <br aria-hidden="true" />
-      {/if}
-      {#if isSpace}
+    {#each nextWords as group (group.index)}
+      {#if group.type === 'space'}
         <span class="space" aria-hidden="true">&nbsp;</span>
       {:else}
-        <span bind:this={nextLetters[index]} class:accent-letter={isAccent} aria-hidden="true"
-          >{letter}</span>
+        {#if group.index === 20 || group.index === 41}
+          <br class="next-message-desktop-break" aria-hidden="true" />
+        {/if}
+        <span class="next-message-word" aria-hidden="true">
+          {#each group.characters as { letter, index, isAccent } (index)}
+            <span
+              bind:this={nextLetters[index]}
+              class="next-message-letter"
+              class:accent-letter={isAccent}
+            >
+              {letter}
+            </span>
+          {/each}
+        </span>
       {/if}
     {/each}
   </p>
@@ -3627,43 +3606,6 @@
     top: var(--spacing-7);
     left: 50%;
     transform: translateX(-50%) translate(var(--button-lift-x, 0px), var(--button-lift-y, 0px));
-  }
-
-  .temporary-about-shortcut,
-  .temporary-cards-shortcut {
-    position: fixed;
-    z-index: 140;
-    right: 14px;
-    box-sizing: border-box;
-    min-width: 58px;
-    height: 28px;
-    padding: 0 10px;
-    border: 2px solid var(--color-text-primary);
-    border-radius: var(--radius-full);
-    background: var(--color-surface-page);
-    color: var(--color-text-primary);
-    font-family: var(--font-text);
-    font-size: 11px;
-    font-weight: 800;
-    line-height: 1;
-    text-transform: uppercase;
-    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
-  }
-
-  .temporary-about-shortcut {
-    bottom: 14px;
-  }
-
-  .temporary-cards-shortcut {
-    bottom: 50px;
-  }
-
-  .temporary-about-shortcut:hover,
-  .temporary-about-shortcut:focus-visible,
-  .temporary-cards-shortcut:hover,
-  .temporary-cards-shortcut:focus-visible {
-    background: var(--color-text-primary);
-    color: var(--color-surface-page);
   }
 
   .roles-top-bar a {
@@ -5519,7 +5461,12 @@
     will-change: opacity;
   }
 
-  .next-message span {
+  .next-message-word {
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  .next-message-letter {
     display: inline-block;
     font-size: 32px;
     opacity: var(--letter-opacity, 0);
@@ -5529,7 +5476,18 @@
   }
   .next-message { font-size: 0; }
   .next-message .accent-letter { color: var(--color-text-primary); font-style: italic; font-weight: 800; }
-  .next-message .space { display: inline-block; opacity: 1; transform: none; transition: none; width: 0.28em; }
+  .next-message .space {
+    display: inline-block;
+    width: 0.28em;
+    font-size: 32px;
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .next-message-desktop-break {
+    display: block;
+  }
 
   .next-scroll-cue {
     position: absolute;
@@ -6514,7 +6472,13 @@
     .intro        { padding: var(--layout-page-gutter-mobile); }
     .persistent-top-audio { top: calc(var(--unit-24) + var(--unit-4)); }
     h1, .next-message { font-size: 24px; }
-    .next-message span { font-size: 24px; }
+    .next-message-letter,
+    .next-message .space {
+      font-size: 24px;
+    }
+    .next-message-desktop-break {
+      display: none;
+    }
     .reel-card    { width: min(38vw, 148px); }
     .next-screen  { padding: var(--layout-page-gutter-mobile); }
     .brand-word   { font-size: clamp(40px, 10.5vw, 76px); }

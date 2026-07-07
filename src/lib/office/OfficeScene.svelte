@@ -2150,6 +2150,7 @@
             class:office-cio-asset={item.id === '1_cio'}
             class:office-map-asset={item.id === '1_mappa'}
             class:office-computer-asset={item.id === '2_computerint'}
+            class:office-easteregg-asset={item.id === 'easteregg'}
             class:is-tooltip-visible={hoveredOfficeAssetId === item.id}
             type="button"
             aria-label={item.ariaLabel}
@@ -2189,6 +2190,13 @@
             {#if item.id === '2_computerint'}
               <span class="office-keys-tooltip office-computer-tooltip">
                 {officeComputerHoverText}
+              </span>
+            {/if}
+            {#if item.id === 'easteregg'}
+              <span class="office-easteregg-layout" data-node-id="5781:1538">
+                <span class="office-easteregg-copy" data-node-id="5767:9845">
+                  In questo sito stai osservando <strong>oltre 200 oggetti</strong> disegnati singolarmente
+                </span>
               </span>
             {/if}
           </button>
@@ -2883,6 +2891,79 @@
     animation: officeKeysHoverJumpShake 620ms cubic-bezier(0.2, 1, 0.28, 1) both;
   }
 
+  .office-easteregg-asset {
+    z-index: 8;
+  }
+
+  .office-easteregg-asset img {
+    transform-origin: 50% 100%;
+    animation: none;
+  }
+
+  .office-easteregg-asset .object-shine {
+    display: none;
+  }
+
+  .office-easteregg-asset:hover img,
+  .office-easteregg-asset:focus-visible img,
+  .office-easteregg-asset.is-tooltip-visible img {
+    animation: officeEasterEggJump 640ms cubic-bezier(0.2, 1, 0.28, 1) both;
+  }
+
+  .office-easteregg-layout {
+    position: absolute;
+    z-index: 4;
+    top: calc(100% + 18px);
+    left: 50%;
+    display: block;
+    box-sizing: border-box;
+    width: min(271px, calc(100vw - 48px));
+    height: 168px;
+    color: #2a4385;
+    font-family: "JetBrains Mono", var(--font-text);
+    font-size: 16px;
+    font-style: italic;
+    font-weight: 400;
+    line-height: 1.25;
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate3d(-50%, 10px, 0);
+    transition:
+      opacity 150ms ease,
+      transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      visibility 0s linear 150ms;
+    pointer-events: none;
+  }
+
+  .office-easteregg-layout::before {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 61px;
+    height: 80px;
+    background: #a8b1c7;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    content: '';
+    transform: translateX(-50%);
+  }
+
+  .office-easteregg-copy {
+    position: absolute;
+    top: 85px;
+    left: 0;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 4px 6px;
+    background: var(--color-surface-page);
+    word-break: break-word;
+  }
+
+  .office-easteregg-copy strong {
+    font-weight: 700;
+  }
+
   .office-keys-tooltip {
     position: absolute;
     z-index: 4;
@@ -2966,6 +3047,15 @@
     visibility: visible;
     transform: translate3d(-50%, 0, 0);
     transition-delay: 0s;
+  }
+
+  .office-easteregg-asset:hover .office-easteregg-layout,
+  .office-easteregg-asset:focus-visible .office-easteregg-layout,
+  .office-easteregg-asset.is-tooltip-visible .office-easteregg-layout {
+    opacity: 1;
+    visibility: visible;
+    transform: translate3d(-50%, 0, 0);
+    transition-delay: 640ms, 640ms, 0s;
   }
 
   .object-shine {
@@ -3473,6 +3563,28 @@
 
     100% {
       transform: translate3d(0, 0, 0) rotate(0deg);
+    }
+  }
+
+  @keyframes officeEasterEggJump {
+    0% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+
+    34% {
+      transform: translate3d(0, -34px, 0) scale(1.02);
+    }
+
+    58% {
+      transform: translate3d(0, 4px, 0) scale(0.985, 1.012);
+    }
+
+    78% {
+      transform: translate3d(0, -3px, 0) scale(1.006);
+    }
+
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
     }
   }
 

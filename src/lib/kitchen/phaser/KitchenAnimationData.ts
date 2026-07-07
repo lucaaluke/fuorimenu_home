@@ -19,8 +19,7 @@ const S_TOOLBOX_SHINE_BEAM_WIDTH_RATIO = 0.16;
 const S_TOOLBOX_SHINE_BEAM_LENGTH_RATIO = 1.85;
 const S_TOOLBOX_SHINE_BEAM_TILT_DEGREES = 40;
 const S_TOOLBOX_SHINE_TEXTURE_KEY = 'kitchen-animation-s-cassetta-attrezzi-shine';
-const S_TOOLBOX_HOVER_JUMP_HEIGHT = 20;
-const S_TOOLBOX_HOVER_JUMP_DURATION_MS = 520;
+const SERVICE_LUNCHBOX_ANIMATION_ID = '1_Lunchbox';
 const S_PLANETARIA_ASSET_ID = 'S-planetaria';
 const S_PLANETARIA_SHAKE_ANGLE = 1.4;
 const S_PLANETARIA_SHAKE_STEP_DURATION_MS = 55;
@@ -99,8 +98,13 @@ export function startKitchenSceneAnimations(
   }
 
   if (toolbox) {
-    startToolboxShineAnimation(scene, toolbox);
-    startToolboxHoverJumpAnimation(scene, toolbox, getSceneScale, isObjectHoverSuppressed);
+    const animatedToolbox = startToolboxBobShakeAnimation(
+      scene,
+      toolbox,
+      getSceneScale,
+      isObjectHoverSuppressed
+    );
+    startToolboxShineAnimation(scene, animatedToolbox ?? toolbox);
   }
 
   if (planetaria) {
@@ -222,46 +226,187 @@ function playSConoJump(
   });
 }
 
-function startToolboxHoverJumpAnimation(
+function startToolboxBobShakeAnimation(
   scene: Phaser.Scene,
-  sprite: Phaser.GameObjects.Sprite,
+  sourceSprite: Phaser.GameObjects.Sprite,
   getSceneScale: () => number,
   isObjectHoverSuppressed: () => boolean
 ) {
-  let isJumping = false;
+  const state = {
+    angle: 0,
+    scale: 1,
+    xOffset: 0,
+    yOffset: 0
+  };
+  let isHoverAnimating = false;
+  let idleTween: Phaser.Tweens.Tween | undefined;
+  const animatedSprite = scene.add.sprite(
+    sourceSprite.x,
+    sourceSprite.y,
+    sourceSprite.texture.key,
+    sourceSprite.frame.name
+  );
 
-  sprite.setInteractive({ useHandCursor: true });
-  sprite.on('pointerover', () => {
-    if (!sprite.active || isJumping || isObjectHoverSuppressed()) return;
+  animatedSprite.setOrigin(0.5, 0.5);
+  animatedSprite.setScrollFactor(sourceSprite.scrollFactorX, sourceSprite.scrollFactorY);
+  animatedSprite.setDepth(sourceSprite.depth);
+  animatedSprite.setInteractive({ useHandCursor: true });
+  sourceSprite.setVisible(false);
 
-    isJumping = true;
-    playToolboxHoverJump(scene, sprite, getSceneScale(), () => {
-      isJumping = false;
+  const syncAnimatedSprite = () => {
+    animatedSprite.setPosition(
+      sourceSprite.x + sourceSprite.displayWidth / 2 + state.xOffset,
+      sourceSprite.y + sourceSprite.displayHeight / 2 + state.yOffset
+    );
+    animatedSprite.setDisplaySize(sourceSprite.displayWidth * state.scale, sourceSprite.displayHeight * state.scale);
+    animatedSprite.setScrollFactor(sourceSprite.scrollFactorX, sourceSprite.scrollFactorY);
+    animatedSprite.setDepth(sourceSprite.depth);
+    animatedSprite.setAngle(state.angle);
+    animatedSprite.setVisible(sourceSprite.active);
+  };
+
+  const startIdleBob = () => {
+    idleTween?.stop();
+    idleTween = undefined;
+    if (!sourceSprite.active || !animatedSprite.active || isHoverAnimating) return;
+
+    const baseY = 0;
+    const delay = Math.abs(hashAssetId(SERVICE_LUNCHBOX_ANIMATION_ID)) % 700;
+    const duration =
+      980 + (Math.abs(hashAssetId(`${SERVICE_LUNCHBOX_ANIMATION_ID}-duration`)) % 360);
+
+    state.yOffset = baseY;
+    idleTween = scene.tweens.add({
+      targets: state,
+      yOffset: baseY - Math.max(9, 20 * getSceneScale()),
+      duration,
+      delay,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1
+    });
+  };
+
+  animatedSprite.on('pointerover', () => {
+    if (!sourceSprite.active || !animatedSprite.active || isHoverAnimating || isObjectHoverSuppressed()) {
+      return;
+    }
+
+    isHoverAnimating = true;
+    idleTween?.stop();
+    idleTween = undefined;
+    playToolboxBobShake(scene, state, getSceneScale(), () => {
+      isHoverAnimating = false;
+      startIdleBob();
     });
   });
+
+  scene.events.on('postupdate', syncAnimatedSprite);
+  scene.events.once('shutdown', () => {
+    scene.events.off('postupdate', syncAnimatedSprite);
+    scene.tweens.killTweensOf(state);
+    idleTween?.stop();
+    animatedSprite.destroy();
+  });
+
+  syncAnimatedSprite();
+  startIdleBob();
+
+  return animatedSprite;
 }
 
-function playToolboxHoverJump(
+function playToolboxBobShake(
   scene: Phaser.Scene,
-  sprite: Phaser.GameObjects.Sprite,
+  state: { angle: number; scale: number; xOffset: number; yOffset: number },
   sceneScale: number,
   onComplete: () => void
 ) {
-  const baseY = sprite.y;
-  const jumpHeight = Math.max(6, Math.round(S_TOOLBOX_HOVER_JUMP_HEIGHT * sceneScale));
-
-  scene.tweens.killTweensOf(sprite);
-  scene.tweens.add({
-    targets: sprite,
-    y: baseY - jumpHeight,
-    duration: S_TOOLBOX_HOVER_JUMP_DURATION_MS * 0.36,
-    ease: 'Sine.easeOut',
-    yoyo: true,
-    onComplete: () => {
-      sprite.setY(baseY);
-      onComplete();
+  const unit = Math.max(1, sceneScale);
+  const steps = [
+    {
+      xOffset: -2 * unit,
+      yOffset: -8 * unit,
+      angle: -5.6,
+      scale: 1.025,
+      duration: 112
+    },
+    {
+      xOffset: 3 * unit,
+      yOffset: -5 * unit,
+      angle: 5.6,
+      scale: 1.018,
+      duration: 87
+    },
+    {
+      xOffset: -2 * unit,
+      yOffset: -4 * unit,
+      angle: -4,
+      scale: 1.012,
+      duration: 99
+    },
+    {
+      xOffset: 2 * unit,
+      yOffset: -2 * unit,
+      angle: 2.4,
+      scale: 1.006,
+      duration: 112
+    },
+    {
+      xOffset: 0,
+      yOffset: 0,
+      angle: 0,
+      scale: 1,
+      duration: 210,
+      ease: 'Back.easeOut'
     }
+  ];
+
+  scene.tweens.killTweensOf(state);
+  playToolboxBobShakeStep(scene, state, steps, onComplete);
+}
+
+function playToolboxBobShakeStep(
+  scene: Phaser.Scene,
+  state: { angle: number; scale: number; xOffset: number; yOffset: number },
+  steps: Array<{
+    angle: number;
+    duration: number;
+    ease?: string;
+    scale: number;
+    xOffset: number;
+    yOffset: number;
+  }>,
+  onComplete: () => void
+) {
+  const [step, ...remainingSteps] = steps;
+  if (!step) {
+    state.xOffset = 0;
+    state.yOffset = 0;
+    state.angle = 0;
+    state.scale = 1;
+    onComplete();
+    return;
+  }
+
+  scene.tweens.add({
+    targets: state,
+    xOffset: step.xOffset,
+    yOffset: step.yOffset,
+    angle: step.angle,
+    scale: step.scale,
+    duration: step.duration,
+    ease: step.ease ?? 'Sine.easeInOut',
+    onComplete: () => playToolboxBobShakeStep(scene, state, remainingSteps, onComplete)
   });
+}
+
+function hashAssetId(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return hash;
 }
 
 function startPlanetariaAnimations(
@@ -1076,6 +1221,8 @@ function syncShineSprite(sprite: Phaser.GameObjects.Sprite, shine: Phaser.GameOb
   shine.setDisplaySize(sprite.displayWidth, sprite.displayHeight);
   shine.setScrollFactor(sprite.scrollFactorX, sprite.scrollFactorY);
   shine.setDepth(sprite.depth + 0.1);
+  shine.setAngle(sprite.angle);
+  shine.setFlip(sprite.flipX, sprite.flipY);
 }
 
 function createShineTexture(scene: Phaser.Scene, sprite: Phaser.GameObjects.Sprite) {

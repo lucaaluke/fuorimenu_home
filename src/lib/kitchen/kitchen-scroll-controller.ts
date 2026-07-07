@@ -29,6 +29,7 @@ export type KitchenControllerEvents = {
 export type KitchenControllerBridge = SceneBridge<KitchenControllerState, KitchenControllerEvents>;
 
 type KitchenScrollControllerOptions = {
+  applyScrollResistance?: (nextValue: number, baseValue: number) => number;
   bridge?: KitchenControllerBridge;
   config?: KitchenSceneConfig;
   getViewport: () => Viewport;
@@ -92,8 +93,12 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
     return metrics.maxScrollX > 0 ? clamp(cameraX / metrics.maxScrollX, 0, 1) : 0;
   }
 
+  function applyScrollResistance(value: number, baseValue = targetCameraX) {
+    return options.applyScrollResistance?.(value, baseValue) ?? value;
+  }
+
   function setTargetCameraX(value: number) {
-    targetCameraX = clamp(value, 0, getMetrics().maxScrollX);
+    targetCameraX = clamp(applyScrollResistance(value), 0, getMetrics().maxScrollX);
   }
 
   function getScrollForCameraX(value: number) {
@@ -130,6 +135,10 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
       bridge.updateState(state);
       onUpdate(state);
       return;
+    }
+
+    if (targetCameraX > cameraX) {
+      targetCameraX = clamp(applyScrollResistance(targetCameraX, cameraX), 0, metrics.maxScrollX);
     }
 
     if (prefersReducedMotion) {
