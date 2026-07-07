@@ -2741,7 +2741,7 @@
             <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
           </span>
         </button>
-        <button class="about-gate-section" type="button" data-node-id="381:308" onclick={openAboutInterviews}>
+        <a class="about-gate-section" href="/interviste" data-node-id="381:308">
           <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
             <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
           </span>
@@ -2750,7 +2750,7 @@
           <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
             <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
           </span>
-        </button>
+        </a>
       </div>
     {:else if aboutView === 'project'}
       <section
@@ -4164,6 +4164,7 @@
     background: transparent;
     color: var(--color-surface-page);
     text-align: center;
+    text-decoration: none;
     cursor: url('/cursors/retrogusto-pointer-on-dark.svg?v=3') 4 3, pointer;
     isolation: isolate;
     overflow: hidden;

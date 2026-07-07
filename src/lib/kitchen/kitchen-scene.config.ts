@@ -1,5 +1,5 @@
 import type { SceneAsset, SceneChunk } from '$lib/scene/scene-asset.types';
-import objectsPosition from './objects-position.json';
+import objectsPosition from './objects-position-new.json';
 
 export type KitchenChefId = 'carlo';
 
@@ -116,10 +116,7 @@ function isKitchenMiddlegroundNote(value: unknown): boolean {
   );
 }
 
-const kitchenConstructionSceneWidth =
-  kitchenConstructionChunkWidth *
-    (kitchenConstructionLeadingEmptyChunkCount + kitchenConstructionChunkFrameCount) +
-  kitchenConstructionTrailingEmptyWidth;
+const kitchenConstructionSceneWidth = 36000;
 
 export const kitchenSceneConfig = {
   sceneWidth: kitchenConstructionSceneWidth,
@@ -379,6 +376,36 @@ function kitchenConstructionObjectAsset(
   };
 }
 
+const kitchenConstructionObjectPositionByName = new Map<string, KitchenObjectPosition>();
+
+for (const position of objectsPosition as unknown[]) {
+  if (!isKitchenObjectPosition(position)) continue;
+  kitchenConstructionObjectPositionByName.set(position.name.trim(), position);
+}
+
+function kitchenConstructionObjectAssetFromPosition(
+  positionName: string,
+  id: string,
+  src: string,
+  fallbackX: number,
+  fallbackY: number,
+  fallbackWidth: number,
+  fallbackHeight: number,
+  zOffset = kitchenConstructionForegroundObjectZOffset
+) {
+  const position = kitchenConstructionObjectPositionByName.get(positionName);
+
+  return kitchenConstructionObjectAsset(
+    id,
+    src,
+    position?.x ?? fallbackX,
+    position?.y ?? fallbackY,
+    position?.width ?? fallbackWidth,
+    position?.height ?? fallbackHeight,
+    zOffset
+  );
+}
+
 function kitchenConstructionUnscaledObjectAsset(
   position: KitchenObjectPosition,
   zOffset = kitchenConstructionForegroundObjectZOffset
@@ -405,7 +432,8 @@ function kitchenConstructionUnscaledObjectAsset(
 }
 
 const kitchenConstructionPlacedAssets: SceneAsset[] = [
-  kitchenConstructionObjectAsset(
+  kitchenConstructionObjectAssetFromPosition(
+    'cartello-cantiere',
     'cartello-cantiere',
     'kitchen/objects/cartello-cantiere.png',
     4415,
@@ -413,13 +441,13 @@ const kitchenConstructionPlacedAssets: SceneAsset[] = [
     491,
     654
   ),
-  kitchenConstructionObjectAsset('cono-1', 'kitchen/objects/cono-cantiere.png', 5748, 2256, 223, 339, 9),
-  kitchenConstructionObjectAsset('transenna', 'kitchen/objects/transenna.png', 8478, 1891, 1157, 711, 7),
-  kitchenConstructionObjectAsset('cono-2', 'kitchen/objects/cono-cantiere.png', 9988, 2275, 223, 339, 9),
-  kitchenConstructionObjectAsset('cono-3', 'kitchen/objects/cono-cantiere.png', 10304, 2199, 223, 339, 9),
-  kitchenConstructionObjectAsset('sabbia-pala', 'kitchen/objects/sabbia-pala.png', 12793, 1961, 1520, 899),
-  kitchenConstructionObjectAsset('cariola', 'kitchen/objects/cariola.png', 16498, 2080, 1120, 691),
-  kitchenConstructionObjectAsset('mattoni-pila', 'kitchen/objects/mattoni-pila.png', 18887, 2470, 868, 243)
+  kitchenConstructionObjectAssetFromPosition('cono_1', 'cono-1', 'kitchen/objects/cono-cantiere.png', 5748, 2256, 223, 339, 9),
+  kitchenConstructionObjectAssetFromPosition('transenna', 'transenna', 'kitchen/objects/transenna.png', 8478, 1891, 1157, 711, 7),
+  kitchenConstructionObjectAssetFromPosition('cono_2', 'cono-2', 'kitchen/objects/cono-cantiere.png', 9988, 2275, 223, 339, 9),
+  kitchenConstructionObjectAssetFromPosition('cono_3', 'cono-3', 'kitchen/objects/cono-cantiere.png', 10304, 2199, 223, 339, 9),
+  kitchenConstructionObjectAssetFromPosition('sabbia-pala', 'sabbia-pala', 'kitchen/objects/sabbia-pala.png', 12793, 1961, 1520, 899),
+  kitchenConstructionObjectAssetFromPosition('cariola', 'cariola', 'kitchen/objects/cariola.png', 16498, 2080, 1120, 691),
+  kitchenConstructionObjectAssetFromPosition('mattoni-pila', 'mattoni-pila', 'kitchen/objects/mattoni-pila.png', 18887, 2470, 868, 243)
 ];
 
 function kitchenConstructionObjectZOffset(id: string, fallback: number) {

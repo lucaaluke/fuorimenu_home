@@ -27,7 +27,7 @@
   import type { KitchenPhaserGameHandle } from '$lib/kitchen/phaser/KitchenPhaserGame';
   import { screenToFigmaY, tailAwareFigmaX } from '$lib/kitchen/phaser/coordinate-utils';
 
-	  const {
+  const {
 	    cursorCss,
 	    layerSpeed,
 	    pointerCursorCss,
@@ -36,6 +36,29 @@
     title
   } = kitchenSceneConfig;
   const showLegacyKitchenOverlays = false;
+  const phaserObjectScrollFactor = {
+    middle: 1.25,
+    foreground: 1.5
+  } as const;
+  const kitchenSTooltipAssets = kitchenConstructionObjectAssets.filter((asset) => {
+    const fileName = asset.src.split('/').at(-1) ?? '';
+    return fileName.includes('S_') && asset.id !== '2-S-fornelli-b' && asset.id !== 'S-kit-pulizie-b';
+  });
+  const kitchenSTooltipTextById: Record<string, string> = {
+    'S-cassetta-attrezzi':
+      'Non è una cucina professionale, è un capannone allestito da cucina dove a volte fa caldissimo e a volte fa freddissimo.',
+    'S-cono': 'È stato un impianto consegnato 5 giorni prima.',
+    'S-planetaria':
+      "Se non c'era il bollino del CIO, o dei responsabili Food and Beverage al checkpoint, non poteva entrare nulla.",
+    'S-macchinetta-caffe':
+      "Una sfida è stata trovare l'armonia nel fondere due realtà, quindi una brigata già esistente con un'altra brigata che andava ad affiancarsi.",
+    'S-kit-pulizie-a':
+      'La figura dello chef deve controllare che tutto vada come deve andare, che ci sia tutto e soprattutto avere anche la capacità di risolvere i problemi.',
+    'S-sveglia':
+      '700 pasti al giorno da fare, da preparare con una disponibilità oraria che andava dalle 5 del mattino a 00:00.',
+    '2-S-fornelli-a':
+      'Si devono gestire bene i tempi di preparazione e i tempi del servizio per non accavallare le cose.'
+  };
 	  const titleLetters = title.split('');
   const initialKitchenState: KitchenControllerState = {
     cameraX: 0,
@@ -213,6 +236,7 @@
   let cameraX = $state(0);
   let narrativeProgress = $state(0);
   let activeChefId = $state<KitchenControllerState['activeChefId']>();
+  let hoveredKitchenSTooltipId = $state<string>();
 
   $effect(() => {
     onProgressChange?.(narrativeProgress);
@@ -232,6 +256,8 @@
   let phaserResizeTimer: ReturnType<typeof setTimeout> | undefined;
   let phaserLoadingProgress = $state(0);
   let isPhaserReady = $state(false);
+  let pointerLocalX = $state(0);
+  let pointerLocalY = $state(0);
   let toolShedAudioEl: HTMLAudioElement;
   let standMixerAudioEl: HTMLAudioElement;
   let constructionAudioEl: HTMLAudioElement;
@@ -308,6 +334,8 @@
     const localX = clamp(event.clientX - rect.left, 0, rect.width);
 	    const localY = clamp(event.clientY - rect.top, 0, rect.height);
 
+    pointerLocalX = localX;
+    pointerLocalY = localY;
 	    hasPointerScenePosition = true;
     pointerSceneY = screenToFigmaY(localY, sceneScale, viewportHeight, kitchenConstructionFloorTopY);
 	    pointerSceneX = {
@@ -318,6 +346,7 @@
     isPointerOverTestimonialHitbox = isPointerInsideVisibleTestimonial(event);
     kitchenPhaserGame?.setObjectHoverSuppressed(isPointerOverTestimonialHitbox);
     nearestSceneAsset = getNearestSceneAsset();
+    hoveredKitchenSTooltipId = getHoveredKitchenSTooltipId();
 	  }
 
 	  function syncViewport() {
@@ -457,6 +486,49 @@
     }
 
     return nearest;
+  }
+
+  function getPhaserObjectScrollFactor(asset: SceneAsset) {
+    if (asset.id.startsWith('2-')) return phaserObjectScrollFactor.middle;
+    if (asset.layer === 'foreground') return phaserObjectScrollFactor.foreground;
+
+    return resolvedLayerSpeed[asset.layer as keyof typeof resolvedLayerSpeed] ?? 1;
+  }
+
+  function getKitchenSTooltipStyle(asset: SceneAsset) {
+    const x = tailAwareFigmaX(asset.x, asset.isTail, tailStartX) * sceneScale - cameraX * getPhaserObjectScrollFactor(asset);
+    const top = viewportHeight - (kitchenConstructionFloorTopY - asset.y) * sceneScale;
+
+    return [
+      `width: ${scenePx(asset.width * sceneScale)}`,
+      `height: ${scenePx(asset.height * sceneScale)}`,
+      `top: ${scenePx(top)}`,
+      `transform: translate3d(${scenePx(x)}, 0, 0)`,
+      asset.zOffset !== undefined ? `--scene-z-offset: ${asset.zOffset}` : ''
+    ]
+      .filter(Boolean)
+      .join(';');
+  }
+
+  function getHoveredKitchenSTooltipId() {
+    if (!hasPointerScenePosition || isPointerOverTestimonialHitbox) return undefined;
+
+    for (let index = kitchenSTooltipAssets.length - 1; index >= 0; index -= 1) {
+      const asset = kitchenSTooltipAssets[index];
+      const x = tailAwareFigmaX(asset.x, asset.isTail, tailStartX) * sceneScale - cameraX * getPhaserObjectScrollFactor(asset);
+      const y = viewportHeight - (kitchenConstructionFloorTopY - asset.y) * sceneScale;
+      const width = asset.width * sceneScale;
+      const height = asset.height * sceneScale;
+      const isInside =
+        pointerLocalX >= x &&
+        pointerLocalX <= x + width &&
+        pointerLocalY >= y &&
+        pointerLocalY <= y + height;
+
+      if (isInside) return asset.id;
+    }
+
+    return undefined;
   }
 
   function isPointerInsideVisibleTestimonial(event: PointerEvent) {
@@ -994,6 +1066,7 @@
     if (!isDragging) {
       hasPointerScenePosition = false;
       isPointerOverTestimonialHitbox = false;
+      hoveredKitchenSTooltipId = undefined;
       kitchenPhaserGame?.setObjectHoverSuppressed(false);
     }
   }
@@ -1711,6 +1784,7 @@
   class="kitchen-stage"
   class:is-dragging={isDragging}
   class:is-loaded={isSceneRevealed}
+  class:is-s-object-hovered={Boolean(hoveredKitchenSTooltipId)}
   style={`--kitchen-cursor: ${cursorCss}; --kitchen-pointer-cursor: ${pointerCursorCss};`}
   data-active-chef={activeChefId ?? ''}
   data-narrative-progress={narrativeProgress.toFixed(3)}
@@ -1765,6 +1839,16 @@
   {#if browser}
     <div bind:this={phaserContainerEl} class="kitchen-phaser-layer" aria-hidden="true"></div>
   {/if}
+  {#each kitchenSTooltipAssets as asset (asset.id)}
+    <span
+      class="kitchen-s-tooltip-hitbox"
+      class:is-visible={hoveredKitchenSTooltipId === asset.id}
+      style={getKitchenSTooltipStyle(asset)}
+      aria-hidden="true"
+    >
+      <span class="kitchen-s-tooltip">{kitchenSTooltipTextById[asset.id] ?? 'sample text'}</span>
+    </span>
+  {/each}
   {#if !isSceneRevealed}
     <SceneLoadingProgress progress={phaserLoadingProgress} />
   {/if}
@@ -1963,6 +2047,10 @@
 	    cursor: var(--kitchen-cursor);
 	  }
 
+  .kitchen-stage.is-s-object-hovered:not(.is-dragging) {
+    cursor: var(--kitchen-pointer-cursor);
+  }
+
   .kitchen-phaser-layer {
     position: absolute;
     z-index: 0;
@@ -1991,6 +2079,75 @@
     width: 100%;
     height: 100%;
     pointer-events: auto;
+  }
+
+  .kitchen-stage.is-s-object-hovered:not(.is-dragging) .kitchen-phaser-layer :global(canvas) {
+    cursor: var(--kitchen-pointer-cursor) !important;
+  }
+
+  .kitchen-s-tooltip-hitbox {
+    position: absolute;
+    z-index: 7;
+    display: block;
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  .kitchen-s-tooltip {
+    position: absolute;
+    z-index: 1;
+    left: 50%;
+    bottom: calc(100% + clamp(14px, 2.4vw, 28px));
+    box-sizing: border-box;
+    display: block;
+    width: min(322px, calc(100vw - 48px));
+    padding: clamp(12px, 1.4vw, 18px) clamp(14px, 1.6vw, 20px);
+    border: 2px solid var(--color-interactive-hover);
+    border-radius: var(--radius-s);
+    background: var(--color-surface-page);
+    color: var(--color-text-primary);
+    font-family: "JetBrains Mono", var(--font-text);
+    font-size: clamp(13px, 1.1vw, 16px);
+    font-style: italic;
+    font-weight: 300;
+    line-height: 1.35;
+    text-align: left;
+    opacity: 0;
+    transform: translate3d(-50%, 10px, 0);
+    transition:
+      opacity 140ms ease,
+      transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+    word-break: break-word;
+  }
+
+  .kitchen-s-tooltip::before,
+  .kitchen-s-tooltip::after {
+    position: absolute;
+    left: 50%;
+    width: 0;
+    height: 0;
+    content: '';
+    transform: translateX(-50%);
+  }
+
+  .kitchen-s-tooltip::before {
+    top: 100%;
+    border-top: 14px solid var(--color-interactive-hover);
+    border-right: 12px solid transparent;
+    border-left: 12px solid transparent;
+  }
+
+  .kitchen-s-tooltip::after {
+    top: calc(100% - 1px);
+    border-top: 12px solid var(--color-surface-page);
+    border-right: 11px solid transparent;
+    border-left: 11px solid transparent;
+  }
+
+  .kitchen-s-tooltip-hitbox.is-visible .kitchen-s-tooltip {
+    opacity: 1;
+    transform: translate3d(-50%, 0, 0);
   }
 
 	  .scene-coordinate-indicator {
