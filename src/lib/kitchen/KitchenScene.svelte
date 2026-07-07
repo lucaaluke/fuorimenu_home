@@ -86,9 +86,10 @@
     "C'erano grosse difficoltà su Santa Giulia. Il 30 di gennaio era ancora un cantiere, quindi si entrava con l'elmetto col giubbotto catarifrangente; la situazione era veramente drammatica.\nDa dicembre 2025 abbiamo cambiato completamente la strategia per quel sito, perché era un sito che si sapeva che avrebbe avuto delle grosse difficoltà, perché a volte si faceva anche fino a 11.000 spettatori per tre gare al giorno.";
   const kitchenAmbientFadeInDuration = 1.2;
   const kitchenAmbientFadeOutDuration = 0.42;
-  const testimonialAudioFadeInDuration = 0.04;
-  const testimonialAudioFadeOutDuration = 0.08;
-  const testimonialAudioHandoffFadeOutDuration = 0;
+  const testimonialAudioVolume = 0.86;
+  const testimonialAudioFadeInDuration = 0.18;
+  const testimonialAudioFadeOutDuration = 0.18;
+  const testimonialAudioHandoffFadeOutDuration = 0.16;
   const faustoSecondAudioPauseMs = 700;
   const faustoSecondAudioStartTime = 25.9;
   const kitchenDialogueCameraRanges = {
@@ -1025,7 +1026,7 @@
     try {
       await fausto2AudioEl.play();
       if (playbackToken === state.playbackToken) state.hasPlayed = true;
-      fadeAudioVolume(fausto2AudioEl, 1, testimonialAudioFadeInDuration);
+      fadeAudioVolume(fausto2AudioEl, testimonialAudioVolume, testimonialAudioFadeInDuration);
     } catch {
       if (activeTestimonialAudioId === 'fausto') activeTestimonialAudioId = undefined;
     } finally {
@@ -1266,7 +1267,7 @@
   }
 
   async function startAmbientAudio() {
-    if (isAudioMuted || isAmbientAudioStarted || !constructionAudioEl || !kitchenAmbientAudioEl) {
+    if (!isSceneRevealed || isAudioMuted || isAmbientAudioStarted || !constructionAudioEl || !kitchenAmbientAudioEl) {
       return;
     }
 
@@ -1314,6 +1315,11 @@
     if (!hasTrackedAudioMuted) {
       wasAudioMuted = muted;
       hasTrackedAudioMuted = true;
+    }
+
+    if (!isSceneRevealed && !muted) {
+      wasAudioMuted = muted;
+      return;
     }
 
     if (!muted) {
@@ -1626,7 +1632,7 @@
     try {
       await audio.play();
       if (playbackToken === state.playbackToken) state.hasPlayed = true;
-      fadeAudioVolume(audio, 1, testimonialAudioFadeInDuration);
+      fadeAudioVolume(audio, testimonialAudioVolume, testimonialAudioFadeInDuration);
     } catch {
       if (activeTestimonialAudioId === testimonial.id) activeTestimonialAudioId = undefined;
     } finally {
@@ -1800,8 +1806,6 @@
     });
     stageEl.addEventListener('click', triggerTapClickFeedback, true);
     resources.addEventListener(window, 'keydown', onKeydown as EventListener);
-    void startAmbientAudio();
-
 	    return () => {
       stageEl?.removeEventListener('click', triggerTapClickFeedback, true);
       if (sceneRevealTimer) clearTimeout(sceneRevealTimer);
@@ -2693,6 +2697,7 @@
     color: inherit;
     overflow: visible;
     pointer-events: auto;
+    z-index: 9;
   }
 
   .tool-shed-layer {

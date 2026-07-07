@@ -44,6 +44,8 @@
     foreground: 0
   });
   let nearestSceneAsset = $state<{ id: string; distance: number }>();
+  let hoveredOfficeAssetId = $state<string | undefined>();
+  let officeHoverClearTimer: ReturnType<typeof setTimeout> | undefined;
   let prefersReducedMotion = $state(false);
   let shouldResumeOfficeAudioFromMutedPage = false;
   let officeAmbientAudioEl: HTMLAudioElement;
@@ -145,29 +147,29 @@
   const officeAmbientVolume = 0.32;
   const officeAmbientFadeInDuration = 1.2;
   const officeAmbientFadeOutDuration = 0.36;
-  const officeDialogueAudioFadeInDuration = 0.04;
-  const officeDialogueAudioHandoffFadeOutDuration = 0;
-  const carloOfficeAudioVolume = 1;
-  const carloOfficeAudioFadeOutDuration = 0.08;
+  const officeDialogueAudioFadeInDuration = 0.18;
+  const officeDialogueAudioHandoffFadeOutDuration = 0.16;
+  const carloOfficeAudioVolume = 0.92;
+  const carloOfficeAudioFadeOutDuration = 0.18;
   const carloOfficeRevealDurationSeconds = 37.54;
   const carloOfficeSpeech =
     'Qui parliamo del 2018 che abbiamo sviluppato il dossier di candidatura. Nel 2019 Milano Cortina vince viene nominata organizzatrice delle Olimpiadi del 2026, quindi 7 anni prima. E poi nel 2021 io entro nello staff come direttore Food and Beverage. Ci sono 110-120 delegati che sono i Presidenti dei vari Comitati Olimpici nel mondo, che si riuniscono, valutano il dossier che tu hai presentato e decidono tra le varie città candidate quale deve essere quella che vince, quindi tu devi essere molto esaustivo, molto attraente.';
-  const carloOffice2AudioVolume = 1;
-  const carloOffice2AudioFadeOutDuration = 0.08;
+  const carloOffice2AudioVolume = 0.92;
+  const carloOffice2AudioFadeOutDuration = 0.18;
   const carloOffice2RevealDurationSeconds = 41.74;
   const carloOffice2StartCameraX = 3785;
   const carloOffice2EndCameraX = 6844;
   const carloOffice2Speech =
     "La complessità di questa Olimpiade era che, mentre a Torino era una città, Torino, qui avevi quattro regioni, 9 province e 13 siti di gara. C'era un villaggio olimpico a Predazzo, un villaggio olimpico a Livigno, un villaggio olimpico a Cortina, poi avevi tre cluster alberghieri che fungevano da villaggio olimpico. E quando io dovevo fare l'impostazione reale sul posto e vedere come erano fatti, per fare la visita dei 7 io ci ho impiegato quattro giorni. Per spiegarlo ad un americano facevo questo esempio: è come se tu hai le Olimpiadi a Washington, poi hai la gara di bob a New York e poi le gare di fondo a Charleston.";
-  const elisabettaOfficeAudioVolume = 1;
-  const elisabettaOfficeAudioFadeOutDuration = 0.08;
+  const elisabettaOfficeAudioVolume = 0.92;
+  const elisabettaOfficeAudioFadeOutDuration = 0.18;
   const elisabettaOfficeRevealDurationSeconds = 47.57;
   const elisabettaOfficeStartCameraX = 7245;
   const elisabettaOfficeEndCameraX = 13000;
   const elisabettaOfficeSpeech =
     "Il lavoro solitamente si divide in tre fasi: c'è la fase di strategia, c'è il momento di planning, in cui si cercano i fornitori, e poi una fase di Games Time, dove invece si fanno solo operations. La nostra strategia è stata molto condizionata dal fatto che fossero le prime Olimpiadi del mondo così sparse sul territorio, Ci sono stati una serie di incontri preliminari con alcuni componenti di alcune federazioni e uno di questi è stato sicuramente lo Chef de mission, perché in questo meeting vengono i capi delegazione delle varie delegazioni internazionali. Al Games Time iniziano ad essere ogni tre giorni, ma prima ci sono almeno due o tre appuntamenti durante i quali si inizia a spiegare quale sarà il disegno e, mano a mano che si è pronti, si scende nei dettagli.";
-  const faustoOfficeAudioVolume = 1;
-  const faustoOfficeAudioFadeOutDuration = 0.08;
+  const faustoOfficeAudioVolume = 0.92;
+  const faustoOfficeAudioFadeOutDuration = 0.18;
   const faustoOfficeRevealDurationSeconds = 20.56;
   const faustoOfficeSpeech =
     "Le aziende coinvolte la maggior parte erano degli sponsor, quindi abbiamo dovuto adeguare anche il menu agli sponsor. Quindi è un incastro di situazioni molto particolari. Il menù tenete conto che noi l'abbiamo cambiato e rivisto almeno una dozzina di volte, proprio perché c'erano sponsor che uscivano e sponsor che entravano.";
@@ -428,6 +430,7 @@
       foreground: (localX + cameraX * resolvedLayerSpeed.foreground) / sceneScale
     };
     nearestSceneAsset = getNearestSceneAsset();
+    setHoveredOfficeAssetId(getHoveredOfficeAssetId());
   }
 
   function getNearestSceneAsset() {
@@ -449,6 +452,43 @@
     }
 
     return nearest;
+  }
+
+  function getHoveredOfficeAssetId() {
+    if (!hasPointerScenePosition) return undefined;
+
+    const hoverPadding = 26;
+    const interactiveAssets = officeCoordinateAssets.filter(isInteractiveAsset);
+
+    for (const asset of interactiveAssets.slice().reverse()) {
+      const layerX = pointerSceneX[asset.layer as keyof typeof pointerSceneX];
+      if (layerX === undefined) continue;
+
+      const withinX = layerX >= asset.x - hoverPadding && layerX <= asset.x + asset.width + hoverPadding;
+      const withinY =
+        pointerSceneY >= asset.y - hoverPadding && pointerSceneY <= asset.y + asset.height + hoverPadding;
+
+      if (withinX && withinY) return asset.id;
+    }
+
+    return undefined;
+  }
+
+  function setHoveredOfficeAssetId(nextId: string | undefined) {
+    if (officeHoverClearTimer) {
+      clearTimeout(officeHoverClearTimer);
+      officeHoverClearTimer = undefined;
+    }
+
+    if (nextId) {
+      hoveredOfficeAssetId = nextId;
+      return;
+    }
+
+    officeHoverClearTimer = setTimeout(() => {
+      hoveredOfficeAssetId = undefined;
+      officeHoverClearTimer = undefined;
+    }, 180);
   }
 
   function evaluateScene(delta: number) {
@@ -510,7 +550,10 @@
   }
 
   function onPointerLeave() {
-    if (!isDragging) hasPointerScenePosition = false;
+    if (!isDragging) {
+      hasPointerScenePosition = false;
+      setHoveredOfficeAssetId(undefined);
+    }
   }
 
   function endDrag(event?: PointerEvent) {
@@ -1391,7 +1434,7 @@
   }
 
   async function startAmbientAudio() {
-    if (isAudioMuted || isAmbientAudioStarted || !officeAmbientAudioEl) return;
+    if (!isSceneRevealed || isAudioMuted || isAmbientAudioStarted || !officeAmbientAudioEl) return;
 
     officeAmbientAudioEl.loop = true;
     officeAmbientAudioEl.volume = 0;
@@ -1721,9 +1764,11 @@
     if (isAudioMuted) {
       shouldResumeOfficeAudioFromMutedPage = true;
       stopAmbientAudio();
-      stopAllOfficeDialogueAudio({ duration: 0.1, resetReplay: true });
+      stopAllOfficeDialogueAudio({ duration: officeDialogueAudioHandoffFadeOutDuration, resetReplay: true });
       return;
     }
+
+    if (!isSceneRevealed) return;
 
     void startAmbientAudio();
     const hasVisibleDialogue =
@@ -2052,6 +2097,7 @@
             class:office-cio-asset={item.id === '1_cio'}
             class:office-map-asset={item.id === '1_mappa'}
             class:office-computer-asset={item.id === '2_computerint'}
+            class:is-tooltip-visible={hoveredOfficeAssetId === item.id}
             type="button"
             aria-label={item.ariaLabel}
             style={getForegroundStyle(item)}
@@ -2104,6 +2150,7 @@
             class:office-cio-asset={item.id === '1_cio'}
             class:office-map-asset={item.id === '1_mappa'}
             class:office-computer-asset={item.id === '2_computerint'}
+            class:is-tooltip-visible={hoveredOfficeAssetId === item.id}
             type="button"
             aria-label={item.ariaLabel}
             style={getForegroundStyle(item)}
@@ -2784,6 +2831,7 @@
     cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     pointer-events: auto;
     touch-action: none;
+    z-index: 7;
   }
 
   .office-interactive-asset:focus-visible {
