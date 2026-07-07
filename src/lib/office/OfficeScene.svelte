@@ -12,11 +12,17 @@
   import { loadGsapWithScrollTrigger, type Gsap } from '$lib/scene/gsap-loader';
   import type { InteractiveSceneAsset, SceneAsset, SceneChunk } from '$lib/scene/scene-asset.types';
   import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
+  import SceneProgressBar from '$lib/scene/SceneProgressBar.svelte';
   import { getSceneAssetStyle } from '$lib/scene/scene-utils';
   import { createViewportObserver } from '$lib/scene/viewport';
+  import { triggerTapClickFeedback } from '$lib/scene/tap-click-feedback';
   import type { ParallaxPhaserGameHandle } from '$lib/scene/phaser/ParallaxPhaserGame';
 
-  let { isAudioMuted = false } = $props<{ isAudioMuted?: boolean }>();
+  let { isAudioMuted = false, onProgressChange, onSceneRevealedChange } = $props<{
+    isAudioMuted?: boolean;
+    onProgressChange?: (progress: number) => void;
+    onSceneRevealedChange?: (isRevealed: boolean) => void;
+  }>();
 
   const { assetVersion, layerSpeed, sceneHeight, sceneWidth } = officeSceneConfig;
 
@@ -28,6 +34,7 @@
   let isDragging = $state(false);
   let isSceneLoaded = $state(false);
   let isPhaserReady = $state(false);
+  let isSceneRevealed = $state(false);
   let phaserLoadingProgress = $state(0);
   let hasPointerScenePosition = $state(false);
   let pointerSceneY = $state(0);
@@ -78,6 +85,8 @@
   let officePhaserContainerEl: HTMLElement;
   let officePhaserGame: ParallaxPhaserGameHandle | undefined;
   let officePhaserResizeTimer: number | undefined;
+  let sceneRevealTimer: ReturnType<typeof setTimeout> | undefined;
+  const sceneRevealDelayMs = 560;
   let dragStartX = 0;
   let dragScrollStart = 0;
   let scrollTrigger:
@@ -101,12 +110,25 @@
   const worldWidth = $derived(Math.max(viewportWidth, sceneWidth * sceneScale));
   const maxScrollX = $derived(Math.max(0, worldWidth - viewportWidth));
   const progress = $derived(maxScrollX > 0 ? clamp(cameraX / maxScrollX, 0, 1) : 0);
-  const isSceneInteractive = $derived(isSceneLoaded && isPhaserReady);
+  const isSceneInteractive = $derived(isSceneRevealed);
+
+  $effect(() => {
+    onProgressChange?.(progress);
+  });
+
   const scenePx = (value: number) => px(value, 2);
   const coord = (value: number) => Math.round(value).toString();
   const coordDecimal = (value: number) => value.toFixed(3);
   const officeCoordinateAssets = [...officeMiddleAssets, ...officeForegroundAssets];
   const officePhaserAssets = [...officeFloorAssets, ...officeMiddleAssets, ...officeForegroundAssets];
+  const officeProgressTicks = $derived(
+    maxScrollX > 0
+      ? [
+          getElisabettaOfficeStartCameraX() / maxScrollX,
+          getFaustoOfficeStartCameraX() / maxScrollX
+        ]
+      : []
+  );
   const scrollSpaceStyle = $derived(
     `width: ${scenePx(worldWidth)}; height: ${scenePx(viewportHeight)}`
   );
@@ -129,7 +151,7 @@
   const carloOfficeAudioFadeOutDuration = 0.08;
   const carloOfficeRevealDurationSeconds = 37.54;
   const carloOfficeSpeech =
-    'Qui parliamo del 2018 che abbiamo sviluppato il dossier di candidatura. Nel 2019 Milano Cortina vince viene nominata organizzatrice delle Olimpiadi del 2026, quindi 7 anni prima. E poi nel 2021 io entro nello staff come direttore Food and Beverage. Ci sono 110-120 delegati delle federazioni internazionali, che sono i Presidenti dei vari Comitati Olimpici nel mondo, che si riuniscono, valutano il dossier che tu hai presentato e decidono tra le varie città candidate quale deve essere quella che vince, quindi tu devi essere molto esaustivo, molto attraente.';
+    'Qui parliamo del 2018 che abbiamo sviluppato il dossier di candidatura. Nel 2019 Milano Cortina vince viene nominata organizzatrice delle Olimpiadi del 2026, quindi 7 anni prima. E poi nel 2021 io entro nello staff come direttore Food and Beverage. Ci sono 110-120 delegati che sono i Presidenti dei vari Comitati Olimpici nel mondo, che si riuniscono, valutano il dossier che tu hai presentato e decidono tra le varie città candidate quale deve essere quella che vince, quindi tu devi essere molto esaustivo, molto attraente.';
   const carloOffice2AudioVolume = 1;
   const carloOffice2AudioFadeOutDuration = 0.08;
   const carloOffice2RevealDurationSeconds = 41.74;
@@ -149,6 +171,14 @@
   const faustoOfficeRevealDurationSeconds = 20.56;
   const faustoOfficeSpeech =
     "Le aziende coinvolte la maggior parte erano degli sponsor, quindi abbiamo dovuto adeguare anche il menu agli sponsor. Quindi è un incastro di situazioni molto particolari. Il menù tenete conto che noi l'abbiamo cambiato e rivisto almeno una dozzina di volte, proprio perché c'erano sponsor che uscivano e sponsor che entravano.";
+  const officeKeysHoverText =
+    'I Giochi si estendevano su oltre 22.000 km², con sedi distribuite tra Milano, Cortina e altri cluster del Nord Italia, e uno spostamento Milano-Cortina poteva richiedere anche 4-5 ore.';
+  const officeCioHoverText =
+    'Dar da mangiare alle Olimpiadi è uno degli sforzi di Food and Beverage più grandi al mondo dopo la guerra';
+  const officeMapHoverText =
+    'Il villaggio di Milano aveva 1500-1600 ospiti, quello di Predazzo 700, Livigno 1100-1200.';
+  const officeComputerHoverText =
+    'Con 2.900 atleti e 116 eventi si iniziava anni prima partendo dalle esigenze delle federazioni per organizzare il menù';
   const carloOfficeEnterDistance = $derived(Math.max(130, viewportWidth * 0.16));
   const carloOfficeExitDistance = $derived(Math.max(170, viewportWidth * 0.2));
   const carloOffice2EnterDistance = $derived(Math.max(130, viewportWidth * 0.13));
@@ -1804,6 +1834,7 @@
     syncReducedMotion();
     reducedMotionQuery.addEventListener('change', syncReducedMotion);
     window.addEventListener('keydown', onKeydown);
+    stageEl.addEventListener('click', triggerTapClickFeedback, true);
     void import('$lib/scene/phaser/ParallaxPhaserGame').then(({ createParallaxPhaserGame }) => {
       if (destroyed || !officePhaserContainerEl) return;
 
@@ -1823,6 +1854,7 @@
           phaserLoadingProgress = progress;
         },
         onReady: () => {
+          phaserLoadingProgress = 1;
           isPhaserReady = true;
         },
         sceneHeight,
@@ -1887,8 +1919,10 @@
 
     return () => {
       destroyed = true;
+      if (sceneRevealTimer) window.clearTimeout(sceneRevealTimer);
       reducedMotionQuery.removeEventListener('change', syncReducedMotion);
       window.removeEventListener('keydown', onKeydown);
+      stageEl?.removeEventListener('click', triggerTapClickFeedback, true);
       stopResize();
       removeTicker();
       scrollTrigger?.kill();
@@ -1924,13 +1958,35 @@
       isFaustoOfficeAudioActive = false;
     };
   });
+
+  $effect(() => {
+    if (isSceneLoaded && isPhaserReady) {
+      if (!isSceneRevealed && !sceneRevealTimer) {
+        sceneRevealTimer = window.setTimeout(() => {
+          isSceneRevealed = true;
+          sceneRevealTimer = undefined;
+        }, sceneRevealDelayMs);
+      }
+      return;
+    }
+
+    if (sceneRevealTimer) {
+      window.clearTimeout(sceneRevealTimer);
+      sceneRevealTimer = undefined;
+    }
+    isSceneRevealed = false;
+  });
+
+  $effect(() => {
+    onSceneRevealedChange?.(isSceneRevealed);
+  });
 </script>
 
 <section
   bind:this={stageEl}
   class="office-stage"
   class:is-dragging={isDragging}
-  class:is-loaded={isSceneLoaded && isPhaserReady}
+  class:is-loaded={isSceneRevealed}
   data-audio-muted={isAudioMuted}
   data-progress={progress.toFixed(3)}
   aria-label="Scena parallasse dell'ufficio"
@@ -1941,8 +1997,10 @@
   onpointerup={endDrag}
   onpointercancel={endDrag}
 >
+  <SceneProgressBar {progress} isVisible={isSceneRevealed} ticks={officeProgressTicks} />
+
   <div bind:this={officePhaserContainerEl} class="office-phaser-layer" aria-hidden="true"></div>
-  {#if !isPhaserReady}
+  {#if !isSceneRevealed}
     <SceneLoadingProgress progress={phaserLoadingProgress} />
   {/if}
 
@@ -1991,6 +2049,9 @@
           <button
             class="office-asset office-middle-asset office-interactive-asset reveal-layer middle-layer"
             class:office-keys-asset={item.id === '1_chiavi'}
+            class:office-cio-asset={item.id === '1_cio'}
+            class:office-map-asset={item.id === '1_mappa'}
+            class:office-computer-asset={item.id === '2_computerint'}
             type="button"
             aria-label={item.ariaLabel}
             style={getForegroundStyle(item)}
@@ -2010,6 +2071,26 @@
                 style={`--shine-mask: url('${versionedAsset(item.src)}')`}
                 aria-hidden="true"
               ></span>
+            {/if}
+            {#if item.id === '1_chiavi'}
+              <span class="office-keys-tooltip" data-node-id="5686:9830">
+                {officeKeysHoverText}
+              </span>
+            {/if}
+            {#if item.id === '1_cio'}
+              <span class="office-keys-tooltip office-cio-tooltip">
+                {officeCioHoverText}
+              </span>
+            {/if}
+            {#if item.id === '1_mappa'}
+              <span class="office-keys-tooltip office-map-tooltip">
+                {officeMapHoverText}
+              </span>
+            {/if}
+            {#if item.id === '2_computerint'}
+              <span class="office-keys-tooltip office-computer-tooltip">
+                {officeComputerHoverText}
+              </span>
             {/if}
           </button>
         {/if}
@@ -2020,6 +2101,9 @@
           <button
             class="office-asset office-foreground-asset office-interactive-asset reveal-layer foreground-layer"
             class:office-keys-asset={item.id === '1_chiavi'}
+            class:office-cio-asset={item.id === '1_cio'}
+            class:office-map-asset={item.id === '1_mappa'}
+            class:office-computer-asset={item.id === '2_computerint'}
             type="button"
             aria-label={item.ariaLabel}
             style={getForegroundStyle(item)}
@@ -2040,11 +2124,33 @@
                 aria-hidden="true"
               ></span>
             {/if}
+            {#if item.id === '1_chiavi'}
+              <span class="office-keys-tooltip" data-node-id="5686:9830">
+                {officeKeysHoverText}
+              </span>
+            {/if}
+            {#if item.id === '1_cio'}
+              <span class="office-keys-tooltip office-cio-tooltip">
+                {officeCioHoverText}
+              </span>
+            {/if}
+            {#if item.id === '1_mappa'}
+              <span class="office-keys-tooltip office-map-tooltip">
+                {officeMapHoverText}
+              </span>
+            {/if}
+            {#if item.id === '2_computerint'}
+              <span class="office-keys-tooltip office-computer-tooltip">
+                {officeComputerHoverText}
+              </span>
+            {/if}
           </button>
         {/if}
       {/each}
 
-      <h1 class="office-title" style={getTitleStyle()} aria-label="Ufficio">Ufficio</h1>
+      {#if isSceneRevealed}
+        <h1 class="office-title" style={getTitleStyle()} aria-label="Ufficio">Ufficio</h1>
+      {/if}
 
       <div
         class="office-chef-button"
@@ -2141,9 +2247,9 @@
               </span>
             {/if}
           </span>
-          <span class="speech-bubble-meta" aria-label="Food and Beverage Director - Carlo Zarri">
+          <span class="speech-bubble-meta" aria-label="Chief Executive Chef - Carlo Zarri">
             <span class="speech-bubble-meta-label">
-              <span>Food and Beverage Director - </span>
+              <span>Chief Executive Chef - </span>
               <strong>Carlo Zarri</strong>
             </span>
           </span>
@@ -2246,9 +2352,9 @@
               </span>
             {/if}
           </span>
-          <span class="speech-bubble-meta" aria-label="Food and Beverage Director - Carlo Zarri">
+          <span class="speech-bubble-meta" aria-label="Chief Executive Chef - Carlo Zarri">
             <span class="speech-bubble-meta-label">
-              <span>Food and Beverage Director - </span>
+              <span>Chief Executive Chef - </span>
               <strong>Carlo Zarri</strong>
             </span>
           </span>
@@ -2351,9 +2457,9 @@
               </span>
             {/if}
           </span>
-          <span class="speech-bubble-meta" aria-label="Nutrition Expert - Elisabetta Salvadori">
+          <span class="speech-bubble-meta" aria-label="Head Food and Beverage - Elisabetta Salvadori">
             <span class="speech-bubble-meta-label">
-              <span>Nutrition Expert - </span>
+              <span>Head Food and Beverage - </span>
               <strong>Elisabetta Salvadori</strong>
             </span>
           </span>
@@ -2456,9 +2562,9 @@
               </span>
             {/if}
           </span>
-          <span class="speech-bubble-meta" aria-label="Chef - Fausto Meli">
+          <span class="speech-bubble-meta" aria-label="Executive Chef - Fausto Meli">
             <span class="speech-bubble-meta-label">
-              <span>Chef - </span>
+              <span>Executive Chef - </span>
               <strong>Fausto Meli</strong>
             </span>
           </span>
@@ -2563,7 +2669,15 @@
     z-index: 0;
     inset: 0;
     overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
     pointer-events: none;
+    transition: opacity 260ms ease;
+  }
+
+  .office-stage.is-loaded .office-phaser-layer {
+    opacity: 1;
+    visibility: visible;
   }
 
   .office-phaser-layer :global(canvas) {
@@ -2648,7 +2762,7 @@
   .scene-coordinate-indicator dd {
     font-variant-numeric: tabular-nums;
     font-weight: 800;
-    text-align: right;
+    text-align: left;
   }
 
   .office-asset {
@@ -2693,9 +2807,22 @@
     animation: officeMapIdle 2.6s cubic-bezier(0.45, 0, 0.2, 1) infinite;
   }
 
+  .office-cio-asset img,
+  .office-computer-asset img {
+    transform-origin: 50% 50%;
+    animation: officeLunchboxBobIdle 2.24s ease-in-out infinite;
+  }
+
   .office-interactive-asset:hover img,
   .office-interactive-asset:focus-visible img {
     animation: officeMapHoverLanding 860ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .office-cio-asset:hover img,
+  .office-cio-asset:focus-visible img,
+  .office-computer-asset:hover img,
+  .office-computer-asset:focus-visible img {
+    animation: officeLunchboxHoverShake 620ms cubic-bezier(0.2, 1, 0.28, 1) both;
   }
 
   .office-keys-asset img {
@@ -2706,6 +2833,91 @@
   .office-keys-asset:hover img,
   .office-keys-asset:focus-visible img {
     animation: officeKeysHoverJumpShake 620ms cubic-bezier(0.2, 1, 0.28, 1) both;
+  }
+
+  .office-keys-tooltip {
+    position: absolute;
+    z-index: 4;
+    left: 50%;
+    bottom: calc(100% + 40px);
+    display: block;
+    box-sizing: border-box;
+    width: min(492px, calc(100vw - 48px));
+    padding: 14px 18px;
+    border: 2px solid #199444;
+    border-radius: var(--radius-s);
+    background: var(--color-surface-page);
+    color: var(--brand-500);
+    font-family: "JetBrains Mono", var(--font-text);
+    font-size: 16px;
+    font-style: italic;
+    font-weight: 400;
+    line-height: 1.35;
+    text-align: left;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate3d(-50%, 8px, 0);
+    transition:
+      opacity 150ms ease,
+      transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      visibility 0s linear 150ms;
+    pointer-events: none;
+  }
+
+  .office-keys-tooltip::before,
+  .office-keys-tooltip::after {
+    position: absolute;
+    left: 50%;
+    width: 0;
+    height: 0;
+    content: '';
+    transform: translateX(-50%);
+  }
+
+  .office-keys-tooltip::before {
+    top: 100%;
+    border-top: 14px solid #199444;
+    border-right: 12px solid transparent;
+    border-left: 12px solid transparent;
+  }
+
+  .office-keys-tooltip::after {
+    top: calc(100% - 1px);
+    border-top: 12px solid var(--color-surface-page);
+    border-right: 11px solid transparent;
+    border-left: 11px solid transparent;
+  }
+
+  .office-keys-asset .office-keys-tooltip {
+    bottom: calc(100% + 18px);
+  }
+
+  .office-cio-tooltip {
+    width: min(430px, calc(100vw - 48px));
+  }
+
+  .office-map-tooltip {
+    bottom: calc(100% + 42px);
+    width: min(460px, calc(100vw - 48px));
+  }
+
+  .office-computer-tooltip {
+    bottom: calc(100% + 18px);
+    width: min(520px, calc(100vw - 48px));
+  }
+
+  .office-keys-asset:hover .office-keys-tooltip,
+  .office-keys-asset:focus-visible .office-keys-tooltip,
+  .office-cio-asset:hover .office-cio-tooltip,
+  .office-cio-asset:focus-visible .office-cio-tooltip,
+  .office-map-asset:hover .office-map-tooltip,
+  .office-map-asset:focus-visible .office-map-tooltip,
+  .office-computer-asset:hover .office-computer-tooltip,
+  .office-computer-asset:focus-visible .office-computer-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translate3d(-50%, 0, 0);
+    transition-delay: 0s;
   }
 
   .object-shine {
@@ -2791,7 +3003,7 @@
     height: calc(var(--speech-bubble-copy-height, 132px) + var(--speech-bubble-meta-height, 34px) - 2px);
     color: var(--color-text-primary);
     font-family: var(--font-text);
-    text-align: left;
+    text-align: right;
     opacity: 0;
     transform: translate3d(calc(-50% + var(--speech-bubble-offset-x, 0px)), 18px, 0);
     transition:
@@ -2837,6 +3049,7 @@
     overflow: hidden;
     white-space: pre-line;
     word-break: break-word;
+    text-align: left;
     -webkit-clip-path: inset(100% 0 0 0);
     clip-path: inset(100% 0 0 0);
     will-change: clip-path;
@@ -2854,6 +3067,7 @@
     position: relative;
     display: block;
     width: 100%;
+    text-align: left;
   }
 
   .speech-bubble-copy.has-page-controls .speech-bubble-text {
@@ -2886,6 +3100,7 @@
     z-index: 1;
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     gap: 8px;
     flex: 0 0 var(--speech-bubble-meta-height, 34px);
     height: var(--speech-bubble-meta-height, 34px);
@@ -2898,6 +3113,7 @@
     font-size: clamp(10px, 0.8vw, 12px);
     font-weight: 700;
     line-height: 1.5;
+    text-align: left;
     overflow: hidden;
     white-space: nowrap;
     -webkit-clip-path: inset(100% 0 0 0);
@@ -2908,8 +3124,11 @@
   .speech-bubble-meta-label {
     display: flex;
     align-items: center;
+    justify-content: flex-start;
+    width: 100%;
     min-width: 0;
     overflow: hidden;
+    text-align: left;
     text-overflow: ellipsis;
   }
 
@@ -2934,10 +3153,6 @@
   }
 
   .speech-bubble-page-button {
-    --page-arrow-depth-y: 2px;
-    --page-arrow-lift-y: 0px;
-    --page-arrow-depth-opacity: 0;
-
     position: relative;
     display: flex;
     align-items: center;
@@ -2952,7 +3167,7 @@
     cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     transition:
       opacity 140ms ease,
-      transform 210ms cubic-bezier(0.18, 1.35, 0.28, 1);
+      transform 120ms ease;
   }
 
   .speech-bubble-page-icon {
@@ -2968,20 +3183,14 @@
     stroke-linecap: round;
     stroke-linejoin: round;
     stroke-width: 2.6;
-    transition:
-      opacity 140ms ease,
-      transform 210ms cubic-bezier(0.18, 1.35, 0.28, 1);
   }
 
   .speech-bubble-page-icon-depth {
-    fill: currentColor;
-    opacity: var(--page-arrow-depth-opacity);
-    transform: translateY(var(--page-arrow-depth-y));
+    display: none;
   }
 
   .speech-bubble-page-icon-face {
     fill: var(--color-surface-page);
-    transform: translateY(var(--page-arrow-lift-y));
   }
 
   .speech-bubble-page-counter {
@@ -2997,10 +3206,12 @@
 
   .speech-bubble-page-button:hover,
   .speech-bubble-page-button:focus-visible {
-    --page-arrow-lift-y: calc(var(--page-arrow-depth-y) * -1);
-    --page-arrow-depth-opacity: 1;
-
     outline: none;
+  }
+
+  .speech-bubble-page-button:active:not(:disabled),
+  :global(.speech-bubble-page-button.is-tap-click-feedback) {
+    transform: scale(0.88);
   }
 
   .speech-bubble-page-button:focus-visible {
@@ -3015,8 +3226,7 @@
 
   .speech-bubble-page-button:disabled:hover,
   .speech-bubble-page-button:disabled:focus-visible {
-    --page-arrow-lift-y: 0px;
-    --page-arrow-depth-opacity: 0;
+    transform: none;
   }
 
   .office-chef-button.is-dialogue-visible .speech-bubble {
@@ -3115,6 +3325,43 @@
 
     68% {
       transform: translate3d(0, 2px, 0) rotate(0.28deg);
+    }
+  }
+
+  @keyframes officeLunchboxBobIdle {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+
+    50% {
+      transform: translate3d(0, -10px, 0);
+    }
+  }
+
+  @keyframes officeLunchboxHoverShake {
+    0% {
+      transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    }
+
+    18% {
+      transform: translate3d(-2px, -8px, 0) rotate(-5.6deg) scale(1.025);
+    }
+
+    32% {
+      transform: translate3d(3px, -5px, 0) rotate(5.6deg) scale(1.018);
+    }
+
+    48% {
+      transform: translate3d(-2px, -4px, 0) rotate(-4deg) scale(1.012);
+    }
+
+    66% {
+      transform: translate3d(2px, -2px, 0) rotate(2.4deg) scale(1.006);
+    }
+
+    100% {
+      transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
     }
   }
 

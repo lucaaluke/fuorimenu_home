@@ -8,6 +8,7 @@
   import ServiceScene from './ServiceScene.svelte';
 
   let isAudioMuted = $state(true);
+  let isSceneRevealed = $state(false);
   let isLeavingSection = false;
   const sectionAudioFadeOutMs = 460;
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
@@ -62,7 +63,7 @@
 </script>
 
 <svelte:head>
-  <title>Servizio | Fuorimenu</title>
+  <title>Sala | Fuorimenu</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
   <link
@@ -72,7 +73,7 @@
 </svelte:head>
 
 <main class="service-page">
-  <header class="scene-topbar service-topbar" aria-label="Navigazione servizio">
+  <header class="scene-topbar service-topbar" class:is-loading={!isSceneRevealed} aria-label="Navigazione sala">
     <a
       class="logo press-ring-control"
       href="/?view=brand"
@@ -108,21 +109,29 @@
     </a>
   </header>
 
-  <section class="service-shell" aria-label="Scena parallasse del servizio">
-    <ServiceScene {isAudioMuted} />
+  <section class="service-shell" aria-label="Scena parallasse della sala">
+    <ServiceScene
+      {isAudioMuted}
+      onSceneRevealedChange={(isRevealed) => (isSceneRevealed = isRevealed)}
+    />
   </section>
 </main>
 
 <style>
+  :global(html),
   :global(body) {
+    width: 100%;
+    height: 100%;
     margin: 0;
+    overflow: hidden;
     background: var(--color-surface-page);
+    overscroll-behavior: none;
   }
 
   .service-page {
     position: relative;
-    min-height: var(--app-viewport-height);
-    overflow-x: hidden;
+    height: var(--app-viewport-height);
+    overflow: hidden;
     color: var(--color-text-primary);
     background: var(--color-surface-page);
     font-family: var(--font-text);
@@ -147,6 +156,11 @@
   .icon-button,
   .home-link {
     pointer-events: auto;
+  }
+
+  .scene-topbar.is-loading {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .logo {
@@ -416,6 +430,7 @@
   .service-shell {
     position: relative;
     height: var(--app-viewport-height);
+    overflow: hidden;
   }
 
   @media (max-width: 760px) {

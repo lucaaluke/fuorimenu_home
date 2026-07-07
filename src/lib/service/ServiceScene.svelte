@@ -1,10 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { clamp, ease, px } from '$lib/scene/math';
+  import { getSceneAssetStyle } from '$lib/scene/scene-utils';
   import { loadGsapWithScrollTrigger } from '$lib/scene/gsap-loader';
   import { createViewportObserver } from '$lib/scene/viewport';
+  import { triggerTapClickFeedback } from '$lib/scene/tap-click-feedback';
   import type { SceneChunk } from '$lib/scene/scene-asset.types';
   import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
+  import SceneProgressBar from '$lib/scene/SceneProgressBar.svelte';
   import type { ParallaxPhaserGameHandle } from '$lib/scene/phaser/ParallaxPhaserGame';
   import {
     resolvedServiceSceneConfig,
@@ -15,7 +18,10 @@
     serviceMiddleAssets
   } from './service-scene.config';
 
-  let { isAudioMuted = false } = $props<{ isAudioMuted?: boolean }>();
+  let { isAudioMuted = false, onSceneRevealedChange } = $props<{
+    isAudioMuted?: boolean;
+    onSceneRevealedChange?: (isRevealed: boolean) => void;
+  }>();
 
   const { assetVersion, layerSpeed, sceneHeight, sceneWidth } = resolvedServiceSceneConfig;
   const serviceBackgroundViewportOffsetY = 1;
@@ -29,6 +35,7 @@
   let isDragging = $state(false);
   let isSceneLoaded = $state(false);
   let isPhaserReady = $state(false);
+  let isSceneRevealed = $state(false);
   let phaserLoadingProgress = $state(0);
   let prefersReducedMotion = $state(false);
   let hasPointerScenePosition = $state(false);
@@ -38,8 +45,12 @@
     middle: 0,
     foreground: 0
   });
+  let serviceAmbientAudioEl: HTMLAudioElement;
+  let isAmbientAudioStarted = false;
+  let serviceAmbientFadeFrame: number | undefined;
   let shouldResumeServiceAudioFromMutedPage = false;
   let nearestSceneAsset = $state<{ id: string; distance: number }>();
+  let hoveredServiceAssetId = $state<string | undefined>();
   let carloServiceAudioEl: HTMLAudioElement;
   let isCarloServiceAudioActive = $state(false);
   let isCarloServiceAudioStarting = false;
@@ -78,6 +89,8 @@
   let servicePhaserContainerEl: HTMLElement;
   let servicePhaserGame: ParallaxPhaserGameHandle | undefined;
   let servicePhaserResizeTimer: number | undefined;
+  let sceneRevealTimer: ReturnType<typeof setTimeout> | undefined;
+  const sceneRevealDelayMs = 560;
   let dragStartX = 0;
   let dragScrollStart = 0;
   let scrollTrigger:
@@ -101,9 +114,19 @@
   const worldWidth = $derived(Math.max(viewportWidth, sceneWidth * sceneScale));
   const maxScrollX = $derived(Math.max(0, worldWidth - viewportWidth));
   const progress = $derived(maxScrollX > 0 ? clamp(cameraX / maxScrollX, 0, 1) : 0);
-  const isSceneInteractive = $derived(isSceneLoaded && isPhaserReady);
+  const isSceneInteractive = $derived(isSceneRevealed);
   const servicePhaserAssets = [...serviceFloorAssets, ...serviceMiddleAssets, ...serviceForegroundAssets];
   const serviceCoordinateAssets = [...serviceMiddleAssets, ...serviceForegroundAssets];
+  const serviceProgressTicks = $derived(
+    maxScrollX > 0
+      ? [
+          getElisabettaServiceStartCameraX() / maxScrollX,
+          getMarcoServiceStartCameraX() / maxScrollX,
+          getFaustoServiceStartCameraX() / maxScrollX,
+          getNiniServiceStartCameraX() / maxScrollX
+        ]
+      : []
+  );
   const scenePx = (value: number) => px(value, 2);
   const coord = (value: number) => Math.round(value).toString();
   const coordDecimal = (value: number) => value.toFixed(3);
@@ -120,40 +143,62 @@
   };
   const firstServiceDialogueStartCameraX = 600;
   const finalServiceDialogueEndOffsetPx = 600;
+  const serviceMascotAsset = serviceMiddleAssets.find((asset) => asset.id === '2_mascotte');
+  const serviceMascotHoverText =
+    'Con gli atleti ci sono ogni 3 giorni degli appuntamenti mattutini alle 07:30';
+  const servicePitcherAsset = serviceForegroundAssets.find((asset) => asset.id === '1_brocca');
+  const servicePitcherHoverText = 'Gli atleti non possono far coda, non possono aspettare';
+  const servicePitcherHitboxInsetFactor = 0.08;
+  const serviceClocheAsset = serviceForegroundAssets.find((asset) => asset.id === '1_cloche');
+  const serviceClocheHoverText =
+    'Ogni giorno, tra Milano, Cortina e Predazzo, si servivano oltre 10.000 pasti.';
+  const serviceClocheHitboxWidthFactor = 0.29;
+  const serviceBottlesAsset = serviceForegroundAssets.find((asset) => asset.id === '1_BottiglieVaso');
+  const serviceBottlesHoverText = 'C’era molta Italia, fatta con ricette italiane';
+  const serviceCameraAsset = serviceForegroundAssets.find((asset) => asset.id === '1_camera');
+  const serviceCameraHoverText =
+    'Durante i media day, nelle dining entravano anche luci, support staff e squadre di comunicazione degli atleti';
+  const serviceLunchboxAsset = serviceForegroundAssets.find((asset) => asset.id === '1_Lunchbox');
+  const serviceLunchboxHoverText =
+    'Per gestire allergie e intolleranze alimentari, il servizio prevede sempre alternative dedicate';
+  const serviceAmbientVolume = 0.42;
+  const serviceAmbientDuckedVolume = 0.16;
+  const serviceAmbientFadeInDuration = 1.2;
+  const serviceAmbientFadeOutDuration = 0.36;
   const carloServiceAudioVolume = 1;
   const serviceAudioFadeInDuration = 0.04;
   const serviceAudioHandoffFadeOutDuration = 0;
   const carloServiceAudioFadeOutDuration = 0.08;
   const carloServiceRevealDurationSeconds = 75.68;
-  const carloServiceEndCameraX = 7800;
+  const carloServiceEndCameraX = 5000;
   const carloServiceSpeech =
     "I sette clienti quali sono? Primo, ovviamente gli atleti. Possono mangiare 24 ore al giorno. Poi il secondo gruppo sono i volontari: sono 18.000 persone; la maggior parte lavorano anche all'aperto, quindi devi dargli dei pasti molto caldi. Il terzo sono la workforce. Sono quelli, come lo ero io, che hanno dei ruoli di management, o anche semplicemente dei ruoli esecutivi. La famiglia olimpica sono presidenti dei Comitati Olimpici Nazionali, sono, in questo caso da noi, Mattarella, Meloni. Questi, devo dire molto onestamente, non sono pretenziosi. Questo gruppo dice \"No signori, non vogliamo mandare il messaggio che noi ci trattiamo bene\". Il quinto gruppo è formato dai media. Sono divisi in due gruppi: i giornalisti e le televisioni. All'interno delle televisioni ci sono anche i giornalisti, però ci sono quei poveri cameraman che anche loro, magari alle 7 del mattino, sono lì con le telecamere che nevica. Il sesto gruppo è il gruppo delle hospitality: questi sono i VIP, gli sponsor, che non hanno problemi di budget. E poi ci sono gli spettatori. A Milano son stati quasi un milione e mezzo. Quindi la mia programmazione generale per i 22 giorni di gara è stata sui 3 milioni circa di pasti.";
   const elisabettaServiceAudioVolume = 1;
   const elisabettaServiceAudioFadeOutDuration = 0.08;
   const elisabettaServiceRevealDurationSeconds = 27.14;
-  const elisabettaServiceStartCameraX = 8000;
-  const elisabettaServiceEndCameraX = 10000;
+  const elisabettaServiceStartCameraX = 5200;
+  const elisabettaServiceEndCameraX = 7200;
   const elisabettaServiceSpeech =
     "L'obiettivo principale del cibo nel villaggio noi lo chiamavamo “Food for Fuel”, cioè quello di dare agli atleti esattamente tutto quello di cui hanno bisogno per aiutarli nelle loro performance, quindi è chiaro che ci sono dei pilastri fondamentali: carboidrati, proteine sempre presenti in rotazione. E poi ovviamente l'atro aspetto fondamentale è quello della Food Safety.";
   const marcoServiceAudioVolume = 1;
   const marcoServiceAudioFadeOutDuration = 0.08;
   const marcoServiceRevealDurationSeconds = 23.17;
-  const marcoServiceStartCameraX = 10200;
-  const marcoServiceEndCameraX = 12200;
+  const marcoServiceStartCameraX = 7400;
+  const marcoServiceEndCameraX = 10400;
   const marcoServiceSpeech =
     "Noi facevamo un menù di 5 giorni che andava a ripetersi. Quello che chiedevano chiaramente era roba fresca, fatta bene, preparata al momento e la disponibilità di orari. Le colazioni partivano alle 5 del mattino. Poi c'erano due persone giù di cucina, più la sala, che allestivano il breakfast: cereali, frutta, verdura, anche la pasta di prima mattina, perché gli atleti comunque hanno bisogno di una dieta particolare.";
   const faustoServiceAudioVolume = 1;
   const faustoServiceAudioFadeOutDuration = 0.08;
   const faustoServiceRevealDurationSeconds = 39.94;
-  const faustoServiceStartCameraX = 12400;
-  const faustoServiceEndCameraX = 14400;
+  const faustoServiceStartCameraX = 10600;
+  const faustoServiceEndCameraX = 13600;
   const faustoServiceSpeech =
     "C'erano sul buffet di benvenuto con il calice piccoli assaggi. Poi l'ospite si spostava nella sala centrale dove c'erano vari buffet, tra cui uno di salumi e formaggi, ovviamente i formaggi locali: il taleggio, il puzzone di Moena... Poi c'erano due primi, sempre caldi, a disposizione dei nostri ospiti. Una polenta sempre fissa e tre dolci a rotazione. Non erano previsti superalcolici. Di alcolico avevamo lo sponsor della birra, e i vini, principalmente Prosecco e poi qualche vino della Valtellina, qualche vino del Veneto e così via.";
   const niniServiceAudioVolume = 1;
   const niniServiceAudioFadeOutDuration = 0.08;
   const niniServiceRevealDurationSeconds = 34;
-  const niniServiceStartCameraX = 14600;
-  const niniServiceEndCameraX = 16800;
+  const niniServiceStartCameraX = 13800;
+  const niniServiceEndCameraX = 16300;
   const niniServiceSpeech =
     "Purtroppo c'erano a volte molti sprechi. Tu prepari per 500, poi era il cliente che faceva lo spreco. Nel senso che, se tu metti la pizza e di fianco metti l'arrosto, secondo te cosa vince? Però l'arrosto doveva essere pronto per 500 come la pizza doveva essere pronta per 500. Fortunatamente sapevano equilibrare e quindi gli sprechi sono stati minimizzati. Lo smaltimento veniva fatto praticamente 2-3 volte al giorno perché i volumi erano tanti. Anche perché, per assurdo, quando fai mille persone, sono mille bottigliette d'acqua. Su quel lato lì, Livigno è stata tanta roba, uno perché erano organizzati, due perché c'era il servizio.";
   const carloServiceEnterDistance = $derived(Math.max(130, viewportWidth * 0.16));
@@ -1097,7 +1142,8 @@
       foreground: (localX + cameraX * resolvedLayerSpeed.foreground) / sceneScale
     };
     nearestSceneAsset = getNearestSceneAsset();
-    servicePhaserGame?.setHoveredAssetId(getHoveredServiceAssetId());
+    hoveredServiceAssetId = getHoveredServiceAssetId();
+    servicePhaserGame?.setHoveredAssetId(hoveredServiceAssetId);
   }
 
   function getNearestSceneAsset() {
@@ -1134,9 +1180,20 @@
       const layerX = pointerSceneX[asset.layer];
       if (layerX === undefined) continue;
 
-      const withinX = layerX >= asset.x - hoverPadding && layerX <= asset.x + asset.width + hoverPadding;
+      const hitboxX =
+        asset.id === '1_brocca'
+          ? asset.x + asset.width * servicePitcherHitboxInsetFactor
+          : asset.x;
+      const hitboxWidth =
+        asset.id === '1_cloche'
+          ? asset.width * serviceClocheHitboxWidthFactor
+          : asset.id === '1_brocca'
+            ? asset.width * (1 - servicePitcherHitboxInsetFactor * 2)
+            : asset.width;
+      const hitboxPadding = asset.id === '1_cloche' || asset.id === '1_brocca' ? 6 : hoverPadding;
+      const withinX = layerX >= hitboxX - hitboxPadding && layerX <= hitboxX + hitboxWidth + hitboxPadding;
       const withinY =
-        pointerSceneY >= asset.y - hoverPadding && pointerSceneY <= asset.y + asset.height + hoverPadding;
+        pointerSceneY >= asset.y - hitboxPadding && pointerSceneY <= asset.y + asset.height + hitboxPadding;
 
       if (withinX && withinY) return asset.id;
     }
@@ -1174,6 +1231,7 @@
   function onPointerLeave() {
     if (!isDragging) {
       hasPointerScenePosition = false;
+      hoveredServiceAssetId = undefined;
       servicePhaserGame?.setHoveredAssetId(undefined);
     }
   }
@@ -1222,6 +1280,45 @@
       `top: ${scenePx(viewportHeight / 2 - 132 * sceneScale)}`,
       `font-size: ${scenePx(titleFontSize)}`
     ].join(';');
+  }
+
+  function getServiceMascotHotspotStyle() {
+    if (!serviceMascotAsset) return '';
+    return getSceneAssetStyle(serviceMascotAsset, cameraX, sceneHeight, sceneScale, resolvedLayerSpeed);
+  }
+
+  function getServicePitcherHotspotStyle() {
+    if (!servicePitcherAsset) return '';
+    return getSceneAssetStyle(servicePitcherAsset, cameraX, sceneHeight, sceneScale, resolvedLayerSpeed);
+  }
+
+  function getServiceClocheHotspotStyle() {
+    if (!serviceClocheAsset) return '';
+    return getSceneAssetStyle(
+      {
+        ...serviceClocheAsset,
+        width: serviceClocheAsset.width * serviceClocheHitboxWidthFactor
+      },
+      cameraX,
+      sceneHeight,
+      sceneScale,
+      resolvedLayerSpeed
+    );
+  }
+
+  function getServiceBottlesHotspotStyle() {
+    if (!serviceBottlesAsset) return '';
+    return getSceneAssetStyle(serviceBottlesAsset, cameraX, sceneHeight, sceneScale, resolvedLayerSpeed);
+  }
+
+  function getServiceCameraHotspotStyle() {
+    if (!serviceCameraAsset) return '';
+    return getSceneAssetStyle(serviceCameraAsset, cameraX, sceneHeight, sceneScale, resolvedLayerSpeed);
+  }
+
+  function getServiceLunchboxHotspotStyle() {
+    if (!serviceLunchboxAsset) return '';
+    return getSceneAssetStyle(serviceLunchboxAsset, cameraX, sceneHeight, sceneScale, resolvedLayerSpeed);
   }
 
   function syncCarloServiceSpeechReveal() {
@@ -1302,6 +1399,88 @@
       pages,
       niniServiceRevealProgress * normalizedSpeech.length
     );
+  }
+
+  function isAnyServiceDialogueAudioActive() {
+    return (
+      isCarloServiceAudioActive ||
+      isElisabettaServiceAudioActive ||
+      isMarcoServiceAudioActive ||
+      isFaustoServiceAudioActive ||
+      isNiniServiceAudioActive
+    );
+  }
+
+  function getServiceAmbientTargetVolume() {
+    if (isAudioMuted) return 0;
+    return isAnyServiceDialogueAudioActive() ? serviceAmbientDuckedVolume : serviceAmbientVolume;
+  }
+
+  function fadeServiceAmbientVolume(targetVolume: number, duration: number, onComplete?: () => void) {
+    if (!serviceAmbientAudioEl) return;
+    targetVolume = clamp(targetVolume, 0, 1);
+    if (serviceAmbientFadeFrame) cancelAnimationFrame(serviceAmbientFadeFrame);
+    serviceAmbientFadeFrame = undefined;
+
+    if (duration <= 0) {
+      serviceAmbientAudioEl.volume = targetVolume;
+      onComplete?.();
+      return;
+    }
+
+    const initialVolume = clamp(serviceAmbientAudioEl.volume, 0, 1);
+    const startedAt = performance.now();
+    const durationMs = duration * 1000;
+
+    const step = (now: number) => {
+      if (!serviceAmbientAudioEl) return;
+      const progress = Math.min((now - startedAt) / durationMs, 1);
+      serviceAmbientAudioEl.volume = clamp(initialVolume + (targetVolume - initialVolume) * progress, 0, 1);
+
+      if (progress < 1) {
+        serviceAmbientFadeFrame = requestAnimationFrame(step);
+        return;
+      }
+
+      serviceAmbientAudioEl.volume = targetVolume;
+      serviceAmbientFadeFrame = undefined;
+      onComplete?.();
+    };
+
+    serviceAmbientFadeFrame = requestAnimationFrame(step);
+  }
+
+  function setServiceAmbientVolume(duration = 0.48) {
+    if (!serviceAmbientAudioEl || !isAmbientAudioStarted || isAudioMuted) return;
+    fadeServiceAmbientVolume(getServiceAmbientTargetVolume(), duration);
+  }
+
+  async function startAmbientAudio() {
+    if (isAudioMuted || isAmbientAudioStarted || !serviceAmbientAudioEl) return;
+
+    serviceAmbientAudioEl.loop = true;
+    serviceAmbientAudioEl.volume = 0;
+
+    try {
+      await serviceAmbientAudioEl.play();
+      isAmbientAudioStarted = true;
+      fadeServiceAmbientVolume(getServiceAmbientTargetVolume(), serviceAmbientFadeInDuration);
+    } catch {
+      isAmbientAudioStarted = false;
+    }
+  }
+
+  function stopAmbientAudio(duration = serviceAmbientFadeOutDuration) {
+    if (!serviceAmbientAudioEl) {
+      isAmbientAudioStarted = false;
+      return;
+    }
+
+    fadeServiceAmbientVolume(0, duration, () => {
+      serviceAmbientAudioEl.pause();
+      serviceAmbientAudioEl.currentTime = 0;
+      isAmbientAudioStarted = false;
+    });
   }
 
   function fadeCarloServiceAudioVolume(
@@ -1530,6 +1709,7 @@
       }
       isCarloServiceAudioActive = true;
       fadeCarloServiceAudioVolume(carloServiceAudioVolume, serviceAudioFadeInDuration);
+      setServiceAmbientVolume();
     } catch {
       isCarloServiceAudioActive = false;
     } finally {
@@ -1574,6 +1754,7 @@
       }
       isElisabettaServiceAudioActive = true;
       fadeElisabettaServiceAudioVolume(elisabettaServiceAudioVolume, serviceAudioFadeInDuration);
+      setServiceAmbientVolume();
     } catch {
       isElisabettaServiceAudioActive = false;
     } finally {
@@ -1617,6 +1798,7 @@
       }
       isMarcoServiceAudioActive = true;
       fadeMarcoServiceAudioVolume(marcoServiceAudioVolume, serviceAudioFadeInDuration);
+      setServiceAmbientVolume();
     } catch {
       isMarcoServiceAudioActive = false;
     } finally {
@@ -1660,6 +1842,7 @@
       }
       isFaustoServiceAudioActive = true;
       fadeFaustoServiceAudioVolume(faustoServiceAudioVolume, serviceAudioFadeInDuration);
+      setServiceAmbientVolume();
     } catch {
       isFaustoServiceAudioActive = false;
     } finally {
@@ -1703,6 +1886,7 @@
       }
       isNiniServiceAudioActive = true;
       fadeNiniServiceAudioVolume(niniServiceAudioVolume, serviceAudioFadeInDuration);
+      setServiceAmbientVolume();
     } catch {
       isNiniServiceAudioActive = false;
     } finally {
@@ -1723,6 +1907,7 @@
     if (carloServiceAudioEl.paused || duration <= 0) {
       carloServiceAudioEl.pause();
       isCarloServiceAudioActive = false;
+      setServiceAmbientVolume();
       return;
     }
 
@@ -1730,6 +1915,7 @@
       carloServiceAudioEl.pause();
       carloServiceAudioEl.volume = carloServiceAudioVolume;
       isCarloServiceAudioActive = false;
+      setServiceAmbientVolume();
     });
   }
 
@@ -1746,6 +1932,7 @@
     if (elisabettaServiceAudioEl.paused || duration <= 0) {
       elisabettaServiceAudioEl.pause();
       isElisabettaServiceAudioActive = false;
+      setServiceAmbientVolume();
       return;
     }
 
@@ -1753,6 +1940,7 @@
       elisabettaServiceAudioEl.pause();
       elisabettaServiceAudioEl.volume = elisabettaServiceAudioVolume;
       isElisabettaServiceAudioActive = false;
+      setServiceAmbientVolume();
     });
   }
 
@@ -1769,6 +1957,7 @@
     if (marcoServiceAudioEl.paused || duration <= 0) {
       marcoServiceAudioEl.pause();
       isMarcoServiceAudioActive = false;
+      setServiceAmbientVolume();
       return;
     }
 
@@ -1776,6 +1965,7 @@
       marcoServiceAudioEl.pause();
       marcoServiceAudioEl.volume = marcoServiceAudioVolume;
       isMarcoServiceAudioActive = false;
+      setServiceAmbientVolume();
     });
   }
 
@@ -1792,6 +1982,7 @@
     if (faustoServiceAudioEl.paused || duration <= 0) {
       faustoServiceAudioEl.pause();
       isFaustoServiceAudioActive = false;
+      setServiceAmbientVolume();
       return;
     }
 
@@ -1799,6 +1990,7 @@
       faustoServiceAudioEl.pause();
       faustoServiceAudioEl.volume = faustoServiceAudioVolume;
       isFaustoServiceAudioActive = false;
+      setServiceAmbientVolume();
     });
   }
 
@@ -1815,6 +2007,7 @@
     if (niniServiceAudioEl.paused || duration <= 0) {
       niniServiceAudioEl.pause();
       isNiniServiceAudioActive = false;
+      setServiceAmbientVolume();
       return;
     }
 
@@ -1822,6 +2015,7 @@
       niniServiceAudioEl.pause();
       niniServiceAudioEl.volume = niniServiceAudioVolume;
       isNiniServiceAudioActive = false;
+      setServiceAmbientVolume();
     });
   }
 
@@ -1848,8 +2042,11 @@
     if (isAudioMuted) {
       shouldResumeServiceAudioFromMutedPage = true;
       stopAllServiceAudio({ duration: 0.1, resetReplay: true });
+      stopAmbientAudio();
       return;
     }
+
+    void startAmbientAudio();
 
     const hasVisibleDialogue =
       isCarloServiceDialogueVisible() ||
@@ -1988,6 +2185,7 @@
     syncReducedMotion();
     reducedMotionQuery.addEventListener('change', syncReducedMotion);
     window.addEventListener('keydown', onKeydown);
+    stageEl.addEventListener('click', triggerTapClickFeedback, true);
     void import('$lib/scene/phaser/ParallaxPhaserGame').then(({ createParallaxPhaserGame }) => {
       if (destroyed || !servicePhaserContainerEl) return;
 
@@ -2009,6 +2207,7 @@
           phaserLoadingProgress = progress;
         },
         onReady: () => {
+          phaserLoadingProgress = 1;
           isPhaserReady = true;
           servicePhaserGame?.setAudioMuted(isAudioMuted);
         },
@@ -2076,12 +2275,15 @@
 
     return () => {
       destroyed = true;
+      if (sceneRevealTimer) window.clearTimeout(sceneRevealTimer);
       reducedMotionQuery.removeEventListener('change', syncReducedMotion);
       window.removeEventListener('keydown', onKeydown);
+      stageEl?.removeEventListener('click', triggerTapClickFeedback, true);
       stopResize();
       removeTicker();
       scrollTrigger?.kill();
       scrollTrigger = undefined;
+      if (serviceAmbientFadeFrame) cancelAnimationFrame(serviceAmbientFadeFrame);
       if (carloServiceFadeFrame) cancelAnimationFrame(carloServiceFadeFrame);
       if (elisabettaServiceFadeFrame) cancelAnimationFrame(elisabettaServiceFadeFrame);
       if (marcoServiceFadeFrame) cancelAnimationFrame(marcoServiceFadeFrame);
@@ -2091,16 +2293,19 @@
       servicePhaserGame?.destroy();
       servicePhaserGame = undefined;
       servicePhaserResizeTimer = undefined;
+      serviceAmbientFadeFrame = undefined;
       carloServiceFadeFrame = undefined;
       elisabettaServiceFadeFrame = undefined;
       marcoServiceFadeFrame = undefined;
       faustoServiceFadeFrame = undefined;
       niniServiceFadeFrame = undefined;
+      serviceAmbientAudioEl?.pause();
       carloServiceAudioEl?.pause();
       elisabettaServiceAudioEl?.pause();
       marcoServiceAudioEl?.pause();
       faustoServiceAudioEl?.pause();
       niniServiceAudioEl?.pause();
+      isAmbientAudioStarted = false;
       isCarloServiceAudioActive = false;
       isElisabettaServiceAudioActive = false;
       isMarcoServiceAudioActive = false;
@@ -2108,15 +2313,37 @@
       isNiniServiceAudioActive = false;
     };
   });
+
+  $effect(() => {
+    if (isSceneLoaded && isPhaserReady) {
+      if (!isSceneRevealed && !sceneRevealTimer) {
+        sceneRevealTimer = window.setTimeout(() => {
+          isSceneRevealed = true;
+          sceneRevealTimer = undefined;
+        }, sceneRevealDelayMs);
+      }
+      return;
+    }
+
+    if (sceneRevealTimer) {
+      window.clearTimeout(sceneRevealTimer);
+      sceneRevealTimer = undefined;
+    }
+    isSceneRevealed = false;
+  });
+
+  $effect(() => {
+    onSceneRevealedChange?.(isSceneRevealed);
+  });
 </script>
 
 <section
   bind:this={stageEl}
   class="service-stage"
   class:is-dragging={isDragging}
-  class:is-loaded={isSceneLoaded && isPhaserReady}
+  class:is-loaded={isSceneRevealed}
   data-progress={progress.toFixed(3)}
-  aria-label="Scena parallasse del servizio"
+  aria-label="Scena parallasse della sala"
   onwheel={onWheel}
   onpointerdown={onPointerDown}
   onpointermove={onPointerMove}
@@ -2124,8 +2351,10 @@
   onpointerup={endDrag}
   onpointercancel={endDrag}
 >
+  <SceneProgressBar {progress} isVisible={isSceneRevealed} ticks={serviceProgressTicks} />
+
   <div bind:this={servicePhaserContainerEl} class="service-phaser-layer" aria-hidden="true"></div>
-  {#if !isPhaserReady}
+  {#if !isSceneRevealed}
     <SceneLoadingProgress progress={phaserLoadingProgress} />
   {/if}
 
@@ -2169,7 +2398,99 @@
 
   <div class="service-scroll-space" style={scrollSpaceStyle}>
     <div class="service-world" style={worldStyle}>
-      <h1 class="service-title" style={getTitleStyle()} aria-label="Servizio">Servizio</h1>
+      {#if serviceMascotAsset}
+        <button
+          class="service-mascot-hotspot"
+          class:is-tooltip-visible={hoveredServiceAssetId === '2_mascotte'}
+          type="button"
+          aria-label="Dettaglio mascotte sala"
+          style={getServiceMascotHotspotStyle()}
+          onpointerdown={(event) => event.stopPropagation()}
+          onclick={(event) => event.stopPropagation()}
+        >
+          <span class="service-mascot-tooltip">
+            {serviceMascotHoverText}
+          </span>
+        </button>
+      {/if}
+      {#if servicePitcherAsset}
+        <button
+          class="service-mascot-hotspot service-pitcher-hotspot"
+          class:is-tooltip-visible={hoveredServiceAssetId === '1_brocca'}
+          type="button"
+          aria-label="Dettaglio brocca sala"
+          style={getServicePitcherHotspotStyle()}
+          onpointerdown={(event) => event.stopPropagation()}
+          onclick={(event) => event.stopPropagation()}
+        >
+          <span class="service-mascot-tooltip service-pitcher-tooltip">
+            {servicePitcherHoverText}
+          </span>
+        </button>
+      {/if}
+      {#if serviceClocheAsset}
+        <button
+          class="service-mascot-hotspot service-cloche-hotspot"
+          class:is-tooltip-visible={hoveredServiceAssetId === '1_cloche'}
+          type="button"
+          aria-label="Dettaglio cloche sala"
+          style={getServiceClocheHotspotStyle()}
+          onpointerdown={(event) => event.stopPropagation()}
+          onclick={(event) => event.stopPropagation()}
+        >
+          <span class="service-mascot-tooltip service-cloche-tooltip">
+            {serviceClocheHoverText}
+          </span>
+        </button>
+      {/if}
+      {#if serviceBottlesAsset}
+        <button
+          class="service-mascot-hotspot service-bottles-hotspot"
+          class:is-tooltip-visible={hoveredServiceAssetId === '1_BottiglieVaso'}
+          type="button"
+          aria-label="Dettaglio bottiglie sala"
+          style={getServiceBottlesHotspotStyle()}
+          onpointerdown={(event) => event.stopPropagation()}
+          onclick={(event) => event.stopPropagation()}
+        >
+          <span class="service-mascot-tooltip service-bottles-tooltip">
+            {serviceBottlesHoverText}
+          </span>
+        </button>
+      {/if}
+      {#if serviceCameraAsset}
+        <button
+          class="service-mascot-hotspot service-camera-hotspot"
+          class:is-tooltip-visible={hoveredServiceAssetId === '1_camera'}
+          type="button"
+          aria-label="Dettaglio camera sala"
+          style={getServiceCameraHotspotStyle()}
+          onpointerdown={(event) => event.stopPropagation()}
+          onclick={(event) => event.stopPropagation()}
+        >
+          <span class="service-mascot-tooltip service-camera-tooltip">
+            {serviceCameraHoverText}
+          </span>
+        </button>
+      {/if}
+      {#if serviceLunchboxAsset}
+        <button
+          class="service-mascot-hotspot service-lunchbox-hotspot"
+          class:is-tooltip-visible={hoveredServiceAssetId === '1_Lunchbox'}
+          type="button"
+          aria-label="Dettaglio lunchbox sala"
+          style={getServiceLunchboxHotspotStyle()}
+          onpointerdown={(event) => event.stopPropagation()}
+          onclick={(event) => event.stopPropagation()}
+        >
+          <span class="service-mascot-tooltip service-lunchbox-tooltip">
+            {serviceLunchboxHoverText}
+          </span>
+        </button>
+      {/if}
+      {#if isSceneRevealed}
+        <h1 class="service-title" style={getTitleStyle()} aria-label="Sala">Sala</h1>
+      {/if}
       <div
         class="service-chef-button"
         class:is-dialogue-visible={isCarloServiceDialogueVisible()}
@@ -2252,9 +2573,9 @@
               </span>
             {/if}
           </span>
-          <span class="speech-bubble-meta" aria-label="Food and Beverage Director - Carlo Zarri">
+          <span class="speech-bubble-meta" aria-label="Chief Executive Chef - Carlo Zarri">
             <span class="speech-bubble-meta-label">
-              <span>Food and Beverage Director - </span>
+              <span>Chief Executive Chef - </span>
               <strong>Carlo Zarri</strong>
             </span>
           </span>
@@ -2343,9 +2664,9 @@
               </span>
             {/if}
           </span>
-          <span class="speech-bubble-meta" aria-label="Nutrition Expert - Elisabetta Salvadori">
+          <span class="speech-bubble-meta" aria-label="Head Food and Beverage - Elisabetta Salvadori">
             <span class="speech-bubble-meta-label">
-              <span>Nutrition Expert - </span>
+              <span>Head Food and Beverage - </span>
               <strong>Elisabetta Salvadori</strong>
             </span>
           </span>
@@ -2434,9 +2755,9 @@
               </span>
             {/if}
           </span>
-          <span class="speech-bubble-meta" aria-label="Chef - Marco Frassante">
+          <span class="speech-bubble-meta" aria-label="Executive Chef - Marco Frassante">
             <span class="speech-bubble-meta-label">
-              <span>Chef - </span>
+              <span>Executive Chef - </span>
               <strong>Marco Frassante</strong>
             </span>
           </span>
@@ -2525,9 +2846,9 @@
               </span>
             {/if}
           </span>
-          <span class="speech-bubble-meta" aria-label="Chef - Fausto Meli">
+          <span class="speech-bubble-meta" aria-label="Executive Chef - Fausto Meli">
             <span class="speech-bubble-meta-label">
-              <span>Chef - </span>
+              <span>Executive Chef - </span>
               <strong>Fausto Meli</strong>
             </span>
           </span>
@@ -2630,6 +2951,11 @@
 </section>
 
 <audio
+  bind:this={serviceAmbientAudioEl}
+  src="/sound/serviziobackground.mp3"
+  preload="auto"
+></audio>
+<audio
   bind:this={carloServiceAudioEl}
   src="/sound/carlozarriservizio.mp3"
   preload="auto"
@@ -2641,6 +2967,7 @@
     carloServiceRevealProgress = 1;
     hasPlayedCarloServiceAudio = true;
     isCarloServiceAudioActive = false;
+    setServiceAmbientVolume();
   }}
 ></audio>
 <audio
@@ -2655,6 +2982,7 @@
     elisabettaServiceRevealProgress = 1;
     hasPlayedElisabettaServiceAudio = true;
     isElisabettaServiceAudioActive = false;
+    setServiceAmbientVolume();
   }}
 ></audio>
 <audio
@@ -2669,6 +2997,7 @@
     marcoServiceRevealProgress = 1;
     hasPlayedMarcoServiceAudio = true;
     isMarcoServiceAudioActive = false;
+    setServiceAmbientVolume();
   }}
 ></audio>
 <audio
@@ -2683,6 +3012,7 @@
     faustoServiceRevealProgress = 1;
     hasPlayedFaustoServiceAudio = true;
     isFaustoServiceAudioActive = false;
+    setServiceAmbientVolume();
   }}
 ></audio>
 <audio
@@ -2697,6 +3027,7 @@
     niniServiceRevealProgress = 1;
     hasPlayedNiniServiceAudio = true;
     isNiniServiceAudioActive = false;
+    setServiceAmbientVolume();
   }}
 ></audio>
 
@@ -2724,6 +3055,15 @@
     z-index: 0;
     inset: 0;
     overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 260ms ease;
+  }
+
+  .service-stage.is-loaded .service-phaser-layer {
+    opacity: 1;
+    visibility: visible;
     pointer-events: auto;
   }
 
@@ -2829,6 +3169,105 @@
       opacity 240ms ease,
       transform 460ms cubic-bezier(0.16, 1, 0.3, 1);
     user-select: none;
+  }
+
+  .service-mascot-hotspot {
+    position: absolute;
+    z-index: 5;
+    display: block;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+  }
+
+  .service-mascot-hotspot:focus-visible {
+    outline: none;
+  }
+
+  .service-mascot-tooltip {
+    position: absolute;
+    z-index: 4;
+    left: 50%;
+    bottom: calc(100% + 18px);
+    display: block;
+    box-sizing: border-box;
+    width: min(430px, calc(100vw - 48px));
+    padding: 14px 18px;
+    border: 2px solid #AA5DDE;
+    border-radius: var(--radius-s);
+    background: var(--color-surface-page);
+    color: var(--brand-500);
+    font-family: "JetBrains Mono", var(--font-text);
+    font-size: 16px;
+    font-style: italic;
+    font-weight: 400;
+    line-height: 1.35;
+    text-align: left;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate3d(-50%, 8px, 0);
+    transition:
+      opacity 150ms ease,
+      transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      visibility 0s linear 150ms;
+    pointer-events: none;
+  }
+
+  .service-mascot-tooltip::before,
+  .service-mascot-tooltip::after {
+    position: absolute;
+    left: 50%;
+    width: 0;
+    height: 0;
+    content: '';
+    transform: translateX(-50%);
+  }
+
+  .service-mascot-tooltip::before {
+    top: 100%;
+    border-top: 14px solid #AA5DDE;
+    border-right: 12px solid transparent;
+    border-left: 12px solid transparent;
+  }
+
+  .service-mascot-tooltip::after {
+    top: calc(100% - 1px);
+    border-top: 12px solid var(--color-surface-page);
+    border-right: 11px solid transparent;
+    border-left: 11px solid transparent;
+  }
+
+  .service-pitcher-tooltip {
+    bottom: calc(100% + 34px);
+    width: min(360px, calc(100vw - 48px));
+  }
+
+  .service-cloche-tooltip {
+    width: min(430px, calc(100vw - 48px));
+  }
+
+  .service-bottles-tooltip {
+    width: min(360px, calc(100vw - 48px));
+  }
+
+  .service-camera-tooltip {
+    width: min(500px, calc(100vw - 48px));
+  }
+
+  .service-lunchbox-tooltip {
+    bottom: calc(100% + 34px);
+    width: min(460px, calc(100vw - 48px));
+  }
+
+  .service-mascot-hotspot:hover .service-mascot-tooltip,
+  .service-mascot-hotspot:focus-visible .service-mascot-tooltip,
+  .service-mascot-hotspot.is-tooltip-visible .service-mascot-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translate3d(-50%, 0, 0);
+    transition-delay: 0s;
   }
 
   .service-chef-button:focus-visible {
@@ -3000,10 +3439,6 @@
   }
 
   .speech-bubble-page-button {
-    --page-arrow-depth-y: 2px;
-    --page-arrow-lift-y: 0px;
-    --page-arrow-depth-opacity: 0;
-
     position: relative;
     display: flex;
     align-items: center;
@@ -3018,7 +3453,7 @@
     cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     transition:
       opacity 140ms ease,
-      transform 210ms cubic-bezier(0.18, 1.35, 0.28, 1);
+      transform 120ms ease;
   }
 
   .speech-bubble-page-icon {
@@ -3034,20 +3469,14 @@
     stroke-linecap: round;
     stroke-linejoin: round;
     stroke-width: 2.6;
-    transition:
-      opacity 140ms ease,
-      transform 210ms cubic-bezier(0.18, 1.35, 0.28, 1);
   }
 
   .speech-bubble-page-icon-depth {
-    fill: currentColor;
-    opacity: var(--page-arrow-depth-opacity);
-    transform: translateY(var(--page-arrow-depth-y));
+    display: none;
   }
 
   .speech-bubble-page-icon-face {
     fill: var(--color-surface-page);
-    transform: translateY(var(--page-arrow-lift-y));
   }
 
   .speech-bubble-page-counter {
@@ -3063,10 +3492,12 @@
 
   .speech-bubble-page-button:hover,
   .speech-bubble-page-button:focus-visible {
-    --page-arrow-lift-y: calc(var(--page-arrow-depth-y) * -1);
-    --page-arrow-depth-opacity: 1;
-
     outline: none;
+  }
+
+  .speech-bubble-page-button:active:not(:disabled),
+  :global(.speech-bubble-page-button.is-tap-click-feedback) {
+    transform: scale(0.88);
   }
 
   .speech-bubble-page-button:focus-visible {
@@ -3081,8 +3512,7 @@
 
   .speech-bubble-page-button:disabled:hover,
   .speech-bubble-page-button:disabled:focus-visible {
-    --page-arrow-lift-y: 0px;
-    --page-arrow-depth-opacity: 0;
+    transform: none;
   }
 
   .service-chef-button.is-dialogue-visible .speech-bubble {

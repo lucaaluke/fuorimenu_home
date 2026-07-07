@@ -1,30 +1,26 @@
 <script lang="ts">
-  let { progress = 0, label = 'Caricamento scena' } = $props<{
+  import PotLoader from './PotLoader.svelte';
+
+  let { progress = 0, label = 'Caricamento scena', size = 132 } = $props<{
     progress?: number;
     label?: string;
+    size?: number | string;
   }>();
-
-  const percent = $derived(Math.max(0, Math.min(100, Math.round(progress * 100))));
 </script>
 
-<div class="scene-loading-progress" role="status" aria-live="polite" aria-label={label}>
-  {percent}%
+<div class="scene-loading-progress" role="status" aria-live="polite">
+  <PotLoader {progress} {label} {size} />
 </div>
 
 <style>
   .scene-loading-progress {
     position: absolute;
     z-index: 120;
-    top: 50%;
-    left: 50%;
-    padding: 4px 6px;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: var(--color-surface-page);
     color: var(--color-text-primary);
-    font-family: var(--font-text);
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1;
     pointer-events: none;
-    transform: translate(-50%, -50%);
-    user-select: none;
   }
 </style>

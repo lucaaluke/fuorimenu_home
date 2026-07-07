@@ -5,12 +5,16 @@
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
   import { animateCompat, waitForAnimationCompat } from '$lib/scene/browser-compat';
   import { readAudioMutedPreference, writeAudioMutedPreference } from '$lib/scene/audio-preference';
+  import SectionNextLink from '$lib/scene/SectionNextLink.svelte';
   import OfficeScene from './OfficeScene.svelte';
 
   let isAudioMuted = $state(true);
+  let sceneProgress = $state(0);
+  let isSceneRevealed = $state(false);
   let isLeavingSection = false;
   const sectionAudioFadeOutMs = 460;
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
+  const showNextSectionLink = $derived(sceneProgress >= 0.96);
 
   function toggleAudioMuted() {
     isAudioMuted = !isAudioMuted;
@@ -76,7 +80,7 @@
 </svelte:head>
 
 <main class="office-page">
-  <header class="scene-topbar office-topbar" aria-label="Navigazione ufficio">
+  <header class="scene-topbar office-topbar" class:is-loading={!isSceneRevealed} aria-label="Navigazione ufficio">
     <a
       class="logo press-ring-control"
       href="/?view=brand"
@@ -112,21 +116,38 @@
     </a>
   </header>
 
+  <SectionNextLink
+    href="/phaser"
+    label="cucina"
+    ariaLabel="Vai alla sezione cucina"
+    visible={showNextSectionLink}
+    onclick={(event) => navigateWithAudioFade(event, '/phaser', { immediate: true })}
+  />
+
   <section class="office-shell" aria-label="Scena parallasse dell'ufficio">
-    <OfficeScene {isAudioMuted} />
+    <OfficeScene
+      {isAudioMuted}
+      onProgressChange={(progress) => (sceneProgress = progress)}
+      onSceneRevealedChange={(isRevealed) => (isSceneRevealed = isRevealed)}
+    />
   </section>
 </main>
 
 <style>
+  :global(html),
   :global(body) {
+    width: 100%;
+    height: 100%;
     margin: 0;
+    overflow: hidden;
     background: var(--color-surface-page);
+    overscroll-behavior: none;
   }
 
   .office-page {
     position: relative;
-    min-height: var(--app-viewport-height);
-    overflow-x: hidden;
+    height: var(--app-viewport-height);
+    overflow: hidden;
     color: var(--color-text-primary);
     background: var(--color-surface-page);
     font-family: var(--font-text);
@@ -151,6 +172,11 @@
   .icon-button,
   .home-link {
     pointer-events: auto;
+  }
+
+  .scene-topbar.is-loading {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .logo {
@@ -420,6 +446,7 @@
   .office-shell {
     position: relative;
     height: var(--app-viewport-height);
+    overflow: hidden;
   }
 
   @media (max-width: 760px) {

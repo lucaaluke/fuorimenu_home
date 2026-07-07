@@ -13,8 +13,10 @@
   import { createSceneController } from '$lib/scene/controller';
   import { getCompatibleAudioContextConstructor } from '$lib/scene/browser-compat';
   import { loadGsap, type Gsap } from '$lib/scene/gsap-loader';
+  import { triggerTapClickFeedback } from '$lib/scene/tap-click-feedback';
   import { clamp, px } from '$lib/scene/math';
   import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
+  import SceneProgressBar from '$lib/scene/SceneProgressBar.svelte';
   import { getSceneAssetStyle } from '$lib/scene/scene-utils';
   import type { InteractiveSceneAsset, SceneAsset } from '$lib/scene/scene-asset.types';
   import { createViewportObserver } from '$lib/scene/viewport';
@@ -44,7 +46,11 @@
   const sceneController = createSceneController<KitchenControllerState, KitchenControllerEvents>(
     initialKitchenState
   );
-  let { isAudioMuted = false } = $props<{ isAudioMuted?: boolean }>();
+  let { isAudioMuted = false, onProgressChange, onSceneRevealedChange } = $props<{
+    isAudioMuted?: boolean;
+    onProgressChange?: (progress: number) => void;
+    onSceneRevealedChange?: (isRevealed: boolean) => void;
+  }>();
   const { bridge } = sceneController;
   const kitchenAsset = (name: string) => `/assets/${name}?v=${kitchenAssetVersion}`;
   let gsap: Gsap | undefined;
@@ -121,9 +127,9 @@
       imageAspectRatio: 519 / 283,
       imageAlt: '',
       imageSrc: '/images/stefano-paganini-figma.svg',
-      metaLabel: 'Chef - Stefano Paganini',
+      metaLabel: 'Executive Chef - Stefano Paganini',
       name: 'Stefano Paganini',
-      rolePrefix: 'Chef - ',
+      rolePrefix: 'Executive Chef - ',
       revealSpeechWithAudio: true,
       speech:
         "Da noi arrivavano ogni tre giorni due barra tre bancali di roba fresca e devi fare in maniera che non ti mancasse mai niente perché c'era sempre la paura, porca miseria se nevica, non possono arrivare con la roba quindi dobbiamo avere le robe in più. Lo standard qualitativo era molto alto perché erano tutti prodotti freschi, che non è scontato eh.",
@@ -143,10 +149,10 @@
       imageAspectRatio: 1394 / 574,
       imageAlt: '',
       imageSrc: '/images/fausto.svg',
-      metaLabel: 'Chef - Fausto',
+      metaLabel: 'Executive Chef - Fausto',
       name: 'Fausto',
       revealDurationSeconds: 12,
-      rolePrefix: 'Chef - ',
+      rolePrefix: 'Executive Chef - ',
       revealSpeechWithAudio: true,
       secondRevealDurationSeconds: 15,
       secondSpeech: faustoSecondSpeech,
@@ -161,6 +167,10 @@
   const carloTestimonial = kitchenTestimonials[0];
   const paganiniTestimonial = kitchenTestimonials[1];
   const faustoTestimonial = kitchenTestimonials[2];
+  const kitchenProgressTicks = $derived([
+    getTestimonialEnterProgress(paganiniTestimonial),
+    getTestimonialEnterProgress(faustoTestimonial)
+  ]);
   const testimonialAudioState: Record<
     KitchenTestimonialId,
     {
@@ -198,10 +208,15 @@
 	  let stageEl: HTMLElement;
   let phaserContainerEl = $state<HTMLElement>();
 	  let viewportWidth = $state(0);
-	  let viewportHeight = $state(0);
+  let viewportHeight = $state(0);
   let cameraX = $state(0);
   let narrativeProgress = $state(0);
   let activeChefId = $state<KitchenControllerState['activeChefId']>();
+
+  $effect(() => {
+    onProgressChange?.(narrativeProgress);
+  });
+
 	  let kitchenController:
     | {
         scrollBy: (delta: number) => void;
@@ -253,7 +268,10 @@
   const fallbackAudioFadeFrames = new WeakMap<HTMLAudioElement, number>();
   let isDragging = $state(false);
   let isSceneLoaded = $state(false);
-  const isSceneInteractive = $derived(isSceneLoaded && isPhaserReady);
+  let isSceneRevealed = $state(false);
+  let sceneRevealTimer: ReturnType<typeof setTimeout> | undefined;
+  const sceneRevealDelayMs = 560;
+  const isSceneInteractive = $derived(isSceneRevealed);
   let hasPointerScenePosition = $state(false);
   let isPointerOverTestimonialHitbox = $state(false);
   let pointerSceneY = $state(0);
@@ -1597,6 +1615,7 @@
             phaserLoadingProgress = progress;
           },
           onReady: () => {
+            phaserLoadingProgress = 1;
             isPhaserReady = true;
             kitchenPhaserGame?.setObjectHoverSuppressed(isPointerOverTestimonialHitbox);
           },
@@ -1641,10 +1660,13 @@
     resources.addFrame(() => {
       isSceneLoaded = true;
     });
+    stageEl.addEventListener('click', triggerTapClickFeedback, true);
     resources.addEventListener(window, 'keydown', onKeydown as EventListener);
     void startAmbientAudio();
 
 	    return () => {
+      stageEl?.removeEventListener('click', triggerTapClickFeedback, true);
+      if (sceneRevealTimer) clearTimeout(sceneRevealTimer);
       if (phaserResizeTimer) clearTimeout(phaserResizeTimer);
       cancelFallbackAudioFade(constructionAudioEl);
       cancelFallbackAudioFade(kitchenAmbientAudioEl);
@@ -1656,13 +1678,35 @@
       sceneController.destroy();
     };
   });
+
+  $effect(() => {
+    if (isSceneLoaded && isPhaserReady) {
+      if (!isSceneRevealed && !sceneRevealTimer) {
+        sceneRevealTimer = setTimeout(() => {
+          isSceneRevealed = true;
+          sceneRevealTimer = undefined;
+        }, sceneRevealDelayMs);
+      }
+      return;
+    }
+
+    if (sceneRevealTimer) {
+      clearTimeout(sceneRevealTimer);
+      sceneRevealTimer = undefined;
+    }
+    isSceneRevealed = false;
+  });
+
+  $effect(() => {
+    onSceneRevealedChange?.(isSceneRevealed);
+  });
 </script>
 
 <section
   bind:this={stageEl}
   class="kitchen-stage"
   class:is-dragging={isDragging}
-  class:is-loaded={isSceneLoaded && isPhaserReady}
+  class:is-loaded={isSceneRevealed}
   style={`--kitchen-cursor: ${cursorCss}; --kitchen-pointer-cursor: ${pointerCursorCss};`}
   data-active-chef={activeChefId ?? ''}
   data-narrative-progress={narrativeProgress.toFixed(3)}
@@ -1674,6 +1718,8 @@
   onpointerup={endDrag}
   onpointercancel={endDrag}
 >
+  <SceneProgressBar progress={narrativeProgress} isVisible={isSceneRevealed} ticks={kitchenProgressTicks} />
+
   <aside class="scene-coordinate-indicator" aria-label="Coordinate scena per posizionamento asset">
     <div class="coordinate-indicator-title">coordinate scena</div>
     <dl>
@@ -1714,9 +1760,9 @@
 
   {#if browser}
     <div bind:this={phaserContainerEl} class="kitchen-phaser-layer" aria-hidden="true"></div>
-    {#if !isPhaserReady}
-      <SceneLoadingProgress progress={phaserLoadingProgress} />
-    {/if}
+  {/if}
+  {#if !isSceneRevealed}
+    <SceneLoadingProgress progress={phaserLoadingProgress} />
   {/if}
 		
   {#if showLegacyKitchenOverlays}
@@ -1758,11 +1804,13 @@
 	    {/if}
 	  {/each}
 
-  <h1 class="scene-title" style={getTitleStyle()} aria-label="Cucina">
-    {#each titleLetters as letter, index}
-      <span style={`--letter-delay: ${280 + index * 70}ms`} aria-hidden="true">{letter}</span>
-    {/each}
-  </h1>
+  {#if isSceneRevealed}
+    <h1 class="scene-title" style={getTitleStyle()} aria-label="Cucina">
+      {#each titleLetters as letter, index}
+        <span style={`--letter-delay: ${280 + index * 70}ms`} aria-hidden="true">{letter}</span>
+      {/each}
+    </h1>
+  {/if}
 
   {#each kitchenTestimonials as testimonial (testimonial.id)}
     {@const isDialogueVisible = isTestimonialDialogueVisible(testimonial)}
@@ -1828,7 +1876,7 @@
 <audio bind:this={toolShedAudioEl} src="/sound/toolbox.mp3" preload="auto"></audio>
 <audio bind:this={standMixerAudioEl} src="/sound/mixer.mp3" preload="auto"></audio>
 <audio bind:this={constructionAudioEl} src="/sound/cantiere.mp3" preload="auto"></audio>
-<audio bind:this={kitchenAmbientAudioEl} src="/sound/cucinasuoni.mp3" preload="auto"></audio>
+<audio bind:this={kitchenAmbientAudioEl} src="/sound/kitchen_backgroundok.mp3" preload="auto"></audio>
 <audio
   bind:this={carloAudioEl}
   src="/sound/carlo.mp3"
@@ -1919,6 +1967,15 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 260ms ease;
+  }
+
+  .kitchen-stage.is-loaded .kitchen-phaser-layer {
+    opacity: 1;
+    visibility: visible;
     pointer-events: auto;
   }
 
@@ -2256,13 +2313,19 @@
     font-weight: 800;
     line-height: 1;
     cursor: var(--kitchen-pointer-cursor);
+    transition:
+      opacity 140ms ease,
+      transform 120ms ease;
   }
 
   .speech-bubble-page-button:hover,
   .speech-bubble-page-button:focus-visible {
-    background: var(--color-surface-page);
-    color: var(--color-border-primary);
     outline: none;
+  }
+
+  .speech-bubble-page-button:active:not(:disabled),
+  :global(.speech-bubble-page-button.is-tap-click-feedback) {
+    transform: scale(0.88);
   }
 
   .speech-bubble-page-button:disabled {

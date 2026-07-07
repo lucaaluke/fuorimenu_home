@@ -121,6 +121,9 @@ export function createParallaxMainSceneClass(
       this.load.on('progress', (progress: number) => {
         dependencies.onLoadingProgress?.(progress);
       });
+      this.load.on('loaderror', (file: { key?: string; src?: string; url?: string }) => {
+        console.warn('[ParallaxMainScene] Asset load failed', file.key, file.url ?? file.src);
+      });
 
       const loadedChunkKeys = new Set<string>();
       for (const chunk of dependencies.chunks) {
@@ -242,13 +245,19 @@ export function createParallaxMainSceneClass(
         const displayWidth = Math.round(asset.width * this.sceneScale);
         const displayHeight = Math.round(asset.height * this.sceneScale);
         const overlapX = asset.overlapX === undefined ? 0 : Math.ceil(asset.overlapX * this.sceneScale);
+        const originX = asset.origin?.x ?? 0;
+        const originY = asset.origin?.y ?? 0;
         const viewportOffsetY = (dependencies.viewportOffsetYByLayer?.[asset.layer] ?? 0) * this.pixelRatio;
         const worldY =
           asset.viewportBottomAligned === true
             ? viewportBottomAlignedWorldY(asset.height, this.sceneScale, renderHeight)
             : Math.round(asset.y * this.sceneScale + viewportOffsetY);
 
-        sprite.setPosition(figmaToWorldX(asset.x, this.sceneScale), worldY);
+        sprite.setOrigin(originX, originY);
+        sprite.setPosition(
+          figmaToWorldX(asset.x, this.sceneScale) + (displayWidth + overlapX) * originX,
+          worldY + displayHeight * originY
+        );
         sprite.setDisplaySize(displayWidth + overlapX, displayHeight);
 
         if (asset.flipX || asset.flipY || asset.rotate || asset.scaleOverride) {
@@ -328,6 +337,11 @@ export function createParallaxMainSceneClass(
         return;
       }
 
+      if (asset.hoverAnimation === 'bob-shake') {
+        this.playAssetBobShake(sprite, onComplete);
+        return;
+      }
+
       this.playAssetPop(sprite, asset, onComplete);
     }
 
@@ -389,6 +403,83 @@ export function createParallaxMainSceneClass(
         if (!step) {
           sprite.setAngle(baseAngle);
           sprite.setY(baseY);
+          onComplete();
+          return;
+        }
+
+        this.tweens.add({
+          targets: sprite,
+          ...step,
+          onComplete: () => playStep(index + 1)
+        });
+      };
+
+      playStep(0);
+    }
+
+    private playAssetBobShake(sprite: Phaser.GameObjects.Sprite, onComplete: () => void) {
+      const baseX = sprite.x;
+      const baseY = this.getAssetIdleBaseY(sprite);
+      const baseAngle = this.getAssetIdleBaseAngle(sprite);
+      const baseScaleX = this.getAssetIdleBaseScaleX(sprite);
+      const baseScaleY = this.getAssetIdleBaseScaleY(sprite);
+      const unit = Math.max(1, this.sceneScale);
+
+      this.tweens.killTweensOf(sprite);
+      const steps = [
+        {
+          x: baseX - 2 * unit,
+          y: baseY - 8 * unit,
+          angle: baseAngle - 5.6,
+          scaleX: baseScaleX * 1.025,
+          scaleY: baseScaleY * 1.025,
+          duration: 112,
+          ease: 'Sine.easeOut'
+        },
+        {
+          x: baseX + 3 * unit,
+          y: baseY - 5 * unit,
+          angle: baseAngle + 5.6,
+          scaleX: baseScaleX * 1.018,
+          scaleY: baseScaleY * 1.018,
+          duration: 87,
+          ease: 'Sine.easeInOut'
+        },
+        {
+          x: baseX - 2 * unit,
+          y: baseY - 4 * unit,
+          angle: baseAngle - 4,
+          scaleX: baseScaleX * 1.012,
+          scaleY: baseScaleY * 1.012,
+          duration: 99,
+          ease: 'Sine.easeInOut'
+        },
+        {
+          x: baseX + 2 * unit,
+          y: baseY - 2 * unit,
+          angle: baseAngle + 2.4,
+          scaleX: baseScaleX * 1.006,
+          scaleY: baseScaleY * 1.006,
+          duration: 112,
+          ease: 'Sine.easeInOut'
+        },
+        {
+          x: baseX,
+          y: baseY,
+          angle: baseAngle,
+          scaleX: baseScaleX,
+          scaleY: baseScaleY,
+          duration: 210,
+          ease: 'Back.easeOut'
+        }
+      ];
+
+      const playStep = (index: number) => {
+        const step = steps[index];
+        if (!step) {
+          sprite.setPosition(baseX, baseY);
+          sprite.setAngle(baseAngle);
+          sprite.setScale(baseScaleX, baseScaleY);
           onComplete();
           return;
         }
@@ -524,6 +615,7 @@ export function createParallaxMainSceneClass(
       if (!effect) return;
 
       effect.shine.setPosition(sprite.x, sprite.y);
+      effect.shine.setOrigin(sprite.originX, sprite.originY);
       effect.shine.setDisplaySize(sprite.displayWidth, sprite.displayHeight);
       effect.shine.setScrollFactor(sprite.scrollFactorX, sprite.scrollFactorY);
       effect.shine.setDepth(sprite.depth + 0.12);
@@ -614,17 +706,19 @@ export function createParallaxMainSceneClass(
       const baseAngle = this.getAssetIdleBaseAngle(sprite);
       const delay = Math.abs(this.hashAssetId(asset.id)) % 700;
       const duration = 980 + (Math.abs(this.hashAssetId(`${asset.id}-duration`)) % 360);
+      const swayAngle = 5.6;
       const tween =
         asset.idleAnimation === 'sway'
-          ? this.tweens.add({
-              targets: sprite,
-              angle: baseAngle + 5.6,
-              duration,
-              delay,
-              ease: 'Sine.easeInOut',
-              yoyo: true,
-              repeat: -1
-            })
+          ? (sprite.setAngle(baseAngle - swayAngle),
+            this.tweens.add({
+                targets: sprite,
+                angle: baseAngle + swayAngle,
+                duration,
+                delay,
+                ease: 'Sine.easeInOut',
+                yoyo: true,
+                repeat: -1
+              }))
           : this.tweens.add({
               targets: sprite,
               y: baseY - Math.max(9, 20 * this.sceneScale),

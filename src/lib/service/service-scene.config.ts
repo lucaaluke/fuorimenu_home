@@ -18,7 +18,7 @@ const serviceLayerSpeed = {
 export const serviceSceneConfig = {
   sceneWidth: 0,
   sceneHeight: serviceSceneHeight,
-  assetVersion: '20260704-service-sfondo-1',
+  assetVersion: '20260706-service-ascii-assets-1',
   layerSpeed: serviceLayerSpeed
 } as const;
 
@@ -32,7 +32,13 @@ function serviceLayerAsset(
   layer: 'middle' | 'foreground' = 'foreground',
   hover?: Pick<
     SceneAsset,
-    'hoverAnimation' | 'hoverPopHeightMultiplier' | 'hoverSoundTrigger' | 'idleAnimation' | 'hoverSoundSrc' | 'hoverSoundVolume'
+    | 'hoverAnimation'
+    | 'hoverPopHeightMultiplier'
+    | 'hoverSoundTrigger'
+    | 'idleAnimation'
+    | 'origin'
+    | 'hoverSoundSrc'
+    | 'hoverSoundVolume'
   >
 ): SceneAsset {
   return {
@@ -63,9 +69,10 @@ export const serviceBackgroundChunks: SceneChunk[] = Array.from(
 
 export const serviceForegroundAssets: SceneAsset[] = [
   serviceLayerAsset('1_BottiglieVaso', 81239, 1114, 359, 589, 'primopiano', 'foreground', {
-    hoverAnimation: 'shake',
+    hoverAnimation: 'bob-shake',
     hoverSoundTrigger: 'hover',
-    idleAnimation: 'sway',
+    idleAnimation: 'bob',
+    origin: { x: 0.5, y: 0.5 },
     hoverSoundSrc: 'ghiacciook.mp3',
     hoverSoundVolume: 0.54
   }),
@@ -75,12 +82,13 @@ export const serviceForegroundAssets: SceneAsset[] = [
   serviceLayerAsset('1_bidoni', 109761, 1777, 4606, 1330),
   serviceLayerAsset('1_carrellini', 6379, 1899, 1623, 764),
   serviceLayerAsset('1_posate', 8998, 1812, 1969, 1009),
-  serviceLayerAsset('1_tè', 13136, 1689, 1623, 973),
+  serviceLayerAsset('1_te', 13136, 1689, 1623, 973),
   serviceLayerAsset('1_mobilecloche', 19454, 1679, 1757, 1122),
   serviceLayerAsset('1_cloche', 20646, 1668, 1428, 415, 'primopiano', 'foreground', {
-    hoverAnimation: 'shake',
+    hoverAnimation: 'bob-shake',
     hoverSoundTrigger: 'hover',
     idleAnimation: 'bob',
+    origin: { x: 0.1443, y: 0.4831 },
     hoverSoundSrc: 'clocheok.mp3',
     hoverSoundVolume: 0.52
   }),
@@ -91,16 +99,18 @@ export const serviceForegroundAssets: SceneAsset[] = [
   serviceLayerAsset('1_camera', 50015, 1784, 451, 275, 'primopiano', 'foreground', {
     hoverAnimation: 'shake',
     hoverSoundTrigger: 'hover',
-    idleAnimation: 'sway',
+    idleAnimation: 'bob',
+    origin: { x: 0.5, y: 0.5 },
     hoverSoundSrc: 'camera.mp3',
     hoverSoundVolume: 0.54
   }),
   serviceLayerAsset('1_colazione', 56239, 999, 2460, 1666),
   serviceLayerAsset('1_colazione2', 59790, 996, 2460, 1666),
   serviceLayerAsset('1_brocca', 60134, 1736, 254, 270, 'primopiano', 'foreground', {
-    hoverAnimation: 'shake',
+    hoverAnimation: 'bob-shake',
     hoverSoundTrigger: 'hover',
-    idleAnimation: 'sway',
+    idleAnimation: 'bob',
+    origin: { x: 0.5, y: 0.5 },
     hoverSoundSrc: 'broccaok.mp3',
     hoverSoundVolume: 0.54
   }),
@@ -110,9 +120,10 @@ export const serviceForegroundAssets: SceneAsset[] = [
   serviceLayerAsset('1_calici2', 81181, 1436, 1935, 1225),
   serviceLayerAsset('1_carrelli', 89505, 1639, 2468, 1024),
   serviceLayerAsset('1_Lunchbox', 90198, 1638, 372, 178, 'primopiano', 'foreground', {
-    hoverAnimation: 'shake',
+    hoverAnimation: 'bob-shake',
     hoverSoundTrigger: 'hover',
     idleAnimation: 'bob',
+    origin: { x: 0.5, y: 0.5 },
     hoverSoundSrc: 'lunchboxok.mp3',
     hoverSoundVolume: 0.55
   }),
@@ -128,7 +139,7 @@ export const serviceForegroundAssets: SceneAsset[] = [
 export const serviceMiddleAssets: SceneAsset[] = [
   serviceLayerAsset('2_mobileconlampada', 4745, 314, 1371, 2078, 'secondopiano', 'middle'),
   serviceLayerAsset('2_mobilepiatti', 7771, 1522, 1699, 873, 'secondopiano', 'middle'),
-  serviceLayerAsset('2_mobilecaffè', 11005, 328, 2753, 2203, 'secondopiano', 'middle'),
+  serviceLayerAsset('2_mobilecaffe', 11005, 328, 2753, 2203, 'secondopiano', 'middle'),
   serviceLayerAsset('2_banconecibo', 14619, 1255, 5893, 1136, 'secondopiano', 'middle'),
   serviceLayerAsset('2_spaghetti', 21970, 1373, 5232, 1024, 'secondopiano', 'middle'),
   serviceLayerAsset('2_mobilemascotte', 31871, 1284, 5663, 1111, 'secondopiano', 'middle'),
@@ -137,6 +148,7 @@ export const serviceMiddleAssets: SceneAsset[] = [
     hoverPopHeightMultiplier: 1.85,
     hoverSoundTrigger: 'hover',
     idleAnimation: 'sway',
+    origin: { x: 0.5, y: 0.5 },
     hoverSoundSrc: 'macotteok.mp3',
     hoverSoundVolume: 0.55
   }),
@@ -145,7 +157,6 @@ export const serviceMiddleAssets: SceneAsset[] = [
   serviceLayerAsset('2_carrellivassoi', 49475, 609, 1534, 1783, 'secondopiano', 'middle'),
   serviceLayerAsset('2_mobilegrande', 58030, 1353, 5411, 1038, 'secondopiano', 'middle'),
   serviceLayerAsset('2_cibarie', 66314, 1100, 6694, 1293, 'secondopiano', 'middle'),
-  serviceLayerAsset('2_mobilibarattoli', 75517, 581, 3546, 1813, 'secondopiano', 'middle'),
   serviceLayerAsset('2_vassoi', 80460, 1562, 1706, 829, 'secondopiano', 'middle'),
   serviceLayerAsset('2_carreliscatole', 84141, 1368, 2468, 1033, 'secondopiano', 'middle'),
   serviceLayerAsset('2_carrellivassoi2', 88522, 908, 3419, 1484, 'secondopiano', 'middle'),
