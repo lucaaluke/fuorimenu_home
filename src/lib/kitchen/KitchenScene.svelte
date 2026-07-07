@@ -13,6 +13,7 @@
   import { createSceneController } from '$lib/scene/controller';
   import { getCompatibleAudioContextConstructor } from '$lib/scene/browser-compat';
   import { loadGsap, type Gsap } from '$lib/scene/gsap-loader';
+  import { triggerTapClickFeedback } from '$lib/scene/tap-click-feedback';
   import { clamp, px } from '$lib/scene/math';
   import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
   import SceneProgressBar from '$lib/scene/SceneProgressBar.svelte';
@@ -125,9 +126,9 @@
       imageAspectRatio: 519 / 283,
       imageAlt: '',
       imageSrc: '/images/stefano-paganini-figma.svg',
-      metaLabel: 'Chef - Stefano Paganini',
+      metaLabel: 'Executive Chef - Stefano Paganini',
       name: 'Stefano Paganini',
-      rolePrefix: 'Chef - ',
+      rolePrefix: 'Executive Chef - ',
       revealSpeechWithAudio: true,
       speech:
         "Da noi arrivavano ogni tre giorni due barra tre bancali di roba fresca e devi fare in maniera che non ti mancasse mai niente perché c'era sempre la paura, porca miseria se nevica, non possono arrivare con la roba quindi dobbiamo avere le robe in più. Lo standard qualitativo era molto alto perché erano tutti prodotti freschi, che non è scontato eh.",
@@ -147,10 +148,10 @@
       imageAspectRatio: 1394 / 574,
       imageAlt: '',
       imageSrc: '/images/fausto.svg',
-      metaLabel: 'Chef - Fausto',
+      metaLabel: 'Executive Chef - Fausto',
       name: 'Fausto',
       revealDurationSeconds: 12,
-      rolePrefix: 'Chef - ',
+      rolePrefix: 'Executive Chef - ',
       revealSpeechWithAudio: true,
       secondRevealDurationSeconds: 15,
       secondSpeech: faustoSecondSpeech,
@@ -1650,10 +1651,12 @@
     resources.addFrame(() => {
       isSceneLoaded = true;
     });
+    stageEl.addEventListener('click', triggerTapClickFeedback, true);
     resources.addEventListener(window, 'keydown', onKeydown as EventListener);
     void startAmbientAudio();
 
 	    return () => {
+      stageEl?.removeEventListener('click', triggerTapClickFeedback, true);
       if (phaserResizeTimer) clearTimeout(phaserResizeTimer);
       cancelFallbackAudioFade(constructionAudioEl);
       cancelFallbackAudioFade(kitchenAmbientAudioEl);
@@ -1839,7 +1842,7 @@
 <audio bind:this={toolShedAudioEl} src="/sound/toolbox.mp3" preload="auto"></audio>
 <audio bind:this={standMixerAudioEl} src="/sound/mixer.mp3" preload="auto"></audio>
 <audio bind:this={constructionAudioEl} src="/sound/cantiere.mp3" preload="auto"></audio>
-<audio bind:this={kitchenAmbientAudioEl} src="/sound/cucinasuoni.mp3" preload="auto"></audio>
+<audio bind:this={kitchenAmbientAudioEl} src="/sound/kitchen_backgroundok.mp3" preload="auto"></audio>
 <audio
   bind:this={carloAudioEl}
   src="/sound/carlo.mp3"
@@ -2267,13 +2270,19 @@
     font-weight: 800;
     line-height: 1;
     cursor: var(--kitchen-pointer-cursor);
+    transition:
+      opacity 140ms ease,
+      transform 120ms ease;
   }
 
   .speech-bubble-page-button:hover,
   .speech-bubble-page-button:focus-visible {
-    background: var(--color-surface-page);
-    color: var(--color-border-primary);
     outline: none;
+  }
+
+  .speech-bubble-page-button:active:not(:disabled),
+  :global(.speech-bubble-page-button.is-tap-click-feedback) {
+    transform: scale(0.88);
   }
 
   .speech-bubble-page-button:disabled {

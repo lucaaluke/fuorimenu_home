@@ -38,6 +38,7 @@
     --next-ring-opacity: 0;
     --next-ring-inner-size: 0px;
     --next-content-scale: 1;
+    --next-control-fill: transparent;
 
     position: fixed;
     right: var(--layout-page-gutter);
@@ -84,11 +85,12 @@
     inset: 0;
     border: 2px solid currentColor;
     border-radius: var(--radius-full);
-    background: transparent;
+    background: var(--next-control-fill);
     box-shadow: inset 0 0 0 var(--next-ring-inner-size) currentColor;
     content: '';
     opacity: var(--next-ring-opacity);
     transition:
+      background-color 160ms ease,
       border-color 160ms ease,
       box-shadow 170ms cubic-bezier(0.22, 1, 0.36, 1),
       opacity 120ms ease;
@@ -130,6 +132,7 @@
   .section-next-link:hover,
   .section-next-link:focus-visible {
     --next-ring-opacity: 1;
+    --next-control-fill: var(--color-surface-page);
   }
 
   .section-next-link:active {

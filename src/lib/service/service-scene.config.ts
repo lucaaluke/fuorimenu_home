@@ -145,7 +145,6 @@ export const serviceMiddleAssets: SceneAsset[] = [
   serviceLayerAsset('2_carrellivassoi', 49475, 609, 1534, 1783, 'secondopiano', 'middle'),
   serviceLayerAsset('2_mobilegrande', 58030, 1353, 5411, 1038, 'secondopiano', 'middle'),
   serviceLayerAsset('2_cibarie', 66314, 1100, 6694, 1293, 'secondopiano', 'middle'),
-  serviceLayerAsset('2_mobilibarattoli', 75517, 581, 3546, 1813, 'secondopiano', 'middle'),
   serviceLayerAsset('2_vassoi', 80460, 1562, 1706, 829, 'secondopiano', 'middle'),
   serviceLayerAsset('2_carreliscatole', 84141, 1368, 2468, 1033, 'secondopiano', 'middle'),
   serviceLayerAsset('2_carrellivassoi2', 88522, 908, 3419, 1484, 'secondopiano', 'middle'),

@@ -62,7 +62,7 @@
 </script>
 
 <svelte:head>
-  <title>Servizio | Fuorimenu</title>
+  <title>Sala | Fuorimenu</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
   <link
@@ -72,7 +72,7 @@
 </svelte:head>
 
 <main class="service-page">
-  <header class="scene-topbar service-topbar" aria-label="Navigazione servizio">
+  <header class="scene-topbar service-topbar" aria-label="Navigazione sala">
     <a
       class="logo press-ring-control"
       href="/?view=brand"
@@ -108,7 +108,7 @@
     </a>
   </header>
 
-  <section class="service-shell" aria-label="Scena parallasse del servizio">
+  <section class="service-shell" aria-label="Scena parallasse della sala">
     <ServiceScene {isAudioMuted} />
   </section>
 </main>

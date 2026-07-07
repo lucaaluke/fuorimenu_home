@@ -159,7 +159,7 @@
     }
   };
   const backgroundAudio: AudioCueConfig = {
-    src: '/sound/background_home.mp3',
+    src: '/sound/home_backgroundok.mp3',
     startTime: 0,
     targetVolume: 1,
     fadeInDuration: 1.2,
@@ -1812,6 +1812,7 @@
 
   async function startRoleAudio(role: AudioRole) {
     if (isAudioMuted) return;
+    await unlockAmbientAudio();
     await audioCues.play(role);
   }
 
@@ -2518,7 +2519,10 @@
           >{letter}</span>
       {/each}
     </p>
-    <p bind:this={brandSubtitleEl} class="brand-subtitle">{brandSubtitle}</p>
+    <p bind:this={brandSubtitleEl} class="brand-subtitle" aria-label={brandSubtitle}>
+      <span class="brand-subtitle-jetbrains" aria-hidden="true">Dentro le </span>
+      <span class="brand-subtitle-jetbrains" aria-hidden="true">cucine di Milano Cortina 2026</span>
+    </p>
   </div>
   <div bind:this={brandScrollCueEl} class="brand-scroll-cue" data-node-id="3448:2821" aria-label="Scorri">
     <span data-node-id="3448:2822">Scorri</span>
@@ -5660,6 +5664,11 @@
     will-change: opacity, transform;
   }
 
+  .brand-subtitle-jetbrains {
+    font-family: "JetBrains Mono", var(--font-text);
+    font-weight: 700;
+  }
+
   .brand-scroll-cue {
     position: absolute;
     z-index: 4;
@@ -5700,6 +5709,28 @@
     stroke-width: 1.5;
     stroke-linecap: round;
     stroke-linejoin: round;
+    will-change: transform;
+  }
+
+  .brand-scroll-arrow:not(.about-project-scroll-arrow) {
+    animation: scrollArrowFloat 1.45s ease-in-out infinite;
+  }
+
+  @keyframes scrollArrowFloat {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(5px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .brand-scroll-arrow:not(.about-project-scroll-arrow) {
+      animation: none;
+      transform: none;
+    }
   }
 
   .roles-screen {
