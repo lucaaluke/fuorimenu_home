@@ -72,6 +72,7 @@ export const serviceForegroundAssets: SceneAsset[] = [
     hoverAnimation: 'bob-shake',
     hoverSoundTrigger: 'hover',
     idleAnimation: 'bob',
+    origin: { x: 0.5, y: 0.5 },
     hoverSoundSrc: 'ghiacciook.mp3',
     hoverSoundVolume: 0.54
   }),
@@ -87,6 +88,7 @@ export const serviceForegroundAssets: SceneAsset[] = [
     hoverAnimation: 'bob-shake',
     hoverSoundTrigger: 'hover',
     idleAnimation: 'bob',
+    origin: { x: 0.1443, y: 0.4831 },
     hoverSoundSrc: 'clocheok.mp3',
     hoverSoundVolume: 0.52
   }),
@@ -98,6 +100,7 @@ export const serviceForegroundAssets: SceneAsset[] = [
     hoverAnimation: 'shake',
     hoverSoundTrigger: 'hover',
     idleAnimation: 'bob',
+    origin: { x: 0.5, y: 0.5 },
     hoverSoundSrc: 'camera.mp3',
     hoverSoundVolume: 0.54
   }),
@@ -107,6 +110,7 @@ export const serviceForegroundAssets: SceneAsset[] = [
     hoverAnimation: 'bob-shake',
     hoverSoundTrigger: 'hover',
     idleAnimation: 'bob',
+    origin: { x: 0.5, y: 0.5 },
     hoverSoundSrc: 'broccaok.mp3',
     hoverSoundVolume: 0.54
   }),
@@ -119,6 +123,7 @@ export const serviceForegroundAssets: SceneAsset[] = [
     hoverAnimation: 'bob-shake',
     hoverSoundTrigger: 'hover',
     idleAnimation: 'bob',
+    origin: { x: 0.5, y: 0.5 },
     hoverSoundSrc: 'lunchboxok.mp3',
     hoverSoundVolume: 0.55
   }),

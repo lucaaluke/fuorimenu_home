@@ -1405,10 +1405,21 @@
     const viewportOverscan = 80;
     const horizontalTop = rect.top - 4;
     const horizontalHeight = rect.height + 8;
+    const verticalStartTime = 0.68;
+    const verticalDuration = 0.58;
+    const bottomLineFadeLead = 0.28;
+    const topExitProgress = clamp(horizontalTop / Math.max(horizontalTop + viewportOverscan, 1));
+    const bottomLineFadeStart = Math.max(
+      verticalStartTime,
+      verticalStartTime + verticalDuration * topExitProgress - bottomLineFadeLead
+    );
     const clone = card.cloneNode(true) as HTMLElement;
     clone.removeAttribute('href');
     clone.setAttribute('aria-hidden', 'true');
     clone.classList.add('is-entering');
+    const bottomLine = document.createElement('span');
+    bottomLine.className = 'role-card-enter-bottom-line';
+    bottomLine.setAttribute('aria-hidden', 'true');
     Object.assign(clone.style, {
       position: 'fixed',
       left: px(rect.left),
@@ -1438,6 +1449,7 @@
       pointerEvents: 'none',
       opacity: '0'
     });
+    clone.append(bottomLine);
     document.body.append(pageFade, clone);
     card.style.visibility = 'hidden';
 
@@ -1454,6 +1466,8 @@
       '--role-card-radius': roleCardRadius
     });
     gsap.set(bg, { opacity: 1, filter: 'grayscale(1) opacity(0.42)', scale: 1.04 });
+    gsap.set(cloneRoleCardTop, { borderBottomColor: 'transparent' });
+    gsap.set(bottomLine, { opacity: 1 });
     gsap.set([copy, hoverPanel, person], { opacity: 0 });
 
     cardEnterTween = animations.registerAnimationCue(
@@ -1496,24 +1510,16 @@
         },
         0.18
       )
-      .to(
-        cloneRoleCardTop,
-        {
-          borderBottomColor: 'transparent',
-          duration: 0.16,
-          ease: 'power2.out'
-        },
-        0.66
-      )
+      .to(bottomLine, { opacity: 0, duration: 0.32, ease: 'power2.out' }, bottomLineFadeStart)
       .to(
         clone,
         {
           top: -viewportOverscan,
           height: window.innerHeight + viewportOverscan * 2,
-          duration: 0.58,
+          duration: verticalDuration,
           ease: 'power4.inOut'
         },
-        0.68
+        verticalStartTime
       )
       .to(clone, { boxShadow: '0 0 0 rgb(42 68 132 / 0)', duration: 0.34 }, 0);
   }
@@ -5931,6 +5937,18 @@
 
   :global(.role-card.is-entering::before) {
     opacity: 0;
+  }
+
+  :global(.role-card-enter-bottom-line) {
+    position: absolute;
+    z-index: 5;
+    inset: 0;
+    box-sizing: border-box;
+    border: 2px solid transparent;
+    border-bottom-color: var(--color-border-primary);
+    border-radius: var(--role-card-radius);
+    pointer-events: none;
+    will-change: opacity;
   }
 
   .role-card-top {
