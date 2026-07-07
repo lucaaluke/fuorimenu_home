@@ -76,6 +76,9 @@ const S_STOVE_HOOD_TOP_STRETCH_HEIGHT = 20;
 const S_STOVE_HOOD_TOP_STRETCH_EXTRA_TOP = 100;
 const S_STOVE_HOOD_TOP_STRETCH_OVERLAP = 10;
 const S_STOVE_HOOD_TOP_STRETCH_TEXTURE_KEY = 'kitchen-animation-2-cappe-fornelli-top-stretch';
+const EASTER_EGG_ASSET_ID = 'easteregg';
+const EASTER_EGG_HOVER_JUMP_HEIGHT = 18;
+const EASTER_EGG_HOVER_DURATION_MS = 240;
 
 export function startKitchenSceneAnimations(
   scene: Phaser.Scene,
@@ -92,6 +95,7 @@ export function startKitchenSceneAnimations(
   const stoveBase = assetSprites.find(({ asset }) => asset.id === S_STOVE_BASE_ASSET_ID)?.sprite;
   const stoveControls = assetSprites.find(({ asset }) => asset.id === S_STOVE_CONTROLS_ASSET_ID)?.sprite;
   const stoveHood = assetSprites.find(({ asset }) => asset.id === S_STOVE_HOOD_ASSET_ID)?.sprite;
+  const easterEgg = assetSprites.find(({ asset }) => asset.id === EASTER_EGG_ASSET_ID)?.sprite;
 
   if (sCono) {
     startSConoAnimations(scene, sCono, getSceneScale, isObjectHoverSuppressed);
@@ -137,6 +141,44 @@ export function startKitchenSceneAnimations(
   if (stoveHood) {
     startStoveHoodTopStretch(scene, stoveHood);
   }
+
+  if (easterEgg) {
+    startEasterEggHoverJump(scene, easterEgg, getSceneScale, isObjectHoverSuppressed);
+  }
+}
+
+function startEasterEggHoverJump(
+  scene: Phaser.Scene,
+  sprite: Phaser.GameObjects.Sprite,
+  getSceneScale: () => number,
+  isObjectHoverSuppressed: () => boolean
+) {
+  let isJumping = false;
+
+  sprite.setInteractive({ useHandCursor: true });
+  sprite.on('pointerover', () => {
+    if (!sprite.active || isJumping || isObjectHoverSuppressed()) return;
+
+    const baseY = sprite.y;
+    const jumpHeight = Math.max(7, EASTER_EGG_HOVER_JUMP_HEIGHT * getSceneScale());
+    isJumping = true;
+    scene.tweens.killTweensOf(sprite);
+    scene.tweens.add({
+      targets: sprite,
+      y: baseY - jumpHeight,
+      duration: EASTER_EGG_HOVER_DURATION_MS * 0.46,
+      ease: 'Sine.easeOut',
+      yoyo: true,
+      onComplete: () => {
+        sprite.setY(baseY);
+        isJumping = false;
+      }
+    });
+  });
+
+  scene.events.once('shutdown', () => {
+    scene.tweens.killTweensOf(sprite);
+  });
 }
 
 function startSConoAnimations(

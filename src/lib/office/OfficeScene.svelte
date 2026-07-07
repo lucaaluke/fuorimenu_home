@@ -43,7 +43,6 @@
     middle: 0,
     foreground: 0
   });
-  let nearestSceneAsset = $state<{ id: string; distance: number }>();
   let hoveredOfficeAssetId = $state<string | undefined>();
   let officeHoverClearTimer: ReturnType<typeof setTimeout> | undefined;
   let prefersReducedMotion = $state(false);
@@ -119,8 +118,6 @@
   });
 
   const scenePx = (value: number) => px(value, 2);
-  const coord = (value: number) => Math.round(value).toString();
-  const coordDecimal = (value: number) => value.toFixed(3);
   const officeCoordinateAssets = [...officeMiddleAssets, ...officeForegroundAssets];
   const officePhaserAssets = [...officeFloorAssets, ...officeMiddleAssets, ...officeForegroundAssets];
   const officeProgressTicks = $derived(
@@ -429,29 +426,7 @@
       middle: (localX + cameraX * resolvedLayerSpeed.middle) / sceneScale,
       foreground: (localX + cameraX * resolvedLayerSpeed.foreground) / sceneScale
     };
-    nearestSceneAsset = getNearestSceneAsset();
     setHoveredOfficeAssetId(getHoveredOfficeAssetId());
-  }
-
-  function getNearestSceneAsset() {
-    if (!hasPointerScenePosition) return undefined;
-
-    let nearest: { id: string; distance: number } | undefined;
-
-    for (const asset of officeCoordinateAssets) {
-      const layerX = pointerSceneX[asset.layer as keyof typeof pointerSceneX];
-      if (layerX === undefined) continue;
-
-      const x = asset.x + asset.width / 2;
-      const y = asset.y + asset.height / 2;
-      const distance = Math.hypot(layerX - x, pointerSceneY - y);
-
-      if (!nearest || distance < nearest.distance) {
-        nearest = { id: asset.id, distance };
-      }
-    }
-
-    return nearest;
   }
 
   function getHoveredOfficeAssetId() {
@@ -485,10 +460,12 @@
       return;
     }
 
+    const clearDelay = hoveredOfficeAssetId === 'easteregg' ? 45 : 120;
+
     officeHoverClearTimer = setTimeout(() => {
       hoveredOfficeAssetId = undefined;
       officeHoverClearTimer = undefined;
-    }, 180);
+    }, clearDelay);
   }
 
   function evaluateScene(delta: number) {
@@ -2049,44 +2026,6 @@
     <SceneLoadingProgress progress={phaserLoadingProgress} />
   {/if}
 
-  <aside class="scene-coordinate-indicator" aria-label="Coordinate scena per posizionamento asset">
-    <div class="coordinate-indicator-title">coordinate scena</div>
-    <dl>
-      <div>
-        <dt>y</dt>
-        <dd>{hasPointerScenePosition ? coord(pointerSceneY) : '...'}</dd>
-      </div>
-      <div>
-        <dt>x bg</dt>
-        <dd>{hasPointerScenePosition ? coord(pointerSceneX.background) : '...'}</dd>
-      </div>
-      <div>
-        <dt>x mid</dt>
-        <dd>{hasPointerScenePosition ? coord(pointerSceneX.middle) : '...'}</dd>
-      </div>
-      <div>
-        <dt>x fg</dt>
-        <dd>{hasPointerScenePosition ? coord(pointerSceneX.foreground) : '...'}</dd>
-      </div>
-      <div>
-        <dt>camera</dt>
-        <dd>{coord(cameraX)}</dd>
-      </div>
-      <div>
-        <dt>scale</dt>
-        <dd>{coordDecimal(sceneScale)}</dd>
-      </div>
-      <div>
-        <dt>near</dt>
-        <dd>{nearestSceneAsset ? nearestSceneAsset.id : '...'}</dd>
-      </div>
-      <div>
-        <dt>dist</dt>
-        <dd>{nearestSceneAsset ? coord(nearestSceneAsset.distance) : '...'}</dd>
-      </div>
-    </dl>
-  </aside>
-
   <div class="office-scroll-space" style={scrollSpaceStyle}>
     <div class="office-world" style={worldStyle}>
       {#each officeMiddleAssets as item (item.id)}
@@ -2763,63 +2702,6 @@
     cursor: url('/cursors/retrogusto-cursor.svg') 5 5, auto;
   }
 
-  .scene-coordinate-indicator {
-    position: fixed;
-    z-index: 130;
-    top: calc(var(--layout-page-gutter) + 82px);
-    right: var(--layout-page-gutter);
-    min-width: 154px;
-    padding: 10px 12px 11px;
-    border: 2px solid var(--color-border-primary);
-    border-radius: var(--radius-s);
-    background: rgb(248 243 233 / 0.9);
-    color: var(--color-text-primary);
-    box-shadow: 0 8px 18px rgb(var(--shadow-brand-rgb) / 0.12);
-    font-family: var(--font-text);
-    pointer-events: none;
-    user-select: none;
-  }
-
-  .coordinate-indicator-title {
-    margin-bottom: 6px;
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .scene-coordinate-indicator dl {
-    display: grid;
-    gap: 4px;
-    margin: 0;
-  }
-
-  .scene-coordinate-indicator div {
-    display: grid;
-    grid-template-columns: 54px 1fr;
-    align-items: baseline;
-    gap: 8px;
-  }
-
-  .scene-coordinate-indicator dt,
-  .scene-coordinate-indicator dd {
-    margin: 0;
-    font-size: 12px;
-    line-height: 1.1;
-  }
-
-  .scene-coordinate-indicator dt {
-    font-weight: 600;
-    opacity: 0.68;
-  }
-
-  .scene-coordinate-indicator dd {
-    font-variant-numeric: tabular-nums;
-    font-weight: 800;
-    text-align: left;
-  }
-
   .office-asset {
     position: absolute;
     left: 0;
@@ -2907,13 +2789,13 @@
   .office-easteregg-asset:hover img,
   .office-easteregg-asset:focus-visible img,
   .office-easteregg-asset.is-tooltip-visible img {
-    animation: officeEasterEggJump 640ms cubic-bezier(0.2, 1, 0.28, 1) both;
+    animation: officeEasterEggJump 420ms cubic-bezier(0.2, 1, 0.28, 1) both;
   }
 
   .office-easteregg-layout {
     position: absolute;
     z-index: 4;
-    top: calc(100% + 18px);
+    top: calc(100% + 8px);
     left: 50%;
     display: block;
     box-sizing: border-box;
@@ -2930,32 +2812,21 @@
     visibility: hidden;
     transform: translate3d(-50%, 10px, 0);
     transition:
-      opacity 150ms ease,
-      transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
-      visibility 0s linear 150ms;
+      opacity 110ms ease,
+      transform 130ms cubic-bezier(0.16, 1, 0.3, 1),
+      visibility 0s linear 110ms;
     pointer-events: none;
-  }
-
-  .office-easteregg-layout::before {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    width: 61px;
-    height: 80px;
-    background: #a8b1c7;
-    clip-path: polygon(50% 0, 100% 100%, 0 100%);
-    content: '';
-    transform: translateX(-50%);
   }
 
   .office-easteregg-copy {
     position: absolute;
-    top: 85px;
+    top: 0;
     left: 0;
     display: block;
     width: 100%;
     box-sizing: border-box;
     padding: 4px 6px;
+    border-radius: var(--radius-s);
     background: var(--color-surface-page);
     word-break: break-word;
   }
@@ -3055,7 +2926,7 @@
     opacity: 1;
     visibility: visible;
     transform: translate3d(-50%, 0, 0);
-    transition-delay: 640ms, 640ms, 0s;
+    transition-delay: 420ms, 420ms, 0s;
   }
 
   .object-shine {
@@ -3629,27 +3500,6 @@
   }
 
   @media (max-width: 760px) {
-    .scene-coordinate-indicator {
-      top: calc(var(--layout-page-gutter-mobile) + 74px);
-      right: var(--layout-page-gutter-mobile);
-      min-width: 132px;
-      padding: 8px 9px;
-    }
-
-    .coordinate-indicator-title {
-      font-size: 9px;
-    }
-
-    .scene-coordinate-indicator div {
-      grid-template-columns: 48px 1fr;
-      gap: 6px;
-    }
-
-    .scene-coordinate-indicator dt,
-    .scene-coordinate-indicator dd {
-      font-size: 11px;
-    }
-
     .speech-bubble {
       width: var(--speech-bubble-width, min(330px, calc(100vw - 96px)));
     }
