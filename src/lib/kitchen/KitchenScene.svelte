@@ -77,6 +77,14 @@
     'S-planetaria': 'standMixer',
     'S-cassetta-attrezzi': 'toolbox'
   };
+  const paganiniTrailerVideo = {
+    x: 7700,
+    y: 610,
+    width: 520,
+    height: 292.5,
+    scrollFactor: phaserObjectScrollFactor.foreground,
+    src: '/assets/kitchen/objects/video-paganini-trailer_v2.mp4'
+  } as const;
   const initialKitchenState: KitchenControllerState = {
     cameraX: 0,
     targetCameraX: 0,
@@ -633,6 +641,18 @@
     ]
       .filter(Boolean)
       .join(';');
+  }
+
+  function getPaganiniTrailerVideoStyle() {
+    const x = paganiniTrailerVideo.x * sceneScale - cameraX * paganiniTrailerVideo.scrollFactor;
+    const top = viewportHeight - (kitchenConstructionFloorTopY - paganiniTrailerVideo.y) * sceneScale;
+
+    return [
+      `width: ${scenePx(paganiniTrailerVideo.width * sceneScale)}`,
+      `height: ${scenePx(paganiniTrailerVideo.height * sceneScale)}`,
+      `top: ${scenePx(top)}`,
+      `transform: translate3d(${scenePx(x)}, 0, 0)`
+    ].join(';');
   }
 
   function getHoveredKitchenSTooltipId() {
@@ -1913,6 +1933,33 @@
   {#if browser}
     <div bind:this={phaserContainerEl} class="kitchen-phaser-layer" aria-hidden="true"></div>
   {/if}
+  {#if isSceneRevealed}
+    <div class="kitchen-video-container" style={getPaganiniTrailerVideoStyle()}>
+      <video
+        class="kitchen-scene-video"
+        src={paganiniTrailerVideo.src}
+        preload="metadata"
+        playsinline
+        controls
+        aria-label="Trailer intervista Stefano Paganini"
+        onpointerdown={(event) => event.stopPropagation()}
+        onclick={(event) => event.stopPropagation()}
+      >
+        <track
+          kind="captions"
+          src="/assets/kitchen/objects/video-paganini-trailer_v2.vtt"
+          srclang="it"
+          label="Italiano"
+          default
+        />
+      </video>
+      <span class="kitchen-video-play-hint" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M9 6.8L17 12L9 17.2V6.8Z" />
+        </svg>
+      </span>
+    </div>
+  {/if}
   {#each kitchenSTooltipAssets as asset (asset.id)}
     <span
       class="kitchen-s-tooltip-hitbox"
@@ -2210,6 +2257,60 @@
 
   .kitchen-stage.is-s-object-hovered:not(.is-dragging) .kitchen-phaser-layer :global(canvas) {
     cursor: var(--kitchen-pointer-cursor) !important;
+  }
+
+  .kitchen-video-container {
+    position: absolute;
+    z-index: 6;
+    box-sizing: border-box;
+    display: block;
+    overflow: hidden;
+    border: 2px solid var(--color-text-primary);
+    border-radius: var(--radius-s);
+    background: var(--color-text-primary);
+    box-shadow: 0 14px 26px rgb(42 68 132 / 0.16);
+    pointer-events: auto;
+    will-change: transform;
+  }
+
+  .kitchen-scene-video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: var(--color-text-primary);
+    object-fit: cover;
+    cursor: var(--kitchen-pointer-cursor);
+  }
+
+  .kitchen-video-play-hint {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    display: grid;
+    width: clamp(38px, 4.4vw, 62px);
+    height: clamp(38px, 4.4vw, 62px);
+    place-items: center;
+    border: 2px solid var(--color-surface-page);
+    border-radius: var(--radius-full);
+    background: rgb(42 68 132 / 0.78);
+    color: var(--color-surface-page);
+    opacity: 0.92;
+    pointer-events: none;
+    transform: translate3d(-50%, -50%, 0);
+    transition: opacity 160ms ease, transform 180ms ease;
+  }
+
+  .kitchen-video-play-hint svg {
+    display: block;
+    width: 54%;
+    height: 54%;
+    fill: currentColor;
+  }
+
+  .kitchen-video-container:hover .kitchen-video-play-hint,
+  .kitchen-video-container:focus-within .kitchen-video-play-hint {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.92);
   }
 
   .kitchen-s-tooltip-hitbox {
