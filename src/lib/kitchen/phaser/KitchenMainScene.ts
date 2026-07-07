@@ -83,6 +83,7 @@ function resolveChunkPath(chunk: SceneChunk, version: string) {
 function isPhaserObjectAsset(asset: SceneAsset) {
   if (asset.interactive || asset.kind === 'interactive') return false;
   if (asset.id.startsWith('layer-')) return false;
+  if (asset.id === 'easteregg') return true;
 
   return asset.src.startsWith('kitchen/objects/') || asset.src.startsWith('/assets/kitchen/objects/');
 }

@@ -3,7 +3,7 @@ import objectsPosition from './objects-position-new.json';
 
 export type KitchenChefId = 'carlo';
 
-export const kitchenAssetVersion = '20260624-scene-assets-29';
+export const kitchenAssetVersion = '20260708-kitchen-easteregg-lift-1';
 
 const kitchenTailHeight = 1117;
 const kitchenTailY = -137;
@@ -450,6 +450,16 @@ const kitchenConstructionPlacedAssets: SceneAsset[] = [
   kitchenConstructionObjectAssetFromPosition('mattoni-pila', 'mattoni-pila', 'kitchen/objects/mattoni-pila.png', 18887, 2470, 868, 243)
 ];
 
+const kitchenConstructionEasterEggAsset: SceneAsset = kitchenConstructionObjectAsset(
+  'easteregg',
+  'office-figma/primopiano/easteregg.png',
+  53000,
+  -221,
+  310,
+  1167,
+  kitchenConstructionForegroundObjectZOffset
+);
+
 function kitchenConstructionObjectZOffset(id: string, fallback: number) {
   if (id === 'S-kit-pulizie-a') return fallback - 1;
 
@@ -483,7 +493,8 @@ for (const position of objectsPosition as unknown[]) {
 export const kitchenConstructionObjectAssets: SceneAsset[] = [
   ...kitchenConstructionFloorAssets,
   ...kitchenConstructionPlacedAssets,
-  ...kitchenConstructionAdditionalPlacedAssets
+  ...kitchenConstructionAdditionalPlacedAssets,
+  kitchenConstructionEasterEggAsset
 ];
 
 export const kitchenAssets: SceneAsset[] = [

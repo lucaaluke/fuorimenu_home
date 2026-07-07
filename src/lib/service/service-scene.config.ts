@@ -18,7 +18,7 @@ const serviceLayerSpeed = {
 export const serviceSceneConfig = {
   sceneWidth: 0,
   sceneHeight: serviceSceneHeight,
-  assetVersion: '20260706-service-ascii-assets-1',
+  assetVersion: '20260708-service-easteregg-lift-1',
   layerSpeed: serviceLayerSpeed
 } as const;
 
@@ -114,6 +114,19 @@ export const serviceForegroundAssets: SceneAsset[] = [
     hoverSoundSrc: 'broccaok.mp3',
     hoverSoundVolume: 0.54
   }),
+  {
+    id: 'easteregg',
+    kind: 'static',
+    src: 'office-figma/primopiano/easteregg.png',
+    x: Number((64376 * serviceExportScale).toFixed(2)),
+    y: Number((-221 * serviceExportScale).toFixed(2)),
+    width: Number((310 * serviceExportScale).toFixed(2)),
+    height: Number((1167 * serviceExportScale).toFixed(2)),
+    layer: 'foreground',
+    hoverAnimation: 'pop',
+    hoverPopHeightMultiplier: 1.2,
+    origin: { x: 0.5, y: 1 }
+  },
   serviceLayerAsset('1_lattuga', 66023, 1557, 2057, 1322),
   serviceLayerAsset('1_pollo', 69641, 1557, 2057, 1322),
   serviceLayerAsset('1_calici', 72703, 1703, 1935, 959),

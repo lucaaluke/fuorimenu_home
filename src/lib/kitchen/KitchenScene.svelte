@@ -42,7 +42,10 @@
   } as const;
   const kitchenSTooltipAssets = kitchenConstructionObjectAssets.filter((asset) => {
     const fileName = asset.src.split('/').at(-1) ?? '';
-    return fileName.includes('S_') && asset.id !== '2-S-fornelli-b' && asset.id !== 'S-kit-pulizie-b';
+    return (
+      asset.id === 'easteregg' ||
+      (fileName.includes('S_') && asset.id !== '2-S-fornelli-b' && asset.id !== 'S-kit-pulizie-b')
+    );
   });
   const kitchenSTooltipTextById: Record<string, string> = {
     'S-cassetta-attrezzi':
@@ -112,7 +115,11 @@
     "C'erano grosse difficoltà su Santa Giulia. Il 30 di gennaio era ancora un cantiere, quindi si entrava con l'elmetto col giubbotto catarifrangente; la situazione era veramente drammatica.\nDa dicembre 2025 abbiamo cambiato completamente la strategia per quel sito, perché era un sito che si sapeva che avrebbe avuto delle grosse difficoltà, perché a volte si faceva anche fino a 11.000 spettatori per tre gare al giorno.";
   const kitchenAmbientFadeInDuration = 1.2;
   const kitchenAmbientFadeOutDuration = 0.42;
-  const testimonialAudioVolume = 0.86;
+  const kitchenAmbientSwitchCameraX = 5000;
+  const kitchenAmbientCrossfadeDistance = 480;
+  const constructionAmbientVolume = 1.3;
+  const kitchenBackgroundAmbientVolume = 0.4;
+  const testimonialAudioVolume = 0.7;
   const testimonialAudioFadeInDuration = 0.18;
   const testimonialAudioFadeOutDuration = 0.18;
   const testimonialAudioHandoffFadeOutDuration = 0.16;
@@ -355,6 +362,8 @@
   let hasPlayedToolShedHover = false;
   let hasPlayedStandMixerHover = false;
   let isAmbientAudioStarted = false;
+  let previousKitchenAmbientMix = -1;
+  let previousKitchenAmbientDucked = false;
   let activeTestimonialAudioId = $state<KitchenTestimonialId>();
   let dismissedTestimonialIds = $state<Record<KitchenTestimonialId, boolean>>({
     carlo: false,
@@ -413,9 +422,6 @@
   const testimonialPinnedLeftInset = 80;
   const testimonialDialogueTopInset = $derived((viewportWidth <= 760 ? 88 : 104) + 40);
   const testimonialDialogueGap = 32;
-  const coord = (value: number) => Math.round(value).toString();
-  const coordDecimal = (value: number) => value.toFixed(3);
-  let nearestSceneAsset = $state<{ id: string; distance: number }>();
 
 	  function updatePointerScenePosition(event: PointerEvent) {
 	    if (!stageEl || !sceneScale) return;
@@ -435,7 +441,6 @@
     };
     isPointerOverTestimonialHitbox = isPointerInsideVisibleTestimonial(event);
     kitchenPhaserGame?.setObjectHoverSuppressed(isPointerOverTestimonialHitbox);
-    nearestSceneAsset = getNearestSceneAsset();
     setHoveredKitchenSTooltipId(getHoveredKitchenSTooltipId());
 	  }
 
@@ -600,26 +605,6 @@
 
     return style.join(';');
 	  }
-
-  function getNearestSceneAsset() {
-    if (!hasPointerScenePosition || isPointerOverTestimonialHitbox) return undefined;
-
-    let nearest: { id: string; distance: number } | undefined;
-
-    for (const asset of kitchenConstructionObjectAssets) {
-      const x = tailAwareFigmaX(asset.x, asset.isTail, tailStartX) + asset.width / 2;
-      const y = asset.y + asset.height / 2;
-      const layerX = pointerSceneX[asset.layer as keyof typeof pointerSceneX];
-      if (layerX === undefined) continue;
-
-      const distance = Math.hypot(layerX - x, pointerSceneY - y);
-      if (!nearest || distance < nearest.distance) {
-        nearest = { id: asset.id, distance };
-      }
-    }
-
-    return nearest;
-  }
 
   function getPhaserObjectScrollFactor(asset: SceneAsset) {
     if (asset.id.startsWith('2-')) return phaserObjectScrollFactor.middle;
@@ -1285,13 +1270,11 @@
   }
 
   function getKitchenAmbientMix() {
-    if (!viewportWidth) return 0;
-
-    const standMixerCenterX = (6690 + 77) * sceneScale - cameraX * resolvedLayerSpeed.foreground;
-    const fadeStartX = viewportWidth * 0.9;
-    const fadeEndX = viewportWidth * 0.46;
-
-    return clamp((fadeStartX - standMixerCenterX) / (fadeStartX - fadeEndX), 0, 1);
+    return clamp(
+      (cameraX - kitchenAmbientSwitchCameraX) / kitchenAmbientCrossfadeDistance,
+      0,
+      1
+    );
   }
 
   function getKitchenAmbientTargetVolumes() {
@@ -1299,8 +1282,8 @@
     const voiceDuck = activeTestimonialAudioId ? 0.18 : 1;
 
     return {
-      construction: isAudioMuted ? 0 : 0.13 * (1 - mix) * voiceDuck,
-      kitchen: isAudioMuted ? 0 : 0.26 * mix * voiceDuck
+      construction: isAudioMuted ? 0 : constructionAmbientVolume * (1 - mix) * voiceDuck,
+      kitchen: isAudioMuted ? 0 : kitchenBackgroundAmbientVolume * mix * voiceDuck
     };
   }
 
@@ -1369,6 +1352,20 @@
     }
   }
 
+  function syncAmbientAudioVolumes(options: { duration?: number } = {}) {
+    if (!isAmbientAudioStarted || isAudioMuted) return;
+
+    const mix = getKitchenAmbientMix();
+    const isDucked = Boolean(activeTestimonialAudioId);
+    if (Math.abs(mix - previousKitchenAmbientMix) < 0.02 && isDucked === previousKitchenAmbientDucked) {
+      return;
+    }
+
+    previousKitchenAmbientMix = mix;
+    previousKitchenAmbientDucked = isDucked;
+    setAmbientAudioVolumes(options);
+  }
+
   async function startAmbientAudio() {
     if (!isSceneRevealed || isAudioMuted || isAmbientAudioStarted || !constructionAudioEl || !kitchenAmbientAudioEl) {
       return;
@@ -1382,6 +1379,8 @@
     try {
       await Promise.all([constructionAudioEl.play(), kitchenAmbientAudioEl.play()]);
       isAmbientAudioStarted = true;
+      previousKitchenAmbientMix = getKitchenAmbientMix();
+      previousKitchenAmbientDucked = Boolean(activeTestimonialAudioId);
       setAmbientAudioVolumes({ duration: kitchenAmbientFadeInDuration });
     } catch {
       isAmbientAudioStarted = false;
@@ -1403,6 +1402,8 @@
       pendingStops -= 1;
       if (pendingStops > 0) return;
       isAmbientAudioStarted = false;
+      previousKitchenAmbientMix = -1;
+      previousKitchenAmbientDucked = false;
     };
 
     ambientAudioEls.forEach((audio) => {
@@ -1438,6 +1439,12 @@
     pauseAllTestimonialAudioForMute();
     stopAmbientAudio();
     wasAudioMuted = muted;
+  });
+
+  $effect(() => {
+    cameraX;
+    activeTestimonialAudioId;
+    syncAmbientAudioVolumes({ duration: 0.18 });
   });
 
   $effect(() => {
@@ -1892,44 +1899,6 @@
 >
   <SceneProgressBar progress={narrativeProgress} isVisible={isSceneRevealed} ticks={kitchenProgressTicks} />
 
-  <aside class="scene-coordinate-indicator" aria-label="Coordinate scena per posizionamento asset">
-    <div class="coordinate-indicator-title">coordinate scena</div>
-    <dl>
-      <div>
-        <dt>y</dt>
-        <dd>{hasPointerScenePosition ? coord(pointerSceneY) : '...'}</dd>
-      </div>
-      <div>
-        <dt>x bg</dt>
-        <dd>{hasPointerScenePosition ? coord(pointerSceneX.background) : '...'}</dd>
-      </div>
-      <div>
-        <dt>x mid</dt>
-        <dd>{hasPointerScenePosition ? coord(pointerSceneX.middle) : '...'}</dd>
-      </div>
-      <div>
-        <dt>x fg</dt>
-        <dd>{hasPointerScenePosition ? coord(pointerSceneX.foreground) : '...'}</dd>
-      </div>
-      <div>
-        <dt>camera</dt>
-        <dd>{coord(cameraX)}</dd>
-      </div>
-	      <div>
-	        <dt>scale</dt>
-	        <dd>{coordDecimal(sceneScale)}</dd>
-	      </div>
-      <div>
-        <dt>near</dt>
-        <dd>{nearestSceneAsset ? nearestSceneAsset.id : '...'}</dd>
-      </div>
-      <div>
-        <dt>dist</dt>
-        <dd>{nearestSceneAsset ? coord(nearestSceneAsset.distance) : '...'}</dd>
-      </div>
-	    </dl>
-		  </aside>
-
   {#if browser}
     <div bind:this={phaserContainerEl} class="kitchen-phaser-layer" aria-hidden="true"></div>
   {/if}
@@ -1963,11 +1932,21 @@
   {#each kitchenSTooltipAssets as asset (asset.id)}
     <span
       class="kitchen-s-tooltip-hitbox"
+      class:kitchen-easteregg-hitbox={asset.id === 'easteregg'}
       class:is-visible={hoveredKitchenSTooltipId === asset.id}
       style={getKitchenSTooltipStyle(asset)}
       aria-hidden="true"
     >
-      <span class="kitchen-s-tooltip">{kitchenSTooltipTextById[asset.id] ?? 'sample text'}</span>
+      {#if asset.id === 'easteregg'}
+        <span class="kitchen-easteregg-layout" data-node-id="5781:1610">
+          <span class="kitchen-easteregg-copy" data-node-id="5692:12640">
+            Abbiamo intervistato 7 persone, tra <strong>videochiamate</strong> e
+            <strong>incontri</strong> sul posto
+          </span>
+        </span>
+      {:else}
+        <span class="kitchen-s-tooltip">{kitchenSTooltipTextById[asset.id] ?? 'sample text'}</span>
+      {/if}
     </span>
   {/each}
   {#if !isSceneRevealed}
@@ -2378,61 +2357,58 @@
     transform: translate3d(-50%, 0, 0);
   }
 
-	  .scene-coordinate-indicator {
-    position: fixed;
-    z-index: 130;
-    top: calc(var(--layout-page-gutter) + 82px);
-    right: var(--layout-page-gutter);
-    min-width: 154px;
-    padding: 10px 12px 11px;
-    border: 2px solid var(--color-border-primary);
-    border-radius: var(--radius-s);
-    background: rgb(248 243 233 / 0.9);
-    color: var(--color-text-primary);
-    box-shadow: 0 8px 18px rgb(var(--shadow-brand-rgb) / 0.12);
-    font-family: var(--font-text);
+  .kitchen-easteregg-hitbox {
+    z-index: 8;
+  }
+
+  .kitchen-easteregg-layout {
+    position: absolute;
+    z-index: 1;
+    top: calc(100% + 8px);
+    left: 50%;
+    display: block;
+    box-sizing: border-box;
+    width: min(285px, calc(100vw - 48px));
+    height: 183px;
+    color: #2a4385;
+    font-family: "JetBrains Mono", var(--font-text);
+    font-size: 16px;
+    font-style: italic;
+    font-weight: 400;
+    line-height: 1.25;
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate3d(-50%, 10px, 0);
+    transition:
+      opacity 110ms ease,
+      transform 130ms cubic-bezier(0.16, 1, 0.3, 1),
+      visibility 0s linear 110ms;
     pointer-events: none;
-    user-select: none;
   }
 
-  .coordinate-indicator-title {
-    margin-bottom: 6px;
-    font-size: 10px;
+  .kitchen-easteregg-copy {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 4px 6px;
+    border-radius: var(--radius-s);
+    background: var(--color-surface-page);
+    word-break: break-word;
+  }
+
+  .kitchen-easteregg-copy strong {
     font-weight: 700;
-    line-height: 1;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
   }
 
-  .scene-coordinate-indicator dl {
-    display: grid;
-    gap: 4px;
-    margin: 0;
-  }
-
-  .scene-coordinate-indicator div {
-    display: grid;
-    grid-template-columns: 54px 1fr;
-    align-items: baseline;
-    gap: 8px;
-  }
-
-  .scene-coordinate-indicator dt,
-  .scene-coordinate-indicator dd {
-    margin: 0;
-    font-size: 12px;
-    line-height: 1.1;
-  }
-
-  .scene-coordinate-indicator dt {
-    font-weight: 600;
-    opacity: 0.68;
-  }
-
-  .scene-coordinate-indicator dd {
-    font-variant-numeric: tabular-nums;
-    font-weight: 800;
-    text-align: right;
+  .kitchen-easteregg-hitbox.is-visible .kitchen-easteregg-layout {
+    opacity: 1;
+    visibility: visible;
+    transform: translate3d(-50%, 0, 0);
+    transition-delay: 240ms, 240ms, 0s;
   }
 
   .parallax-layer,
@@ -3681,27 +3657,6 @@
   }
 
   @media (max-width: 760px) {
-    .scene-coordinate-indicator {
-      top: calc(var(--layout-page-gutter-mobile) + 74px);
-      right: var(--layout-page-gutter-mobile);
-      min-width: 132px;
-      padding: 8px 9px;
-    }
-
-    .coordinate-indicator-title {
-      font-size: 9px;
-    }
-
-    .scene-coordinate-indicator div {
-      grid-template-columns: 48px 1fr;
-      gap: 6px;
-    }
-
-    .scene-coordinate-indicator dt,
-    .scene-coordinate-indicator dd {
-      font-size: 11px;
-    }
-
     .speech-bubble {
       left: 50%;
       top: var(--speech-bubble-top, calc(var(--layout-topbar-height-mobile) + 40px));

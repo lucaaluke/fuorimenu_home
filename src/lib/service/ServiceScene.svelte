@@ -49,7 +49,6 @@
   let isAmbientAudioStarted = false;
   let serviceAmbientFadeFrame: number | undefined;
   let shouldResumeServiceAudioFromMutedPage = false;
-  let nearestSceneAsset = $state<{ id: string; distance: number }>();
   let hoveredServiceAssetId = $state<string | undefined>();
   let carloServiceAudioEl: HTMLAudioElement;
   let isCarloServiceAudioActive = $state(false);
@@ -128,8 +127,6 @@
       : []
   );
   const scenePx = (value: number) => px(value, 2);
-  const coord = (value: number) => Math.round(value).toString();
-  const coordDecimal = (value: number) => value.toFixed(3);
   const scrollSpaceStyle = $derived(
     `width: ${scenePx(worldWidth)}; height: ${scenePx(viewportHeight)}`
   );
@@ -161,6 +158,7 @@
   const serviceLunchboxAsset = serviceForegroundAssets.find((asset) => asset.id === '1_Lunchbox');
   const serviceLunchboxHoverText =
     'Per gestire allergie e intolleranze alimentari, il servizio prevede sempre alternative dedicate';
+  const serviceEasterEggAsset = serviceForegroundAssets.find((asset) => asset.id === 'easteregg');
   const serviceAmbientVolume = 0.28;
   const serviceAmbientDuckedVolume = 0.1;
   const serviceAmbientFadeInDuration = 1.2;
@@ -1141,30 +1139,8 @@
       middle: (localX + cameraX * resolvedLayerSpeed.middle) / sceneScale,
       foreground: (localX + cameraX * resolvedLayerSpeed.foreground) / sceneScale
     };
-    nearestSceneAsset = getNearestSceneAsset();
     hoveredServiceAssetId = getHoveredServiceAssetId();
     servicePhaserGame?.setHoveredAssetId(hoveredServiceAssetId);
-  }
-
-  function getNearestSceneAsset() {
-    if (!hasPointerScenePosition) return undefined;
-
-    let nearest: { id: string; distance: number } | undefined;
-
-    for (const asset of serviceCoordinateAssets) {
-      if (asset.layer !== 'background' && asset.layer !== 'middle' && asset.layer !== 'foreground') continue;
-      const layerX = pointerSceneX[asset.layer];
-
-      const x = asset.x + asset.width / 2;
-      const y = asset.y + asset.height / 2;
-      const distance = Math.hypot(layerX - x, pointerSceneY - y);
-
-      if (!nearest || distance < nearest.distance) {
-        nearest = { id: asset.id, distance };
-      }
-    }
-
-    return nearest;
   }
 
   function getHoveredServiceAssetId() {
@@ -1319,6 +1295,11 @@
   function getServiceLunchboxHotspotStyle() {
     if (!serviceLunchboxAsset) return '';
     return getSceneAssetStyle(serviceLunchboxAsset, cameraX, sceneHeight, sceneScale, resolvedLayerSpeed);
+  }
+
+  function getServiceEasterEggHotspotStyle() {
+    if (!serviceEasterEggAsset) return '';
+    return getSceneAssetStyle(serviceEasterEggAsset, cameraX, sceneHeight, sceneScale, resolvedLayerSpeed);
   }
 
   function syncCarloServiceSpeechReveal() {
@@ -2360,44 +2341,6 @@
     <SceneLoadingProgress progress={phaserLoadingProgress} />
   {/if}
 
-  <aside class="scene-coordinate-indicator" aria-label="Coordinate scena per posizionamento asset">
-    <div class="coordinate-indicator-title">coordinate scena</div>
-    <dl>
-      <div>
-        <dt>y</dt>
-        <dd>{hasPointerScenePosition ? coord(pointerSceneY) : '...'}</dd>
-      </div>
-      <div>
-        <dt>x bg</dt>
-        <dd>{hasPointerScenePosition ? coord(pointerSceneX.background) : '...'}</dd>
-      </div>
-      <div>
-        <dt>x mid</dt>
-        <dd>{hasPointerScenePosition ? coord(pointerSceneX.middle) : '...'}</dd>
-      </div>
-      <div>
-        <dt>x fg</dt>
-        <dd>{hasPointerScenePosition ? coord(pointerSceneX.foreground) : '...'}</dd>
-      </div>
-      <div>
-        <dt>camera</dt>
-        <dd>{coord(cameraX)}</dd>
-      </div>
-      <div>
-        <dt>scale</dt>
-        <dd>{coordDecimal(sceneScale)}</dd>
-      </div>
-      <div>
-        <dt>near</dt>
-        <dd>{nearestSceneAsset ? nearestSceneAsset.id : '...'}</dd>
-      </div>
-      <div>
-        <dt>dist</dt>
-        <dd>{nearestSceneAsset ? coord(nearestSceneAsset.distance) : '...'}</dd>
-      </div>
-    </dl>
-  </aside>
-
   <div class="service-scroll-space" style={scrollSpaceStyle}>
     <div class="service-world" style={worldStyle}>
       {#if serviceMascotAsset}
@@ -2487,6 +2430,24 @@
         >
           <span class="service-mascot-tooltip service-lunchbox-tooltip">
             {serviceLunchboxHoverText}
+          </span>
+        </button>
+      {/if}
+      {#if serviceEasterEggAsset}
+        <button
+          class="service-mascot-hotspot service-easteregg-hotspot"
+          class:is-tooltip-visible={hoveredServiceAssetId === 'easteregg'}
+          type="button"
+          aria-label="Easter egg servizio"
+          style={getServiceEasterEggHotspotStyle()}
+          onpointerdown={(event) => event.stopPropagation()}
+          onclick={(event) => event.stopPropagation()}
+        >
+          <span class="service-easteregg-layout" data-node-id="5781:1606">
+            <span class="service-easteregg-copy" data-node-id="5695:4573">
+              Per creare questo sito abbiamo usato una tecnologia nata per i
+              <strong>videogiochi</strong>, chiamata Phaser
+            </span>
           </span>
         </button>
       {/if}
@@ -3079,66 +3040,6 @@
     pointer-events: auto;
   }
 
-  .scene-coordinate-indicator {
-    position: fixed;
-    z-index: 130;
-    top: calc(var(--layout-page-gutter) + 82px);
-    right: var(--layout-page-gutter);
-    min-width: 154px;
-    padding: 10px 12px 11px;
-    border: 2px solid var(--color-border-primary);
-    border-radius: var(--radius-s);
-    background: rgb(248 243 233 / 0.9);
-    color: var(--color-text-primary);
-    box-shadow: 0 8px 18px rgb(var(--shadow-brand-rgb) / 0.12);
-    font-family: var(--font-text);
-    pointer-events: none;
-    user-select: none;
-  }
-
-  .coordinate-indicator-title {
-    margin-bottom: 6px;
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .scene-coordinate-indicator dl {
-    display: grid;
-    gap: 4px;
-    margin: 0;
-  }
-
-  .scene-coordinate-indicator div {
-    display: grid;
-    grid-template-columns: 54px 1fr;
-    align-items: baseline;
-    gap: 8px;
-  }
-
-  .scene-coordinate-indicator dt,
-  .scene-coordinate-indicator dd {
-    margin: 0;
-    font-size: 12px;
-    line-height: 1.1;
-  }
-
-  .scene-coordinate-indicator dt {
-    font-weight: 600;
-    opacity: 0.68;
-  }
-
-  .scene-coordinate-indicator dd {
-    overflow: hidden;
-    font-variant-numeric: tabular-nums;
-    font-weight: 800;
-    text-align: right;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .service-scroll-space {
     position: relative;
     min-width: 100%;
@@ -3263,6 +3164,53 @@
     width: min(460px, calc(100vw - 48px));
   }
 
+  .service-easteregg-hotspot {
+    z-index: 8;
+  }
+
+  .service-easteregg-layout {
+    position: absolute;
+    z-index: 4;
+    top: calc(100% + 8px);
+    left: 50%;
+    display: block;
+    box-sizing: border-box;
+    width: min(285px, calc(100vw - 48px));
+    height: 182px;
+    color: #2a4385;
+    font-family: "JetBrains Mono", var(--font-text);
+    font-size: 16px;
+    font-style: italic;
+    font-weight: 400;
+    line-height: 1.25;
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate3d(-50%, 10px, 0);
+    transition:
+      opacity 110ms ease,
+      transform 130ms cubic-bezier(0.16, 1, 0.3, 1),
+      visibility 0s linear 110ms;
+    pointer-events: none;
+  }
+
+  .service-easteregg-copy {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 4px 6px;
+    border-radius: var(--radius-s);
+    background: var(--color-surface-page);
+    word-break: break-word;
+  }
+
+  .service-easteregg-copy strong {
+    font-weight: 700;
+  }
+
   .service-mascot-hotspot:hover .service-mascot-tooltip,
   .service-mascot-hotspot:focus-visible .service-mascot-tooltip,
   .service-mascot-hotspot.is-tooltip-visible .service-mascot-tooltip {
@@ -3270,6 +3218,15 @@
     visibility: visible;
     transform: translate3d(-50%, 0, 0);
     transition-delay: 0s;
+  }
+
+  .service-easteregg-hotspot:hover .service-easteregg-layout,
+  .service-easteregg-hotspot:focus-visible .service-easteregg-layout,
+  .service-easteregg-hotspot.is-tooltip-visible .service-easteregg-layout {
+    opacity: 1;
+    visibility: visible;
+    transform: translate3d(-50%, 0, 0);
+    transition-delay: 240ms, 240ms, 0s;
   }
 
   .service-chef-button:focus-visible {
@@ -3599,26 +3556,4 @@
     }
   }
 
-  @media (max-width: 760px) {
-    .scene-coordinate-indicator {
-      top: calc(var(--layout-page-gutter-mobile) + 74px);
-      right: var(--layout-page-gutter-mobile);
-      min-width: 132px;
-      padding: 8px 9px;
-    }
-
-    .coordinate-indicator-title {
-      font-size: 9px;
-    }
-
-    .scene-coordinate-indicator div {
-      grid-template-columns: 48px 1fr;
-      gap: 6px;
-    }
-
-    .scene-coordinate-indicator dt,
-    .scene-coordinate-indicator dd {
-      font-size: 11px;
-    }
-  }
 </style>
