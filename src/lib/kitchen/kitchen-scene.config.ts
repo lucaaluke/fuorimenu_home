@@ -3,7 +3,7 @@ import objectsPosition from './objects-position-new.json';
 
 export type KitchenChefId = 'carlo';
 
-export const kitchenAssetVersion = '20260624-scene-assets-28';
+export const kitchenAssetVersion = '20260624-scene-assets-29';
 
 const kitchenTailHeight = 1117;
 const kitchenTailY = -137;

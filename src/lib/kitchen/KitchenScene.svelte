@@ -59,7 +59,6 @@
     '2-S-fornelli-a':
       'Si devono gestire bene i tempi di preparazione e i tempi del servizio per non accavallare le cose.'
   };
-	  const titleLetters = title.split('');
   const initialKitchenState: KitchenControllerState = {
     cameraX: 0,
     targetCameraX: 0,
@@ -82,8 +81,6 @@
     minFactor: 0.68,
     zoneBeforeDisappearPx: 350
   };
-  const firstKitchenDialogueStartCameraX = 600;
-  const finalKitchenDialogueEndOffsetPx = 600;
   const tailStartX = 23600;
   const carloSpeech =
     "C'erano grosse difficoltà su Santa Giulia. Il 30 di gennaio era ancora un cantiere, quindi si entrava con l'elmetto col giubbotto catarifrangente; la situazione era veramente drammatica.\nDa dicembre 2025 abbiamo cambiato completamente la strategia per quel sito, perché era un sito che si sapeva che avrebbe avuto delle grosse difficoltà, perché a volte si faceva anche fino a 11.000 spettatori per tre gare al giorno.";
@@ -94,6 +91,12 @@
   const testimonialAudioHandoffFadeOutDuration = 0;
   const faustoSecondAudioPauseMs = 700;
   const faustoSecondAudioStartTime = 25.9;
+  const kitchenDialogueCameraRanges = {
+    carlo: { enter: 600, dialogueStart: 600, exit: 4700 },
+    paganini: { enter: 4900, dialogueStart: 4900, exit: 7500 },
+    fausto: { enter: 8700, dialogueStart: 8700, exit: 15700 },
+    future: { enter: 15900, dialogueStart: 15900, exit: 19300 }
+  } as const;
   const faustoSecondSpeech =
     'Io avevo 8 chef, quindi uno per ogni sito, con cui avevo più contatti diretti. Ogni chef aveva questa sua brigata in base alla grandezza del luogo dove operava. Brunico aveva uno chef, due sous-chef e 15 ragazzi.';
   type KitchenTestimonialId = 'carlo' | 'paganini' | 'fausto';
@@ -128,6 +131,7 @@
       audioSrc: '/sound/carlo.mp3',
       enterProgress: 0.02,
       exitProgress: 0.155,
+      dialogueVisibleThreshold: 0.16,
       imageAspectRatio: 565 / 185,
       imageAlt: '',
       imageSrc: '/assets/npc_CarloZarri_alt1.svg',
@@ -147,6 +151,7 @@
       audioSrc: '/sound/stefano.mp3',
       enterProgress: 0.168,
       exitProgress: 0.235,
+      dialogueVisibleThreshold: 0.16,
       imageAspectRatio: 519 / 283,
       imageAlt: '',
       imageSrc: '/images/stefano-paganini-figma.svg',
@@ -190,10 +195,7 @@
   const carloTestimonial = kitchenTestimonials[0];
   const paganiniTestimonial = kitchenTestimonials[1];
   const faustoTestimonial = kitchenTestimonials[2];
-  const kitchenProgressTicks = $derived([
-    getTestimonialEnterProgress(paganiniTestimonial),
-    getTestimonialEnterProgress(faustoTestimonial)
-  ]);
+  const kitchenProgressTicks = $derived(getKitchenProgressTicks());
   const testimonialAudioState: Record<
     KitchenTestimonialId,
     {
@@ -377,14 +379,37 @@
     return index >= 0 ? kitchenTestimonials[index + 1] : undefined;
   }
 
+  function cameraXToProgress(value: number) {
+    if (maxScrollX <= 0) return 0;
+    return clamp(value / maxScrollX, 0, 1);
+  }
+
+  function getKitchenProgressTicks() {
+    if (maxScrollX <= 0) return [];
+
+    return [
+      cameraXToProgress(kitchenDialogueCameraRanges.paganini.dialogueStart),
+      cameraXToProgress(kitchenDialogueCameraRanges.fausto.dialogueStart),
+      cameraXToProgress(kitchenDialogueCameraRanges.future.dialogueStart)
+    ];
+  }
+
+  function getTestimonialCameraRange(testimonial: KitchenTestimonial) {
+    return kitchenDialogueCameraRanges[testimonial.id];
+  }
+
   function getTestimonialEnterProgress(testimonial: KitchenTestimonial) {
-    if (testimonial.id !== 'carlo' || maxScrollX <= 0) return testimonial.enterProgress;
-    return clamp(firstKitchenDialogueStartCameraX / maxScrollX, 0, 1);
+    const range = getTestimonialCameraRange(testimonial);
+    if (!range) return testimonial.enterProgress;
+
+    return cameraXToProgress(range.enter);
   }
 
   function getTestimonialExitProgress(testimonial: KitchenTestimonial) {
-    if (testimonial.id !== 'fausto' || maxScrollX <= 0) return testimonial.exitProgress;
-    return clamp((maxScrollX - finalKitchenDialogueEndOffsetPx) / maxScrollX, 0, 1);
+    const range = getTestimonialCameraRange(testimonial);
+    if (!range) return testimonial.exitProgress;
+
+    return cameraXToProgress(Math.max(range.exit, range.enter + viewportWidth * 0.32));
   }
 
   function isTestimonialAudioUnfinished(testimonial: KitchenTestimonial) {
@@ -432,12 +457,13 @@
   }
 
   function getTitleStyle() {
+    const titleFontSize = Math.min(180 * sceneScale, Math.max(56, (viewportWidth - 48) / 4.55));
     const topbarGutter = viewportWidth <= 760 ? 24 : 80;
 
     return [
       `left: ${scenePx(topbarGutter - cameraX * resolvedLayerSpeed.title)}`,
       `top: ${scenePx(viewportHeight / 2 - 132 * sceneScale)}`,
-      `font-size: ${scenePx(180 * sceneScale)}`
+      `font-size: ${scenePx(titleFontSize)}`
     ].join(';');
   }
 
@@ -603,12 +629,25 @@
     return getRawTestimonialPresence(testimonial);
   }
 
+  function isCameraInTestimonialDialogueRange(testimonial: KitchenTestimonial) {
+    const range = getTestimonialCameraRange(testimonial);
+    if (!range) return true;
+
+    return cameraX >= range.dialogueStart && cameraX <= range.exit;
+  }
+
   function isTestimonialInDialogueRange(testimonial: KitchenTestimonial) {
-    return getRawTestimonialPresence(testimonial) > (testimonial.dialogueVisibleThreshold ?? 0.94);
+    return (
+      isCameraInTestimonialDialogueRange(testimonial) &&
+      getRawTestimonialPresence(testimonial) > (testimonial.dialogueVisibleThreshold ?? 0.94)
+    );
   }
 
   function isTestimonialDialogueVisible(testimonial: KitchenTestimonial) {
-    return getTestimonialPresence(testimonial) > (testimonial.dialogueVisibleThreshold ?? 0.94);
+    return (
+      isCameraInTestimonialDialogueRange(testimonial) &&
+      getTestimonialPresence(testimonial) > (testimonial.dialogueVisibleThreshold ?? 0.94)
+    );
   }
 
   function getTestimonialBubbleWidth() {
@@ -767,6 +806,27 @@
     return clamp(mutedTestimonialPageIndex[testimonial.id], 0, Math.max(pages.length - 1, 0));
   }
 
+  function getVisibleTestimonialPageIndex(testimonial: KitchenTestimonial) {
+    if (isAudioMuted) return getMutedTestimonialPageIndex(testimonial);
+
+    const pages = getTestimonialSpeechPages(testimonial);
+    if (!testimonial.revealSpeechWithAudio || pages.length <= 1) return 0;
+
+    const spokenLength = Math.ceil(
+      pages.join(' ').length * testimonialRevealProgress[testimonial.id]
+    );
+    let pageStart = 0;
+
+    for (let index = 0; index < pages.length; index += 1) {
+      const page = pages[index];
+      const pageEnd = pageStart + page.length;
+      if (spokenLength <= pageEnd || index === pages.length - 1) return index;
+      pageStart = pageEnd + 1;
+    }
+
+    return 0;
+  }
+
   function getMutedTestimonialResumeInfo(testimonial: KitchenTestimonial) {
     const pages = paginateTestimonialSpeech(getMutedResumeSpeech(testimonial));
     const pageIndex = clamp(mutedTestimonialPageIndex[testimonial.id], 0, Math.max(pages.length - 1, 0));
@@ -886,6 +946,11 @@
 
   function getHighlightedSpeech(testimonial: KitchenTestimonial) {
     return getCurrentSpeechPageInfo(testimonial).highlightedSpeech;
+  }
+
+  function getPendingSpeech(testimonial: KitchenTestimonial) {
+    const { highlightedSpeech, speech } = getCurrentSpeechPageInfo(testimonial);
+    return speech.slice(highlightedSpeech.length);
   }
 
   function isSpeechHighlightedWithAudio(testimonial: KitchenTestimonial) {
@@ -1848,6 +1913,10 @@
   {#if !isSceneRevealed}
     <SceneLoadingProgress progress={phaserLoadingProgress} />
   {/if}
+
+  {#if isSceneRevealed}
+    <h1 class="scene-title" style={getTitleStyle()} aria-label="Cucina">Cucina</h1>
+  {/if}
 		
   {#if showLegacyKitchenOverlays}
 	  {#each kitchenAssets as asset (asset.id)}
@@ -1887,13 +1956,6 @@
       </button>
 	    {/if}
 	  {/each}
-
-  {#if isSceneRevealed}
-    <h1 class="scene-title" style={getTitleStyle()} aria-label="Cucina">
-      {#each titleLetters as letter, index}
-        <span style={`--letter-delay: ${280 + index * 70}ms`} aria-hidden="true">{letter}</span>
-      {/each}
-    </h1>
   {/if}
 
   {#each kitchenTestimonials as testimonial (testimonial.id)}
@@ -1910,14 +1972,75 @@
       onkeydown={(event) => onTestimonialKeydown(event, testimonial)}
     >
       <span class="speech-bubble" aria-hidden={!isDialogueVisible} data-node-id="3772:1119">
-        <span class="speech-bubble-copy" aria-label={getVisibleSpeech(testimonial)}>
+        <span class="speech-bubble-copy has-page-controls" aria-label={getVisibleSpeech(testimonial)}>
           {#if isSpeechHighlightedWithAudio(testimonial)}
             <span class="speech-bubble-text speech-bubble-text-audio" aria-hidden="true">
-              <span class="speech-bubble-text-base">{getVisibleSpeech(testimonial)}</span>
-              <span class="speech-bubble-text-progress">{getHighlightedSpeech(testimonial)}</span>
+              <span class="speech-bubble-text-line">
+                <span class="speech-bubble-text-progress">{getHighlightedSpeech(testimonial)}</span><span
+                  class="speech-bubble-text-pending">{getPendingSpeech(testimonial)}</span
+                >
+              </span>
             </span>
           {:else}
             <span class="speech-bubble-text">{getVisibleSpeech(testimonial)}</span>
+          {/if}
+          {#if getTestimonialSpeechPages(testimonial).length > 1}
+            <span
+              class="speech-bubble-page-controls"
+              aria-label={`Dialogo ${getVisibleTestimonialPageIndex(testimonial) + 1} di ${getTestimonialSpeechPages(testimonial).length} per ${testimonial.name}`}
+            >
+              <button
+                class="speech-bubble-page-button speech-bubble-page-button-prev"
+                type="button"
+                aria-label={`Dialogo precedente di ${testimonial.name}`}
+                disabled={!hasPreviousMutedTestimonialPage(testimonial)}
+                onpointerdown={(event) => rewindMutedTestimonialPage(event, testimonial)}
+                onclick={(event) => event.stopPropagation()}
+              >
+                <svg
+                  class="speech-bubble-page-icon"
+                  viewBox="0 0 52 52"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    class="speech-bubble-page-icon-depth"
+                    d="M14.1 22.5 Q8 26 14.1 29.5 L34.9 41.5 Q41 45 41 38 L41 14 Q41 7 34.9 10.5 Z"
+                  />
+                  <path
+                    class="speech-bubble-page-icon-face"
+                    d="M14.1 22.5 Q8 26 14.1 29.5 L34.9 41.5 Q41 45 41 38 L41 14 Q41 7 34.9 10.5 Z"
+                  />
+                </svg>
+              </button>
+              <span class="speech-bubble-page-counter" aria-hidden="true">
+                {getVisibleTestimonialPageIndex(testimonial) + 1}/{getTestimonialSpeechPages(testimonial).length}
+              </span>
+              <button
+                class="speech-bubble-page-button speech-bubble-page-button-next"
+                type="button"
+                aria-label={`Dialogo successivo di ${testimonial.name}`}
+                disabled={!hasNextMutedTestimonialPage(testimonial)}
+                onpointerdown={(event) => advanceMutedTestimonialPage(event, testimonial)}
+                onclick={(event) => event.stopPropagation()}
+              >
+                <svg
+                  class="speech-bubble-page-icon"
+                  viewBox="0 0 52 52"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    class="speech-bubble-page-icon-depth"
+                    d="M37.9 22.5 Q44 26 37.9 29.5 L17.1 41.5 Q11 45 11 38 L11 14 Q11 7 17.1 10.5 Z"
+                  />
+                  <path
+                    class="speech-bubble-page-icon-face"
+                    d="M37.9 22.5 Q44 26 37.9 29.5 L17.1 41.5 Q11 45 11 38 L11 14 Q11 7 17.1 10.5 Z"
+                  />
+                </svg>
+              </button>
+            </span>
           {/if}
         </span>
         <span class="speech-bubble-meta" aria-label={testimonial.metaLabel}>
@@ -1925,36 +2048,11 @@
             <span>{testimonial.rolePrefix}</span>
             <strong>{testimonial.name}</strong>
           </span>
-          {#if isAudioMuted && getTestimonialSpeechPages(testimonial).length > 1}
-            <span class="speech-bubble-page-controls" aria-label="Navigazione testo">
-              <button
-                class="speech-bubble-page-button"
-                type="button"
-                aria-label={`Indietro nel testo di ${testimonial.name}`}
-                disabled={!hasPreviousMutedTestimonialPage(testimonial)}
-                onpointerdown={(event) => rewindMutedTestimonialPage(event, testimonial)}
-                onclick={(event) => event.stopPropagation()}
-              >
-                ind
-              </button>
-              <button
-                class="speech-bubble-page-button"
-                type="button"
-                aria-label={`Avanti nel testo di ${testimonial.name}`}
-                disabled={!hasNextMutedTestimonialPage(testimonial)}
-                onpointerdown={(event) => advanceMutedTestimonialPage(event, testimonial)}
-                onclick={(event) => event.stopPropagation()}
-              >
-                av
-              </button>
-            </span>
-          {/if}
         </span>
       </span>
       <img src={testimonial.imageSrc} alt={testimonial.imageAlt} draggable="false" />
     </div>
   {/each}
-  {/if}
 </section>
 
 <audio bind:this={toolShedAudioEl} src="/sound/toolbox.mp3" preload="auto"></audio>
@@ -2277,21 +2375,17 @@
     color: var(--color-text-primary);
     font-family: var(--font-display);
     font-weight: 700;
-    line-height: 0.86;
+    line-height: 1.2;
+    opacity: 0;
     pointer-events: none;
     transform: translate3d(0, -50%, 0);
+    transform-origin: center center;
     white-space: nowrap;
+    will-change: transform;
   }
 
-  .scene-title span {
-    display: inline-block;
-    opacity: 0;
-    transform: scale(0.82);
-    transform-origin: 50% 50%;
-  }
-
-  .kitchen-stage.is-loaded .scene-title span {
-    animation: titleLetterIn 360ms cubic-bezier(0.22, 1, 0.36, 1) var(--letter-delay, 0ms) forwards;
+  .kitchen-stage.is-loaded .scene-title {
+    animation: titleIn 420ms cubic-bezier(0.22, 1, 0.36, 1) 220ms forwards;
   }
 
   .chef-button {
@@ -2339,7 +2433,7 @@
     height: calc(var(--speech-bubble-copy-height, 132px) + var(--speech-bubble-meta-height, 34px) - 2px);
     color: var(--color-text-primary);
     font-family: var(--font-text);
-    text-align: left;
+    text-align: right;
     opacity: 0;
     transform: translate3d(calc(-50% + var(--speech-bubble-offset-x, 0px)), 18px, 0);
     transition:
@@ -2386,32 +2480,50 @@
     white-space: pre-line;
     overflow: hidden;
     word-break: break-word;
+    text-align: left;
     -webkit-clip-path: inset(100% 0 0 0);
     clip-path: inset(100% 0 0 0);
     will-change: clip-path;
+  }
+
+  .speech-bubble-copy.has-page-controls {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 14px 20px 18px;
   }
 
   .speech-bubble-text {
     position: relative;
     display: block;
     width: 100%;
+    text-align: left;
+  }
+
+  .speech-bubble-copy.has-page-controls .speech-bubble-text {
+    flex: 1 1 auto;
+    display: block;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .speech-bubble-text-audio {
     color: color-mix(in srgb, var(--color-text-primary) 38%, var(--color-surface-page));
   }
 
-  .speech-bubble-text-base {
+  .speech-bubble-text-line {
     display: block;
   }
 
   .speech-bubble-text-progress {
-    position: absolute;
-    inset: 0;
-    display: block;
     color: var(--color-text-primary);
     white-space: inherit;
-    pointer-events: none;
+  }
+
+  .speech-bubble-text-pending {
+    color: color-mix(in srgb, var(--color-text-primary) 38%, var(--color-surface-page));
+    white-space: inherit;
   }
 
   .speech-bubble-meta {
@@ -2419,6 +2531,7 @@
     z-index: 1;
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     gap: 8px;
     flex: 0 0 var(--speech-bubble-meta-height, 34px);
     height: var(--speech-bubble-meta-height, 34px);
@@ -2431,6 +2544,7 @@
     font-size: clamp(10px, 0.8vw, 12px);
     font-weight: 700;
     line-height: 1.5;
+    text-align: left;
     white-space: nowrap;
     overflow: hidden;
     -webkit-clip-path: inset(100% 0 0 0);
@@ -2441,38 +2555,78 @@
   .speech-bubble-meta-label {
     display: flex;
     align-items: center;
+    justify-content: flex-start;
+    width: 100%;
     min-width: 0;
     overflow: hidden;
+    text-align: left;
     text-overflow: ellipsis;
   }
 
   .speech-bubble-page-controls {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 4px;
-    margin-left: auto;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    flex: 0 0 28px;
+    min-height: 24px;
+    margin-top: auto;
+    color: var(--color-text-primary);
+    line-height: 1;
     pointer-events: auto;
   }
 
   .speech-bubble-page-button {
-    display: inline-flex;
+    position: relative;
+    display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 26px;
-    height: 20px;
-    padding: 0 5px;
-    border: 1px solid var(--color-surface-page);
-    border-radius: 4px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
     background: transparent;
-    color: var(--color-surface-page);
-    font-family: var(--font-text);
-    font-size: 9px;
-    font-weight: 800;
-    line-height: 1;
+    color: currentColor;
     cursor: var(--kitchen-pointer-cursor);
     transition:
       opacity 140ms ease,
       transform 120ms ease;
+  }
+
+  .speech-bubble-page-icon {
+    display: block;
+    width: 24px;
+    height: 24px;
+    overflow: visible;
+  }
+
+  .speech-bubble-page-icon-depth,
+  .speech-bubble-page-icon-face {
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2.6;
+  }
+
+  .speech-bubble-page-icon-depth {
+    display: none;
+  }
+
+  .speech-bubble-page-icon-face {
+    fill: var(--color-surface-page);
+  }
+
+  .speech-bubble-page-counter {
+    min-width: 34px;
+    color: currentColor;
+    font-family: var(--font-text);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
   }
 
   .speech-bubble-page-button:hover,
@@ -2485,9 +2639,19 @@
     transform: scale(0.88);
   }
 
+  .speech-bubble-page-button:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
   .speech-bubble-page-button:disabled {
-    opacity: 0.38;
     cursor: default;
+    opacity: 0.28;
+  }
+
+  .speech-bubble-page-button:disabled:hover,
+  .speech-bubble-page-button:disabled:focus-visible {
+    transform: none;
   }
 
   .speech-bubble-meta strong {
@@ -3369,10 +3533,15 @@
     }
   }
 
-  @keyframes titleLetterIn {
+  @keyframes titleIn {
+    from {
+      opacity: 0;
+      transform: translate3d(0, -50%, 0) scale(0.9);
+    }
+
     to {
       opacity: 1;
-      transform: translate3d(0, 0, 0) scale(1);
+      transform: translate3d(0, -50%, 0) scale(1);
     }
   }
 
@@ -3461,9 +3630,9 @@
     .stove-top-layer img,
     .stove-top-layer:hover img,
     .stove-top-layer:focus-visible img,
-    .scene-title span {
+    .scene-title {
       opacity: 1;
-      transform: none;
+      transform: translate3d(0, -50%, 0);
       animation: none;
     }
 
