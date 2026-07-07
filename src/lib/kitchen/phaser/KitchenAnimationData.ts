@@ -7,9 +7,10 @@ type KitchenAnimationSprite = {
 };
 
 const S_CONO_ASSET_ID = 'S-cono';
-const S_CONO_JUMP_INTERVAL_MS = 2000;
 const S_CONO_JUMP_HEIGHT = 28;
 const S_CONO_SHAKE_DISTANCE = 3;
+const S_CONO_IDLE_WOBBLE_ANGLE = 2.1;
+const S_CONO_IDLE_WOBBLE_DURATION_MS = 950;
 const S_TOOLBOX_ASSET_ID = 'S-cassetta-attrezzi';
 const S_TOOLBOX_SHINE_INTERVAL_MS = 1600;
 const S_TOOLBOX_SHINE_DURATION_MS = 1060;
@@ -24,6 +25,8 @@ const S_PLANETARIA_ASSET_ID = 'S-planetaria';
 const S_PLANETARIA_SHAKE_ANGLE = 1.4;
 const S_PLANETARIA_SHAKE_STEP_DURATION_MS = 55;
 const S_PLANETARIA_SHAKE_PAUSE_MS = 260;
+const S_PLANETARIA_HOVER_JUMP_HEIGHT = 18;
+const S_PLANETARIA_HOVER_JUMP_DURATION_MS = 520;
 const S_COFFEE_MACHINE_ASSET_ID = 'S-macchinetta-caffe';
 const S_COFFEE_DRIP_INTERVAL_MS = 650;
 const S_COFFEE_DRIP_FALL_DISTANCE = 34;
@@ -36,25 +39,39 @@ const S_COFFEE_DRIP_COLOR = 0x2b160c;
 const S_COFFEE_DRIP_ALPHA = 0.9;
 const S_COFFEE_HOVER_JUMP_HEIGHT = 16;
 const S_COFFEE_HOVER_JUMP_DURATION_MS = 560;
+const S_COFFEE_HOVER_SHAKE_DISTANCE = 3;
+const S_COFFEE_HOVER_SHAKE_ANGLE = 4.2;
 const S_KIT_PULIZIE_A_ASSET_ID = 'S-kit-pulizie-a';
 const S_KIT_PULIZIE_A_JUMP_HEIGHT = 18;
 const S_KIT_PULIZIE_A_JUMP_DURATION_MS = 300;
 const S_KIT_PULIZIE_A_JUMP_STAGGER_MS = 150;
 const S_KIT_PULIZIE_A_SEQUENCE_INTERVAL_MS = 1700;
+const S_KIT_PULIZIE_A_HOVER_JUMP_HEIGHT = 34;
+const S_KIT_PULIZIE_A_HOVER_JUMP_DURATION_MS = 680;
+const S_KIT_PULIZIE_A_HOVER_WOBBLE_ANGLE = 5.2;
+const S_KIT_PULIZIE_A_HOVER_STAGGER_MS = 55;
 const S_KIT_PULIZIE_A_PARTS = [
-  { key: 'left', x: 0, y: 0, width: 116, height: 297 },
-  { key: 'middle', x: 129, y: 126, width: 89, height: 132 },
-  { key: 'right', x: 262, y: 36, width: 103, height: 261 }
+  { key: 'left', x: 0, y: 0, width: 116, height: 297, wobbleSeed: 0.2 },
+  { key: 'middle', x: 129, y: 126, width: 89, height: 132, wobbleSeed: 0.65 },
+  { key: 'right', x: 262, y: 36, width: 103, height: 261, wobbleSeed: 0.42 }
 ] as const;
 const S_ALARM_CLOCK_ASSET_ID = 'S-sveglia';
 const S_ALARM_CLOCK_WOBBLE_ANGLE = 5;
 const S_ALARM_CLOCK_WOBBLE_STEP_DURATION_MS = 90;
 const S_ALARM_CLOCK_WOBBLE_PAUSE_MS = 900;
+const S_ALARM_CLOCK_HOVER_JUMP_HEIGHT = 14;
+const S_ALARM_CLOCK_HOVER_SHAKE_DISTANCE = 3;
+const S_ALARM_CLOCK_HOVER_SHAKE_ANGLE = 5.4;
+const S_ALARM_CLOCK_HOVER_DURATION_MS = 620;
+const S_STOVE_BASE_ASSET_ID = '2-S-fornelli-a';
 const S_STOVE_CONTROLS_ASSET_ID = '2-S-fornelli-b';
 const S_STOVE_CONTROLS_JUMP_HEIGHT = 8;
 const S_STOVE_CONTROLS_JUMP_DURATION_MS = 360;
 const S_STOVE_CONTROLS_SHAKE_ANGLE = 2;
-const S_STOVE_CONTROLS_SEQUENCE_INTERVAL_MS = 1450;
+const S_STOVE_CONTROLS_SEQUENCE_INTERVAL_MS = 800;
+const S_STOVE_CONTROLS_HOVER_JUMP_HEIGHT = 26;
+const S_STOVE_CONTROLS_HOVER_JUMP_DURATION_MS = 520;
+const S_STOVE_CONTROLS_HOVER_SHAKE_ANGLE = 4.5;
 const S_STOVE_HOOD_ASSET_ID = '2-cappe-fornelli';
 const S_STOVE_HOOD_TOP_STRETCH_HEIGHT = 20;
 const S_STOVE_HOOD_TOP_STRETCH_EXTRA_TOP = 100;
@@ -73,15 +90,12 @@ export function startKitchenSceneAnimations(
   const coffeeMachine = assetSprites.find(({ asset }) => asset.id === S_COFFEE_MACHINE_ASSET_ID)?.sprite;
   const kitPulizieA = assetSprites.find(({ asset }) => asset.id === S_KIT_PULIZIE_A_ASSET_ID)?.sprite;
   const alarmClock = assetSprites.find(({ asset }) => asset.id === S_ALARM_CLOCK_ASSET_ID)?.sprite;
+  const stoveBase = assetSprites.find(({ asset }) => asset.id === S_STOVE_BASE_ASSET_ID)?.sprite;
   const stoveControls = assetSprites.find(({ asset }) => asset.id === S_STOVE_CONTROLS_ASSET_ID)?.sprite;
   const stoveHood = assetSprites.find(({ asset }) => asset.id === S_STOVE_HOOD_ASSET_ID)?.sprite;
 
   if (sCono) {
-    scene.time.addEvent({
-      delay: S_CONO_JUMP_INTERVAL_MS,
-      loop: true,
-      callback: () => playSConoJump(scene, sCono, getSceneScale())
-    });
+    startSConoAnimations(scene, sCono, getSceneScale, isObjectHoverSuppressed);
   }
 
   if (toolbox) {
@@ -90,7 +104,7 @@ export function startKitchenSceneAnimations(
   }
 
   if (planetaria) {
-    startPlanetariaShakeAnimation(scene, planetaria);
+    startPlanetariaAnimations(scene, planetaria, getSceneScale, isObjectHoverSuppressed);
   }
 
   if (coffeeMachine) {
@@ -99,15 +113,21 @@ export function startKitchenSceneAnimations(
   }
 
   if (kitPulizieA) {
-    startKitPulizieAJumpAnimation(scene, kitPulizieA, getSceneScale);
+    startKitPulizieAJumpAnimation(scene, kitPulizieA, getSceneScale, isObjectHoverSuppressed);
   }
 
   if (alarmClock) {
-    startAlarmClockWobbleAnimation(scene, alarmClock);
+    startAlarmClockWobbleAnimation(scene, alarmClock, getSceneScale, isObjectHoverSuppressed);
   }
 
   if (stoveControls) {
-    startStoveControlsJumpShakeAnimation(scene, stoveControls, getSceneScale);
+    startStoveControlsJumpShakeAnimation(
+      scene,
+      stoveControls,
+      getSceneScale,
+      stoveBase,
+      isObjectHoverSuppressed
+    );
   }
 
   if (stoveHood) {
@@ -115,7 +135,54 @@ export function startKitchenSceneAnimations(
   }
 }
 
-function playSConoJump(scene: Phaser.Scene, sprite: Phaser.GameObjects.Sprite, sceneScale: number) {
+function startSConoAnimations(
+  scene: Phaser.Scene,
+  sprite: Phaser.GameObjects.Sprite,
+  getSceneScale: () => number,
+  isObjectHoverSuppressed: () => boolean
+) {
+  let isJumping = false;
+
+  const startIdleWobble = () => {
+    if (!sprite.active || isJumping) return;
+
+    sprite.setAngle(-S_CONO_IDLE_WOBBLE_ANGLE);
+    scene.tweens.add({
+      targets: sprite,
+      angle: S_CONO_IDLE_WOBBLE_ANGLE,
+      duration: S_CONO_IDLE_WOBBLE_DURATION_MS,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1
+    });
+  };
+
+  sprite.setInteractive({ useHandCursor: true });
+  sprite.on('pointerover', () => {
+    if (!sprite.active || isJumping || isObjectHoverSuppressed()) return;
+
+    isJumping = true;
+    scene.tweens.killTweensOf(sprite);
+    sprite.setAngle(0);
+    playSConoJump(scene, sprite, getSceneScale(), () => {
+      isJumping = false;
+      startIdleWobble();
+    });
+  });
+
+  scene.events.once('shutdown', () => {
+    scene.tweens.killTweensOf(sprite);
+  });
+
+  startIdleWobble();
+}
+
+function playSConoJump(
+  scene: Phaser.Scene,
+  sprite: Phaser.GameObjects.Sprite,
+  sceneScale: number,
+  onComplete: () => void
+) {
   if (!sprite.active) return;
 
   const baseX = sprite.x;
@@ -148,6 +215,7 @@ function playSConoJump(scene: Phaser.Scene, sprite: Phaser.GameObjects.Sprite, s
         onComplete: () => {
           sprite.setPosition(baseX, baseY);
           sprite.setAngle(0);
+          onComplete();
         }
       });
     }
@@ -196,11 +264,41 @@ function playToolboxHoverJump(
   });
 }
 
-function startPlanetariaShakeAnimation(scene: Phaser.Scene, sprite: Phaser.GameObjects.Sprite) {
+function startPlanetariaAnimations(
+  scene: Phaser.Scene,
+  sprite: Phaser.GameObjects.Sprite,
+  getSceneScale: () => number,
+  isObjectHoverSuppressed: () => boolean
+) {
+  let isHoverJumping = false;
+  let isHovered = false;
+
   const playShake = () => {
-    if (!sprite.active) return;
+    if (!sprite.active || isHoverJumping || isHovered) return;
     playPlanetariaShake(scene, sprite, playShake);
   };
+
+  sprite.setInteractive({ useHandCursor: true });
+  sprite.on('pointerover', () => {
+    isHovered = true;
+    if (!sprite.active || isHoverJumping || isObjectHoverSuppressed()) return;
+
+    isHoverJumping = true;
+    scene.tweens.killTweensOf(sprite);
+    sprite.setAngle(0);
+    playPlanetariaHoverJump(scene, sprite, getSceneScale(), () => {
+      isHoverJumping = false;
+      if (!isHovered) playShake();
+    });
+  });
+  sprite.on('pointerout', () => {
+    isHovered = false;
+    if (!isHoverJumping) playShake();
+  });
+
+  scene.events.once('shutdown', () => {
+    scene.tweens.killTweensOf(sprite);
+  });
 
   playShake();
 }
@@ -224,29 +322,81 @@ function playPlanetariaShake(
   });
 }
 
-function startAlarmClockWobbleAnimation(scene: Phaser.Scene, sourceSprite: Phaser.GameObjects.Sprite) {
+function playPlanetariaHoverJump(
+  scene: Phaser.Scene,
+  sprite: Phaser.GameObjects.Sprite,
+  sceneScale: number,
+  onComplete: () => void
+) {
+  const baseY = sprite.y;
+  const jumpHeight = Math.max(6, Math.round(S_PLANETARIA_HOVER_JUMP_HEIGHT * sceneScale));
+
+  scene.tweens.killTweensOf(sprite);
+  scene.tweens.add({
+    targets: sprite,
+    y: baseY - jumpHeight,
+    duration: S_PLANETARIA_HOVER_JUMP_DURATION_MS * 0.38,
+    ease: 'Sine.easeOut',
+    yoyo: true,
+    onComplete: () => {
+      sprite.setY(baseY);
+      sprite.setAngle(0);
+      onComplete();
+    }
+  });
+}
+
+function startAlarmClockWobbleAnimation(
+  scene: Phaser.Scene,
+  sourceSprite: Phaser.GameObjects.Sprite,
+  getSceneScale: () => number,
+  isObjectHoverSuppressed: () => boolean
+) {
+  const state = {
+    xOffset: 0,
+    yOffset: 0,
+    angle: 0
+  };
+  let isHoverAnimating = false;
   const wobbleSprite = scene.add.sprite(sourceSprite.x, sourceSprite.y, sourceSprite.texture.key, sourceSprite.frame.name);
   wobbleSprite.setOrigin(0.5, 1);
   wobbleSprite.setScrollFactor(sourceSprite.scrollFactorX, sourceSprite.scrollFactorY);
   wobbleSprite.setDepth(sourceSprite.depth);
+  wobbleSprite.setInteractive({ useHandCursor: true });
   sourceSprite.setVisible(false);
 
   const syncWobbleSprite = () => {
-    wobbleSprite.setPosition(sourceSprite.x + sourceSprite.displayWidth / 2, sourceSprite.y + sourceSprite.displayHeight);
+    wobbleSprite.setPosition(
+      sourceSprite.x + sourceSprite.displayWidth / 2 + state.xOffset,
+      sourceSprite.y + sourceSprite.displayHeight + state.yOffset
+    );
     wobbleSprite.setDisplaySize(sourceSprite.displayWidth, sourceSprite.displayHeight);
     wobbleSprite.setScrollFactor(sourceSprite.scrollFactorX, sourceSprite.scrollFactorY);
     wobbleSprite.setDepth(sourceSprite.depth);
+    wobbleSprite.setAngle(state.angle);
     wobbleSprite.setVisible(sourceSprite.active);
   };
 
   const playWobble = () => {
-    if (!sourceSprite.active || !wobbleSprite.active) return;
-    playAlarmClockWobble(scene, wobbleSprite, playWobble);
+    if (!sourceSprite.active || !wobbleSprite.active || isHoverAnimating) return;
+    playAlarmClockWobble(scene, state, playWobble);
   };
+
+  wobbleSprite.on('pointerover', () => {
+    if (!sourceSprite.active || !wobbleSprite.active || isHoverAnimating || isObjectHoverSuppressed()) return;
+
+    isHoverAnimating = true;
+    scene.tweens.killTweensOf(state);
+    playAlarmClockHoverJumpShake(scene, state, getSceneScale(), () => {
+      isHoverAnimating = false;
+      playWobble();
+    });
+  });
 
   scene.events.on('postupdate', syncWobbleSprite);
   scene.events.once('shutdown', () => {
     scene.events.off('postupdate', syncWobbleSprite);
+    scene.tweens.killTweensOf(state);
     wobbleSprite.destroy();
   });
 
@@ -256,32 +406,114 @@ function startAlarmClockWobbleAnimation(scene: Phaser.Scene, sourceSprite: Phase
 
 function playAlarmClockWobble(
   scene: Phaser.Scene,
-  sprite: Phaser.GameObjects.Sprite,
+  state: { angle: number },
   onComplete: () => void
 ) {
   scene.tweens.add({
-    targets: sprite,
+    targets: state,
     angle: S_ALARM_CLOCK_WOBBLE_ANGLE,
     duration: S_ALARM_CLOCK_WOBBLE_STEP_DURATION_MS,
     ease: 'Sine.easeInOut',
     yoyo: true,
     repeat: 3,
     onComplete: () => {
-      sprite.setAngle(0);
+      state.angle = 0;
       scene.time.delayedCall(S_ALARM_CLOCK_WOBBLE_PAUSE_MS, onComplete);
     }
+  });
+}
+
+function playAlarmClockHoverJumpShake(
+  scene: Phaser.Scene,
+  state: { xOffset: number; yOffset: number; angle: number },
+  sceneScale: number,
+  onComplete: () => void
+) {
+  const jumpHeight = Math.max(5, Math.round(S_ALARM_CLOCK_HOVER_JUMP_HEIGHT * sceneScale));
+  const shakeDistance = Math.max(1, Math.round(S_ALARM_CLOCK_HOVER_SHAKE_DISTANCE * sceneScale));
+
+  state.xOffset = 0;
+  state.yOffset = 0;
+  state.angle = 0;
+  playAlarmClockHoverShakeStep(
+    scene,
+    state,
+    [
+      {
+        xOffset: -shakeDistance,
+        yOffset: -jumpHeight,
+        angle: -S_ALARM_CLOCK_HOVER_SHAKE_ANGLE,
+        duration: S_ALARM_CLOCK_HOVER_DURATION_MS * 0.18
+      },
+      {
+        xOffset: shakeDistance,
+        yOffset: -jumpHeight * 0.62,
+        angle: S_ALARM_CLOCK_HOVER_SHAKE_ANGLE,
+        duration: S_ALARM_CLOCK_HOVER_DURATION_MS * 0.14
+      },
+      {
+        xOffset: -shakeDistance,
+        yOffset: -jumpHeight * 0.42,
+        angle: -S_ALARM_CLOCK_HOVER_SHAKE_ANGLE * 0.72,
+        duration: S_ALARM_CLOCK_HOVER_DURATION_MS * 0.16
+      },
+      {
+        xOffset: shakeDistance * 0.7,
+        yOffset: -jumpHeight * 0.18,
+        angle: S_ALARM_CLOCK_HOVER_SHAKE_ANGLE * 0.42,
+        duration: S_ALARM_CLOCK_HOVER_DURATION_MS * 0.16
+      },
+      {
+        xOffset: 0,
+        yOffset: 0,
+        angle: 0,
+        duration: S_ALARM_CLOCK_HOVER_DURATION_MS * 0.18
+      }
+    ],
+    () => {
+      state.xOffset = 0;
+      state.yOffset = 0;
+      state.angle = 0;
+      onComplete();
+    }
+  );
+}
+
+function playAlarmClockHoverShakeStep(
+  scene: Phaser.Scene,
+  state: { xOffset: number; yOffset: number; angle: number },
+  steps: Array<{ xOffset: number; yOffset: number; angle: number; duration: number }>,
+  onComplete: () => void
+) {
+  const [step, ...remainingSteps] = steps;
+  if (!step) {
+    onComplete();
+    return;
+  }
+
+  scene.tweens.add({
+    targets: state,
+    xOffset: step.xOffset,
+    yOffset: step.yOffset,
+    angle: step.angle,
+    duration: step.duration,
+    ease: 'Sine.easeInOut',
+    onComplete: () => playAlarmClockHoverShakeStep(scene, state, remainingSteps, onComplete)
   });
 }
 
 function startStoveControlsJumpShakeAnimation(
   scene: Phaser.Scene,
   sourceSprite: Phaser.GameObjects.Sprite,
-  getSceneScale: () => number
+  getSceneScale: () => number,
+  triggerSprite: Phaser.GameObjects.Sprite | undefined,
+  isObjectHoverSuppressed: () => boolean
 ) {
   const state = {
     angle: 0,
     jumpOffset: 0
   };
+  let isHoverAnimating = false;
   const animatedSprite = scene.add.sprite(
     sourceSprite.x,
     sourceSprite.y,
@@ -307,9 +539,31 @@ function startStoveControlsJumpShakeAnimation(
   };
 
   const playAnimation = () => {
-    if (!sourceSprite.active || !animatedSprite.active) return;
+    if (!sourceSprite.active || !animatedSprite.active || isHoverAnimating) return;
     playStoveControlsJumpShake(scene, state, getSceneScale(), playAnimation);
   };
+
+  triggerSprite?.setInteractive({ useHandCursor: true });
+  triggerSprite?.on('pointerover', () => {
+    if (!sourceSprite.active || !animatedSprite.active || isHoverAnimating || isObjectHoverSuppressed()) return;
+
+    isHoverAnimating = true;
+    playStoveControlsJumpShake(
+      scene,
+      state,
+      getSceneScale(),
+      () => {
+        isHoverAnimating = false;
+        scene.time.delayedCall(S_STOVE_CONTROLS_SEQUENCE_INTERVAL_MS, playAnimation);
+      },
+      {
+        jumpHeight: S_STOVE_CONTROLS_HOVER_JUMP_HEIGHT,
+        jumpDurationMs: S_STOVE_CONTROLS_HOVER_JUMP_DURATION_MS,
+        shakeAngle: S_STOVE_CONTROLS_HOVER_SHAKE_ANGLE,
+        shakeRepeat: 2
+      }
+    );
+  });
 
   scene.events.on('postupdate', syncAnimatedSprite);
   scene.events.once('shutdown', () => {
@@ -325,9 +579,18 @@ function playStoveControlsJumpShake(
   scene: Phaser.Scene,
   state: { angle: number; jumpOffset: number },
   sceneScale: number,
-  onComplete: () => void
+  onComplete: () => void,
+  options: {
+    jumpHeight?: number;
+    jumpDurationMs?: number;
+    shakeAngle?: number;
+    shakeRepeat?: number;
+  } = {}
 ) {
-  const jumpHeight = Math.max(3, Math.round(S_STOVE_CONTROLS_JUMP_HEIGHT * sceneScale));
+  const jumpHeight = Math.max(3, Math.round((options.jumpHeight ?? S_STOVE_CONTROLS_JUMP_HEIGHT) * sceneScale));
+  const jumpDurationMs = options.jumpDurationMs ?? S_STOVE_CONTROLS_JUMP_DURATION_MS;
+  const shakeAngle = options.shakeAngle ?? S_STOVE_CONTROLS_SHAKE_ANGLE;
+  const shakeRepeat = options.shakeRepeat ?? 1;
 
   state.angle = 0;
   state.jumpOffset = 0;
@@ -335,18 +598,18 @@ function playStoveControlsJumpShake(
   scene.tweens.add({
     targets: state,
     jumpOffset: -jumpHeight,
-    angle: S_STOVE_CONTROLS_SHAKE_ANGLE,
-    duration: S_STOVE_CONTROLS_JUMP_DURATION_MS * 0.36,
+    angle: shakeAngle,
+    duration: jumpDurationMs * 0.36,
     ease: 'Sine.easeOut',
     yoyo: true,
     onComplete: () => {
       scene.tweens.add({
         targets: state,
-        angle: -S_STOVE_CONTROLS_SHAKE_ANGLE,
+        angle: -shakeAngle,
         duration: 85,
         ease: 'Sine.easeInOut',
         yoyo: true,
-        repeat: 1,
+        repeat: shakeRepeat,
         onComplete: () => {
           state.jumpOffset = 0;
           state.angle = 0;
@@ -490,30 +753,87 @@ function playCoffeeHoverJump(
   sceneScale: number,
   onComplete: () => void
 ) {
+  const baseX = sprite.x;
   const baseY = sprite.y;
   const jumpHeight = Math.max(6, Math.round(S_COFFEE_HOVER_JUMP_HEIGHT * sceneScale));
+  const shakeDistance = Math.max(1, Math.round(S_COFFEE_HOVER_SHAKE_DISTANCE * sceneScale));
 
   scene.tweens.killTweensOf(sprite);
-  scene.tweens.add({
-    targets: sprite,
-    y: baseY - jumpHeight,
-    duration: S_COFFEE_HOVER_JUMP_DURATION_MS * 0.38,
-    ease: 'Sine.easeOut',
-    yoyo: true,
-    onComplete: () => {
-      sprite.setY(baseY);
+  playCoffeeHoverShakeStep(
+    scene,
+    sprite,
+    [
+      {
+        x: baseX - shakeDistance,
+        y: baseY - jumpHeight,
+        angle: -S_COFFEE_HOVER_SHAKE_ANGLE,
+        duration: S_COFFEE_HOVER_JUMP_DURATION_MS * 0.18
+      },
+      {
+        x: baseX + shakeDistance,
+        y: baseY - jumpHeight * 0.62,
+        angle: S_COFFEE_HOVER_SHAKE_ANGLE,
+        duration: S_COFFEE_HOVER_JUMP_DURATION_MS * 0.14
+      },
+      {
+        x: baseX - shakeDistance,
+        y: baseY - jumpHeight * 0.42,
+        angle: -S_COFFEE_HOVER_SHAKE_ANGLE * 0.72,
+        duration: S_COFFEE_HOVER_JUMP_DURATION_MS * 0.16
+      },
+      {
+        x: baseX + shakeDistance * 0.7,
+        y: baseY - jumpHeight * 0.18,
+        angle: S_COFFEE_HOVER_SHAKE_ANGLE * 0.42,
+        duration: S_COFFEE_HOVER_JUMP_DURATION_MS * 0.16
+      },
+      {
+        x: baseX,
+        y: baseY,
+        angle: 0,
+        duration: S_COFFEE_HOVER_JUMP_DURATION_MS * 0.18
+      }
+    ],
+    () => {
+      sprite.setPosition(baseX, baseY);
+      sprite.setAngle(0);
       onComplete();
     }
+  );
+}
+
+function playCoffeeHoverShakeStep(
+  scene: Phaser.Scene,
+  sprite: Phaser.GameObjects.Sprite,
+  steps: Array<{ x: number; y: number; angle: number; duration: number }>,
+  onComplete: () => void
+) {
+  const [step, ...remainingSteps] = steps;
+  if (!step) {
+    onComplete();
+    return;
+  }
+
+  scene.tweens.add({
+    targets: sprite,
+    x: step.x,
+    y: step.y,
+    angle: step.angle,
+    duration: step.duration,
+    ease: 'Sine.easeInOut',
+    onComplete: () => playCoffeeHoverShakeStep(scene, sprite, remainingSteps, onComplete)
   });
 }
 
 function startKitPulizieAJumpAnimation(
   scene: Phaser.Scene,
   sourceSprite: Phaser.GameObjects.Sprite,
-  getSceneScale: () => number
+  getSceneScale: () => number,
+  isObjectHoverSuppressed: () => boolean
 ) {
   const sourceImage = sourceSprite.texture.getSourceImage(sourceSprite.frame.name);
   if (!(sourceImage instanceof HTMLImageElement) && !(sourceImage instanceof HTMLCanvasElement)) return;
+  let isHoverAnimating = false;
 
   const parts = S_KIT_PULIZIE_A_PARTS.flatMap((part) => {
     const textureKey = `kitchen-animation-${S_KIT_PULIZIE_A_ASSET_ID}-${part.key}`;
@@ -524,8 +844,9 @@ function startKitPulizieAJumpAnimation(
     sprite.setOrigin(sourceSprite.originX, sourceSprite.originY);
     sprite.setScrollFactor(sourceSprite.scrollFactorX, sourceSprite.scrollFactorY);
     sprite.setDepth(sourceSprite.depth);
+    sprite.setInteractive({ useHandCursor: true });
 
-    return [{ ...part, sprite, jumpOffset: 0 }];
+    return [{ ...part, sprite, jumpOffset: 0, wobbleAngle: 0 }];
   });
 
   if (parts.length === 0) return;
@@ -544,6 +865,7 @@ function startKitPulizieAJumpAnimation(
       part.sprite.setDisplaySize(part.width * scaleX, part.height * scaleY);
       part.sprite.setScrollFactor(sourceSprite.scrollFactorX, sourceSprite.scrollFactorY);
       part.sprite.setDepth(sourceSprite.depth);
+      part.sprite.setAngle(part.wobbleAngle);
       part.sprite.setVisible(sourceSprite.active);
     }
   };
@@ -554,10 +876,32 @@ function startKitPulizieAJumpAnimation(
     for (const part of parts) part.sprite.destroy();
   });
 
+  const playHoverSequence = () => {
+    if (!sourceSprite.active || isHoverAnimating || isObjectHoverSuppressed()) return;
+
+    isHoverAnimating = true;
+    let completedParts = 0;
+    parts.forEach((part, index) => {
+      scene.time.delayedCall(index * S_KIT_PULIZIE_A_HOVER_STAGGER_MS, () => {
+        playKitPulizieAPartHoverJump(scene, part, getSceneScale(), () => {
+          completedParts += 1;
+          if (completedParts === parts.length) {
+            isHoverAnimating = false;
+          }
+        });
+      });
+    });
+  };
+
+  for (const part of parts) {
+    part.sprite.on('pointerover', playHoverSequence);
+  }
+
   const playSequence = () => {
-    if (!sourceSprite.active) return;
+    if (!sourceSprite.active || isHoverAnimating) return;
     parts.forEach((part, index) => {
       scene.time.delayedCall(index * S_KIT_PULIZIE_A_JUMP_STAGGER_MS, () => {
+        if (isHoverAnimating) return;
         playKitPulizieAPartJump(scene, part, getSceneScale());
       });
     });
@@ -598,10 +942,11 @@ function createCroppedTexture(
 
 function playKitPulizieAPartJump(
   scene: Phaser.Scene,
-  part: { jumpOffset: number },
+  part: { jumpOffset: number; wobbleAngle: number },
   sceneScale: number
 ) {
   part.jumpOffset = 0;
+  part.wobbleAngle = 0;
   scene.tweens.killTweensOf(part);
   scene.tweens.add({
     targets: part,
@@ -611,6 +956,53 @@ function playKitPulizieAPartJump(
     yoyo: true,
     onComplete: () => {
       part.jumpOffset = 0;
+      part.wobbleAngle = 0;
+    }
+  });
+}
+
+function playKitPulizieAPartHoverJump(
+  scene: Phaser.Scene,
+  part: { jumpOffset: number; wobbleAngle: number; wobbleSeed: number },
+  sceneScale: number,
+  onComplete: () => void
+) {
+  const jumpHeight = Math.max(10, Math.round(S_KIT_PULIZIE_A_HOVER_JUMP_HEIGHT * sceneScale));
+  const wobbleAngle = S_KIT_PULIZIE_A_HOVER_WOBBLE_ANGLE * (0.82 + part.wobbleSeed * 0.36);
+  const apexDelay = 35 + Math.round(part.wobbleSeed * 70);
+
+  part.jumpOffset = 0;
+  part.wobbleAngle = 0;
+  scene.tweens.killTweensOf(part);
+  scene.tweens.add({
+    targets: part,
+    jumpOffset: -jumpHeight,
+    duration: S_KIT_PULIZIE_A_HOVER_JUMP_DURATION_MS * 0.28,
+    ease: 'Sine.easeOut',
+    onComplete: () => {
+      scene.tweens.add({
+        targets: part,
+        wobbleAngle,
+        delay: apexDelay,
+        duration: 48 + Math.round(part.wobbleSeed * 24),
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: 3,
+        onComplete: () => {
+          scene.tweens.add({
+            targets: part,
+            jumpOffset: 0,
+            wobbleAngle: 0,
+            duration: S_KIT_PULIZIE_A_HOVER_JUMP_DURATION_MS * 0.34,
+            ease: 'Bounce.easeOut',
+            onComplete: () => {
+              part.jumpOffset = 0;
+              part.wobbleAngle = 0;
+              onComplete();
+            }
+          });
+        }
+      });
     }
   });
 }
