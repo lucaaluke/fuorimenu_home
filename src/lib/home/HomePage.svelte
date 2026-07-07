@@ -49,12 +49,16 @@
   let aboutProjectPhaserEl = $state<HTMLElement>();
   let fullInterviewScrollEl = $state<HTMLElement>();
   let fullInterviewScrollbarThumbStyle = $state('height: 100%; transform: translate3d(0, 0, 0);');
-  let aboutProjectTeamLabelStyle = $state('');
+  let aboutProjectTeamGridStyle = $state('');
+  let aboutProjectTeamSlotStyles = $state<string[]>([]);
   let isAboutProjectTeamVisible = $state(false);
   let aboutTransitionId = 0;
   let aboutProjectPhaserHandle: AboutProjectPhaserGameHandle | undefined;
   let aboutProjectResizeObserver: ResizeObserver | undefined;
   let aboutProjectPhaserRequestId = 0;
+  let aboutProjectTargetSlide: 0 | 1 = 0;
+  let aboutProjectWheelLockedUntil = 0;
+  let aboutProjectScrollSnapTimeout: ReturnType<typeof window.setTimeout> | undefined;
   let copiedAboutProjectEmail = $state('');
   let aboutProjectEmailCopyNonce = $state(0);
   let aboutProjectEmailCopyTimeout: ReturnType<typeof window.setTimeout> | undefined;
@@ -227,6 +231,7 @@
       instagramUrl: 'https://www.instagram.com/fraavigevani/'
     }
   ];
+  const aboutProjectTeamAssetNames = ['gerri', 'luke', 'nicol', 'alep', 'tama', 'vigex'] as const;
   const interviewChefs: InterviewChef[] = [
     {
       number: '01',
@@ -1709,30 +1714,84 @@
     aboutProjectResizeObserver = undefined;
     aboutProjectPhaserHandle?.destroy();
     aboutProjectPhaserHandle = undefined;
-    aboutProjectTeamLabelStyle = '';
+    aboutProjectTeamGridStyle = '';
+    aboutProjectTeamSlotStyles = [];
+    if (aboutProjectScrollSnapTimeout) window.clearTimeout(aboutProjectScrollSnapTimeout);
+    aboutProjectScrollSnapTimeout = undefined;
+    aboutProjectWheelLockedUntil = 0;
   }
 
-  function updateAboutProjectTeamLabel(container = aboutProjectPhaserEl) {
+  function syncAboutProjectTeamState(scroller = aboutProjectEl) {
+    if (!scroller) return;
+
+    const teamVisible = scroller.scrollLeft >= scroller.clientWidth * 0.5;
+    isAboutProjectTeamVisible = teamVisible;
+    aboutProjectTargetSlide = teamVisible ? 1 : 0;
+    if (teamVisible) void ensureAboutProjectPhaser();
+  }
+
+  function scrollAboutProjectToSlide(slide: 0 | 1, behavior: ScrollBehavior = 'smooth') {
+    const scroller = aboutProjectEl;
+    if (!scroller) return;
+
+    aboutProjectTargetSlide = slide;
+    isAboutProjectTeamVisible = slide === 1;
+    if (slide === 1) void ensureAboutProjectPhaser();
+    scroller.scrollTo({ left: scroller.clientWidth * slide, behavior });
+  }
+
+  function restoreAboutProjectScroll() {
+    if (aboutView !== 'project') return;
+    void ensureAboutProjectPhaser();
+    scrollAboutProjectToSlide(aboutProjectTargetSlide, 'auto');
+  }
+
+  function updateAboutProjectTeamGrid(container = aboutProjectPhaserEl) {
     if (!container) {
-      aboutProjectTeamLabelStyle = '';
+      aboutProjectTeamGridStyle = '';
+      aboutProjectTeamSlotStyles = [];
       return;
     }
 
     const { width, height } = container.getBoundingClientRect();
-    const projectedGerri = getAboutProjectProjectedRect(aboutProjectAssets, 'gerri', {
+    const viewport = {
       width: Math.max(1, width),
       height: Math.max(1, height)
-    });
+    };
+    const projectedTeamAssets = aboutProjectTeamAssetNames
+      .map((assetName) => getAboutProjectProjectedRect(aboutProjectAssets, assetName, viewport))
+      .filter((rect): rect is NonNullable<typeof rect> => Boolean(rect));
 
-    if (!projectedGerri) {
-      aboutProjectTeamLabelStyle = '';
+    if (projectedTeamAssets.length !== aboutProjectTeamAssetNames.length) {
+      aboutProjectTeamGridStyle = '';
+      aboutProjectTeamSlotStyles = [];
       return;
     }
 
-    const labelGap = clamp(height * 0.028, 14, 26);
-    const labelX = projectedGerri.left + projectedGerri.width * 0.5;
-    const labelY = projectedGerri.top - labelGap;
-    aboutProjectTeamLabelStyle = `--team-label-x:${fixed(labelX, 2)}px;--team-label-y:${fixed(labelY, 2)}px;`;
+    const centers = projectedTeamAssets.map((rect) => rect.left + rect.width * 0.5);
+    const firstCenter = centers[0];
+    const lastCenter = centers.at(-1) ?? firstCenter;
+    const slotWidth = Math.max(1, (lastCenter - firstCenter) / Math.max(projectedTeamAssets.length - 1, 1));
+    const teamTop = Math.min(...projectedTeamAssets.map((rect) => rect.top));
+    const sideInset = width <= 760 ? Math.max(24, width * 0.06) : Math.max(48, width * 0.075);
+    const idealLeft = firstCenter - slotWidth * 0.5;
+    const idealWidth = lastCenter - firstCenter + slotWidth;
+    const gridLeft = clamp(idealLeft, sideInset, Math.max(sideInset, width - sideInset - idealWidth));
+    const gridWidth = Math.min(idealWidth, width - sideInset * 2);
+    const renderedSlotWidth = gridWidth / projectedTeamAssets.length;
+    const gridGap = clamp(height * 0.028, 14, 26);
+    const gridTop = Math.max(gridGap + 72, teamTop - gridGap);
+
+    aboutProjectTeamGridStyle = [
+      `--team-grid-left:${fixed(gridLeft, 2)}px`,
+      `--team-grid-top:${fixed(gridTop, 2)}px`,
+      `--team-grid-width:${fixed(gridWidth, 2)}px`
+    ].join(';');
+    aboutProjectTeamSlotStyles = centers.map((center, index) => {
+      const slotCenter = gridLeft + renderedSlotWidth * (index + 0.5);
+      const offset = clamp(center - slotCenter, -renderedSlotWidth * 0.42, renderedSlotWidth * 0.42);
+      return `--team-slot-offset-x:${fixed(offset, 2)}px`;
+    });
   }
 
   async function writeTextToClipboard(text: string) {
@@ -1791,11 +1850,11 @@
     }
 
     aboutProjectPhaserHandle = handle;
-    updateAboutProjectTeamLabel(container);
+    updateAboutProjectTeamGrid(container);
     aboutProjectResizeObserver = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
       aboutProjectPhaserHandle?.resize(Math.max(1, width), Math.max(1, height));
-      updateAboutProjectTeamLabel(container);
+      updateAboutProjectTeamGrid(container);
     });
     aboutProjectResizeObserver.observe(container);
   }
@@ -1805,6 +1864,8 @@
     aboutView = 'project';
     activeInterviewName = undefined;
     isAboutProjectTeamVisible = false;
+    aboutProjectTargetSlide = 0;
+    aboutProjectWheelLockedUntil = 0;
     await tick();
     aboutProjectEl?.scrollTo({ left: 0, behavior: 'auto' });
     void ensureAboutProjectPhaser();
@@ -1888,22 +1949,36 @@
   function handleProjectScroll(event: Event) {
     const scroller = event.currentTarget as HTMLElement;
     if (!scroller) return;
-    isAboutProjectTeamVisible = scroller.scrollLeft >= scroller.clientWidth * 0.42;
-    if (isAboutProjectTeamVisible) void ensureAboutProjectPhaser();
+    syncAboutProjectTeamState(scroller);
+
+    if (aboutProjectScrollSnapTimeout) window.clearTimeout(aboutProjectScrollSnapTimeout);
+    aboutProjectScrollSnapTimeout = window.setTimeout(() => {
+      aboutProjectScrollSnapTimeout = undefined;
+      const targetSlide = scroller.scrollLeft >= scroller.clientWidth * 0.5 ? 1 : 0;
+      scrollAboutProjectToSlide(targetSlide, 'smooth');
+    }, 140);
   }
 
   function handleProjectWheel(event: WheelEvent) {
     const scroller = event.currentTarget as HTMLElement;
     if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
-    if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
-      event.stopPropagation();
-      return;
-    }
     event.preventDefault();
     event.stopPropagation();
 
-    const targetLeft = event.deltaY > 0 ? scroller.clientWidth : 0;
-    scroller.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    if (Math.abs(delta) < 6) return;
+
+    const now = performance.now();
+    if (now < aboutProjectWheelLockedUntil) return;
+
+    const currentSlide = scroller.scrollLeft >= scroller.clientWidth * 0.5 ? 1 : 0;
+    const nextSlide = clamp(currentSlide + (delta > 0 ? 1 : -1), 0, 1) as 0 | 1;
+    if (nextSlide === currentSlide) return;
+
+    aboutProjectWheelLockedUntil = now + 560;
+    if (aboutProjectScrollSnapTimeout) window.clearTimeout(aboutProjectScrollSnapTimeout);
+    aboutProjectScrollSnapTimeout = undefined;
+    scrollAboutProjectToSlide(nextSlide);
   }
 
   async function startRoleAudio(role: AudioRole) {
@@ -2357,6 +2432,8 @@
     sceneResources.addEventListener(window, 'pointerdown', onPointerDownAudioUnlock, { passive: true });
     sceneResources.addEventListener(window, 'resize', queueRoleHoverTextFit, { passive: true });
     sceneResources.addEventListener(window, 'resize', queueFullInterviewScrollbarUpdate, { passive: true });
+    sceneResources.addEventListener(window, 'focus', restoreAboutProjectScroll, { passive: true });
+    sceneResources.addEventListener(window, 'pageshow', restoreAboutProjectScroll, { passive: true });
     if (shouldOpenAboutGate) {
       void openAbout();
     }
@@ -2370,6 +2447,8 @@
       fullInterviewScrollbarFrame = 0;
       if (aboutProjectEmailCopyTimeout) window.clearTimeout(aboutProjectEmailCopyTimeout);
       aboutProjectEmailCopyTimeout = undefined;
+      if (aboutProjectScrollSnapTimeout) window.clearTimeout(aboutProjectScrollSnapTimeout);
+      aboutProjectScrollSnapTimeout = undefined;
       roleHoverResizeObserver?.disconnect();
       roleHoverResizeObserver = undefined;
       flowTween?.kill();
@@ -2867,9 +2946,9 @@
           </section>
           <section class="about-project-slide about-project-team-slide" aria-label="Team Fuorimenù">
             <div bind:this={aboutProjectPhaserEl} class="about-project-phaser" aria-hidden="true"></div>
-            <div class="about-project-team-grid" aria-label="Contatti team Fuorimenù">
-              {#each aboutProjectTeamContacts as contact}
-                <div class="about-project-team-slot">
+            <div class="about-project-team-grid" aria-label="Contatti team Fuorimenù" style={aboutProjectTeamGridStyle}>
+              {#each aboutProjectTeamContacts as contact, contactIndex}
+                <div class="about-project-team-slot" style={aboutProjectTeamSlotStyles[contactIndex] ?? ''}>
                   <span class="about-project-team-name" data-node-id="495:3056">
                     <span>{contact.firstName}</span>
                     <span>{contact.lastName}</span>
@@ -4379,7 +4458,7 @@
     background: var(--color-surface-page);
     color: var(--color-text-primary);
     scrollbar-width: none;
-    scroll-snap-type: x mandatory;
+    scroll-snap-type: none;
     overscroll-behavior-x: contain;
   }
 
@@ -4520,13 +4599,14 @@
   .about-project-team-grid {
     position: absolute;
     z-index: 6;
-    left: max(var(--layout-page-gutter), 10vw);
-    right: max(var(--layout-page-gutter), 10vw);
-    top: clamp(28px, 5svh, 62px);
+    left: var(--team-grid-left, max(var(--layout-page-gutter), 10vw));
+    top: var(--team-grid-top, clamp(28px, 5svh, 62px));
     display: grid;
+    width: var(--team-grid-width, calc(100% - max(var(--layout-page-gutter), 10vw) * 2));
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: clamp(6px, 1.6vw, 28px);
+    gap: 0;
     color: var(--brand-500);
+    transform: translateY(-100%);
   }
 
   .about-project-team-slot {
@@ -4537,6 +4617,7 @@
     gap: clamp(8px, 1.2vw, 16px);
     min-width: 0;
     color: var(--brand-500);
+    transform: translate3d(var(--team-slot-offset-x, 0), 0, 0);
   }
 
   .about-project-team-label {
@@ -4584,11 +4665,10 @@
 
   @media (max-width: 1180px) {
     .about-project-team-grid {
-      left: max(var(--layout-page-gutter), 10vw);
-      right: max(var(--layout-page-gutter), 10vw);
-      top: 50%;
-      transform: translateY(calc(-50% - 150px));
-      gap: clamp(8px, 1.4vw, 18px);
+      left: var(--team-grid-left, max(var(--layout-page-gutter), 10vw));
+      top: var(--team-grid-top, 50%);
+      width: var(--team-grid-width, calc(100% - max(var(--layout-page-gutter), 10vw) * 2));
+      transform: translateY(-100%);
     }
 
     .about-project-team-name {
@@ -6645,11 +6725,10 @@
       padding: 0;
     }
     .about-project-team-grid {
-      left: max(var(--layout-page-gutter-mobile), 6vw);
-      right: max(var(--layout-page-gutter-mobile), 6vw);
-      top: 50%;
-      transform: translateY(calc(-50% - 150px));
-      gap: clamp(4px, 1.5vw, 10px);
+      left: var(--team-grid-left, max(var(--layout-page-gutter-mobile), 6vw));
+      top: var(--team-grid-top, 50%);
+      width: var(--team-grid-width, calc(100% - max(var(--layout-page-gutter-mobile), 6vw) * 2));
+      transform: translateY(-100%);
     }
     .about-project-team-name {
       font-size: clamp(10px, 2.3vw, 13px);

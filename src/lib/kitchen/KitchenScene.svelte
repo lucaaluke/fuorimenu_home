@@ -433,10 +433,7 @@
     };
     isPointerOverTestimonialHitbox = isPointerInsideVisibleTestimonial(event);
     kitchenPhaserGame?.setObjectHoverSuppressed(isPointerOverTestimonialHitbox);
-const hoveredId = getHoveredKitchenSTooltipId();
-nearestSceneAsset = getNearestSceneAsset();
-hoveredKitchenSTooltipId = hoveredId;
-setHoveredKitchenSTooltipId?.(hoveredId);
+    setHoveredKitchenSTooltipId(getHoveredKitchenSTooltipId());
 	  }
 
 	  function syncViewport() {
