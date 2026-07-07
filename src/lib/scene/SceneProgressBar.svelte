@@ -1,13 +1,21 @@
 <script lang="ts">
   import { clamp, fixed } from '$lib/scene/math';
 
-  let { progress = 0 } = $props<{ progress?: number }>();
+  let { progress = 0, isVisible = true, ticks = [0.185185, 0.396825, 0.608466, 0.820106] } = $props<{
+    progress?: number;
+    isVisible?: boolean;
+    ticks?: number[];
+  }>();
   const normalizedProgress = $derived(clamp(Number.isFinite(progress) ? progress : 0, 0, 1));
   const progressStyle = $derived(`--scene-progress:${fixed(normalizedProgress, 4)};`);
+  const normalizedTicks = $derived(
+    ticks.filter((tick: number) => Number.isFinite(tick)).map((tick: number) => clamp(tick, 0, 1))
+  );
 </script>
 
 <div
   class="scene-progress-bar"
+  class:is-visible={isVisible}
   style={progressStyle}
   role="progressbar"
   aria-label="Avanzamento sezione"
@@ -18,10 +26,9 @@
 >
   <div class="scene-progress-track">
     <span class="scene-progress-fill" aria-hidden="true"></span>
-    <span class="scene-progress-tick" style="--tick-x:18.5185%;" aria-hidden="true"></span>
-    <span class="scene-progress-tick" style="--tick-x:39.6825%;" aria-hidden="true"></span>
-    <span class="scene-progress-tick" style="--tick-x:60.8466%;" aria-hidden="true"></span>
-    <span class="scene-progress-tick" style="--tick-x:82.0106%;" aria-hidden="true"></span>
+    {#each normalizedTicks as tick}
+      <span class="scene-progress-tick" style={`--tick-x:${fixed(tick * 100, 4)}%;`} aria-hidden="true"></span>
+    {/each}
   </div>
 </div>
 
@@ -43,6 +50,13 @@
     box-sizing: border-box;
     overflow: hidden;
     background: #f7f3ea;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 1900ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .scene-progress-bar.is-visible .scene-progress-track {
+    transform: scaleX(1);
   }
 
   .scene-progress-track::after {

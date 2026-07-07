@@ -16,6 +16,10 @@ export type SceneAssetBase = {
   rotate?: number;
   flipX?: boolean;
   flipY?: boolean;
+  origin?: {
+    x: number;
+    y: number;
+  };
   scaleOverride?: {
     x: number;
     y: number;
@@ -24,7 +28,7 @@ export type SceneAssetBase = {
   zOffset?: number;
   opacity?: number;
   interactive?: boolean;
-  hoverAnimation?: 'pop' | 'shake';
+  hoverAnimation?: 'pop' | 'shake' | 'bob-shake';
   hoverPopHeightMultiplier?: number;
   hoverSoundTrigger?: 'hover' | 'click' | 'both';
   idleAnimation?: 'bob' | 'sway';

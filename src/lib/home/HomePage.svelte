@@ -1424,6 +1424,7 @@
     });
 
     const bg = clone.querySelector<HTMLElement>('.role-card-bg');
+    const cloneRoleCardTop = clone.querySelector<HTMLElement>('.role-card-top');
     const copy = clone.querySelector<HTMLElement>('.role-card-copy');
     const hoverPanel = clone.querySelector<HTMLElement>('.role-hover-panel');
     const person = clone.querySelector<HTMLElement>('.role-person');
@@ -1494,6 +1495,15 @@
           ease: 'power4.inOut'
         },
         0.18
+      )
+      .to(
+        cloneRoleCardTop,
+        {
+          borderBottomColor: 'transparent',
+          duration: 0.16,
+          ease: 'power2.out'
+        },
+        0.66
       )
       .to(
         clone,

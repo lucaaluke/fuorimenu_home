@@ -32,7 +32,13 @@ function serviceLayerAsset(
   layer: 'middle' | 'foreground' = 'foreground',
   hover?: Pick<
     SceneAsset,
-    'hoverAnimation' | 'hoverPopHeightMultiplier' | 'hoverSoundTrigger' | 'idleAnimation' | 'hoverSoundSrc' | 'hoverSoundVolume'
+    | 'hoverAnimation'
+    | 'hoverPopHeightMultiplier'
+    | 'hoverSoundTrigger'
+    | 'idleAnimation'
+    | 'origin'
+    | 'hoverSoundSrc'
+    | 'hoverSoundVolume'
   >
 ): SceneAsset {
   return {
@@ -63,9 +69,9 @@ export const serviceBackgroundChunks: SceneChunk[] = Array.from(
 
 export const serviceForegroundAssets: SceneAsset[] = [
   serviceLayerAsset('1_BottiglieVaso', 81239, 1114, 359, 589, 'primopiano', 'foreground', {
-    hoverAnimation: 'shake',
+    hoverAnimation: 'bob-shake',
     hoverSoundTrigger: 'hover',
-    idleAnimation: 'sway',
+    idleAnimation: 'bob',
     hoverSoundSrc: 'ghiacciook.mp3',
     hoverSoundVolume: 0.54
   }),
@@ -78,7 +84,7 @@ export const serviceForegroundAssets: SceneAsset[] = [
   serviceLayerAsset('1_te', 13136, 1689, 1623, 973),
   serviceLayerAsset('1_mobilecloche', 19454, 1679, 1757, 1122),
   serviceLayerAsset('1_cloche', 20646, 1668, 1428, 415, 'primopiano', 'foreground', {
-    hoverAnimation: 'shake',
+    hoverAnimation: 'bob-shake',
     hoverSoundTrigger: 'hover',
     idleAnimation: 'bob',
     hoverSoundSrc: 'clocheok.mp3',
@@ -91,16 +97,16 @@ export const serviceForegroundAssets: SceneAsset[] = [
   serviceLayerAsset('1_camera', 50015, 1784, 451, 275, 'primopiano', 'foreground', {
     hoverAnimation: 'shake',
     hoverSoundTrigger: 'hover',
-    idleAnimation: 'sway',
+    idleAnimation: 'bob',
     hoverSoundSrc: 'camera.mp3',
     hoverSoundVolume: 0.54
   }),
   serviceLayerAsset('1_colazione', 56239, 999, 2460, 1666),
   serviceLayerAsset('1_colazione2', 59790, 996, 2460, 1666),
   serviceLayerAsset('1_brocca', 60134, 1736, 254, 270, 'primopiano', 'foreground', {
-    hoverAnimation: 'shake',
+    hoverAnimation: 'bob-shake',
     hoverSoundTrigger: 'hover',
-    idleAnimation: 'sway',
+    idleAnimation: 'bob',
     hoverSoundSrc: 'broccaok.mp3',
     hoverSoundVolume: 0.54
   }),
@@ -110,7 +116,7 @@ export const serviceForegroundAssets: SceneAsset[] = [
   serviceLayerAsset('1_calici2', 81181, 1436, 1935, 1225),
   serviceLayerAsset('1_carrelli', 89505, 1639, 2468, 1024),
   serviceLayerAsset('1_Lunchbox', 90198, 1638, 372, 178, 'primopiano', 'foreground', {
-    hoverAnimation: 'shake',
+    hoverAnimation: 'bob-shake',
     hoverSoundTrigger: 'hover',
     idleAnimation: 'bob',
     hoverSoundSrc: 'lunchboxok.mp3',
@@ -137,6 +143,7 @@ export const serviceMiddleAssets: SceneAsset[] = [
     hoverPopHeightMultiplier: 1.85,
     hoverSoundTrigger: 'hover',
     idleAnimation: 'sway',
+    origin: { x: 0.5, y: 0.5 },
     hoverSoundSrc: 'macotteok.mp3',
     hoverSoundVolume: 0.55
   }),

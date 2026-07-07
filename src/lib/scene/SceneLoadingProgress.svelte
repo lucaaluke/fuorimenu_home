@@ -1,7 +1,7 @@
 <script lang="ts">
   import PotLoader from './PotLoader.svelte';
 
-  let { progress = 0, label = 'Caricamento scena', size = 174 } = $props<{
+  let { progress = 0, label = 'Caricamento scena', size = 132 } = $props<{
     progress?: number;
     label?: string;
     size?: number | string;
@@ -16,10 +16,11 @@
   .scene-loading-progress {
     position: absolute;
     z-index: 120;
-    top: 50%;
-    left: 50%;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: var(--color-surface-page);
     color: var(--color-text-primary);
     pointer-events: none;
-    transform: translate(-50%, -50%);
   }
 </style>

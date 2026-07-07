@@ -166,6 +166,10 @@
   const carloTestimonial = kitchenTestimonials[0];
   const paganiniTestimonial = kitchenTestimonials[1];
   const faustoTestimonial = kitchenTestimonials[2];
+  const kitchenProgressTicks = $derived([
+    getTestimonialEnterProgress(paganiniTestimonial),
+    getTestimonialEnterProgress(faustoTestimonial)
+  ]);
   const testimonialAudioState: Record<
     KitchenTestimonialId,
     {
@@ -263,7 +267,10 @@
   const fallbackAudioFadeFrames = new WeakMap<HTMLAudioElement, number>();
   let isDragging = $state(false);
   let isSceneLoaded = $state(false);
-  const isSceneInteractive = $derived(isSceneLoaded && isPhaserReady);
+  let isSceneRevealed = $state(false);
+  let sceneRevealTimer: ReturnType<typeof setTimeout> | undefined;
+  const sceneRevealDelayMs = 560;
+  const isSceneInteractive = $derived(isSceneRevealed);
   let hasPointerScenePosition = $state(false);
   let isPointerOverTestimonialHitbox = $state(false);
   let pointerSceneY = $state(0);
@@ -1657,6 +1664,7 @@
 
 	    return () => {
       stageEl?.removeEventListener('click', triggerTapClickFeedback, true);
+      if (sceneRevealTimer) clearTimeout(sceneRevealTimer);
       if (phaserResizeTimer) clearTimeout(phaserResizeTimer);
       cancelFallbackAudioFade(constructionAudioEl);
       cancelFallbackAudioFade(kitchenAmbientAudioEl);
@@ -1668,13 +1676,31 @@
       sceneController.destroy();
     };
   });
+
+  $effect(() => {
+    if (isSceneLoaded && isPhaserReady) {
+      if (!isSceneRevealed && !sceneRevealTimer) {
+        sceneRevealTimer = setTimeout(() => {
+          isSceneRevealed = true;
+          sceneRevealTimer = undefined;
+        }, sceneRevealDelayMs);
+      }
+      return;
+    }
+
+    if (sceneRevealTimer) {
+      clearTimeout(sceneRevealTimer);
+      sceneRevealTimer = undefined;
+    }
+    isSceneRevealed = false;
+  });
 </script>
 
 <section
   bind:this={stageEl}
   class="kitchen-stage"
   class:is-dragging={isDragging}
-  class:is-loaded={isSceneLoaded && isPhaserReady}
+  class:is-loaded={isSceneRevealed}
   style={`--kitchen-cursor: ${cursorCss}; --kitchen-pointer-cursor: ${pointerCursorCss};`}
   data-active-chef={activeChefId ?? ''}
   data-narrative-progress={narrativeProgress.toFixed(3)}
@@ -1686,7 +1712,7 @@
   onpointerup={endDrag}
   onpointercancel={endDrag}
 >
-  <SceneProgressBar progress={narrativeProgress} />
+  <SceneProgressBar progress={narrativeProgress} isVisible={isSceneRevealed} ticks={kitchenProgressTicks} />
 
   <aside class="scene-coordinate-indicator" aria-label="Coordinate scena per posizionamento asset">
     <div class="coordinate-indicator-title">coordinate scena</div>
@@ -1728,9 +1754,9 @@
 
   {#if browser}
     <div bind:this={phaserContainerEl} class="kitchen-phaser-layer" aria-hidden="true"></div>
-    {#if !isPhaserReady}
-      <SceneLoadingProgress progress={phaserLoadingProgress} />
-    {/if}
+  {/if}
+  {#if !isSceneRevealed}
+    <SceneLoadingProgress progress={phaserLoadingProgress} />
   {/if}
 		
   {#if showLegacyKitchenOverlays}
@@ -1772,11 +1798,13 @@
 	    {/if}
 	  {/each}
 
-  <h1 class="scene-title" style={getTitleStyle()} aria-label="Cucina">
-    {#each titleLetters as letter, index}
-      <span style={`--letter-delay: ${280 + index * 70}ms`} aria-hidden="true">{letter}</span>
-    {/each}
-  </h1>
+  {#if isSceneRevealed}
+    <h1 class="scene-title" style={getTitleStyle()} aria-label="Cucina">
+      {#each titleLetters as letter, index}
+        <span style={`--letter-delay: ${280 + index * 70}ms`} aria-hidden="true">{letter}</span>
+      {/each}
+    </h1>
+  {/if}
 
   {#each kitchenTestimonials as testimonial (testimonial.id)}
     {@const isDialogueVisible = isTestimonialDialogueVisible(testimonial)}
@@ -1933,6 +1961,15 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 260ms ease;
+  }
+
+  .kitchen-stage.is-loaded .kitchen-phaser-layer {
+    opacity: 1;
+    visibility: visible;
     pointer-events: auto;
   }
 

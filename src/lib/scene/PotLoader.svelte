@@ -5,7 +5,7 @@
 
   let {
     progress = 0,
-    size = 168,
+    size = 132,
     label = 'Caricamento scena',
     showPercent = true
   } = $props<{
@@ -16,15 +16,17 @@
   }>();
 
   let waterRectEl: SVGRectElement;
+  let waterWaveEl: SVGPathElement;
   let gsap: Gsap | undefined;
   let waterTween: { kill: () => void } | undefined;
 
   const waterX = 80;
   const waterWidth = 348;
   const waterTop = 152;
-  const waterBottom = 390.776;
+  const waterBottom = 397.778;
   const waterOverflow = 40;
-  const waterRange = waterBottom - waterTop;
+  const waterMaxWaveY = waterTop + 18;
+  const waterRange = waterBottom - waterMaxWaveY;
   const percent = $derived(Math.max(0, Math.min(100, Math.round(progress * 100))));
   const resolvedSize = $derived(typeof size === 'number' ? `${size}px` : size);
   const initialWaterGeometry = $derived(getWaterGeometry(progress));
@@ -35,29 +37,45 @@
 
     return {
       y: waterBottom - height,
-      height: height + waterOverflow
+      height: height + waterOverflow,
+      waveY: waterBottom - height
     };
   }
 
   export function setProgress(value: number) {
-    if (!waterRectEl) return;
+    if (!waterRectEl || !waterWaveEl) return;
     const nextGeometry = getWaterGeometry(value);
 
     waterTween?.kill();
     if (!gsap) {
       waterRectEl.setAttribute('y', nextGeometry.y.toString());
       waterRectEl.setAttribute('height', nextGeometry.height.toString());
+      waterWaveEl?.setAttribute('transform', `translate(0 ${nextGeometry.waveY})`);
       return;
     }
 
-    waterTween = gsap.to(waterRectEl, {
-      attr: {
-        y: nextGeometry.y,
-        height: nextGeometry.height
+    waterTween = gsap.timeline().to(
+      waterRectEl,
+      {
+        attr: {
+          y: nextGeometry.y,
+          height: nextGeometry.height
+        },
+        duration: 0.46,
+        ease: 'power2.out'
       },
+      0
+    ).to(
+      waterWaveEl,
+      {
+        attr: {
+          transform: `translate(0 ${nextGeometry.waveY})`
+        },
       duration: 0.46,
       ease: 'power2.out'
-    });
+      },
+      0
+    );
   }
 
   $effect(() => {
@@ -94,7 +112,7 @@
     <defs>
       <clipPath id="pot-loader-inner-clip" clipPathUnits="userSpaceOnUse">
         <path
-          d="M85 152H422.698V368.555C422.698 380.777 415.154 390.776 405.935 390.776H101.763C92.5433 390.776 85 380.777 85 368.555V152Z"
+          d="M85 152H422.701V375.836C422.701 387.905 415.158 397.778 405.938 397.778H101.767C92.5472 397.778 85.0039 387.905 85.0039 375.836L85 152Z"
         />
       </clipPath>
     </defs>
@@ -118,6 +136,12 @@
         y={initialWaterGeometry.y}
         width={waterWidth}
         height={initialWaterGeometry.height}
+      />
+      <path
+        bind:this={waterWaveEl}
+        class="pot-loader-water-fill"
+        transform={`translate(0 ${initialWaterGeometry.waveY})`}
+        d="M80 0C105 8 127 -4 144 -12C169 -25 193 -13 205 -7C226 4 248 -5 264 -13C292 -27 318 -15 333 -7C350 2 370 4 386 -2C402 -8 417 -3 428 5V54H80V0Z"
       />
     </g>
 
@@ -177,10 +201,10 @@
   }
 
   .pot-loader-percent {
-    margin-top: -56px;
+    margin-top: -32px;
     color: currentColor;
     font-family: "JetBrains Mono", var(--font-text);
-    font-size: clamp(22px, calc(var(--pot-loader-size) * 0.13), 44px);
+    font-size: 24px;
     font-weight: 400;
     line-height: 1;
     text-align: center;

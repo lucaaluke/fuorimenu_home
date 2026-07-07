@@ -33,6 +33,7 @@
   let isDragging = $state(false);
   let isSceneLoaded = $state(false);
   let isPhaserReady = $state(false);
+  let isSceneRevealed = $state(false);
   let phaserLoadingProgress = $state(0);
   let hasPointerScenePosition = $state(false);
   let pointerSceneY = $state(0);
@@ -83,6 +84,8 @@
   let officePhaserContainerEl: HTMLElement;
   let officePhaserGame: ParallaxPhaserGameHandle | undefined;
   let officePhaserResizeTimer: number | undefined;
+  let sceneRevealTimer: ReturnType<typeof setTimeout> | undefined;
+  const sceneRevealDelayMs = 560;
   let dragStartX = 0;
   let dragScrollStart = 0;
   let scrollTrigger:
@@ -106,7 +109,7 @@
   const worldWidth = $derived(Math.max(viewportWidth, sceneWidth * sceneScale));
   const maxScrollX = $derived(Math.max(0, worldWidth - viewportWidth));
   const progress = $derived(maxScrollX > 0 ? clamp(cameraX / maxScrollX, 0, 1) : 0);
-  const isSceneInteractive = $derived(isSceneLoaded && isPhaserReady);
+  const isSceneInteractive = $derived(isSceneRevealed);
 
   $effect(() => {
     onProgressChange?.(progress);
@@ -117,6 +120,14 @@
   const coordDecimal = (value: number) => value.toFixed(3);
   const officeCoordinateAssets = [...officeMiddleAssets, ...officeForegroundAssets];
   const officePhaserAssets = [...officeFloorAssets, ...officeMiddleAssets, ...officeForegroundAssets];
+  const officeProgressTicks = $derived(
+    maxScrollX > 0
+      ? [
+          getElisabettaOfficeStartCameraX() / maxScrollX,
+          getFaustoOfficeStartCameraX() / maxScrollX
+        ]
+      : []
+  );
   const scrollSpaceStyle = $derived(
     `width: ${scenePx(worldWidth)}; height: ${scenePx(viewportHeight)}`
   );
@@ -1906,6 +1917,7 @@
 
     return () => {
       destroyed = true;
+      if (sceneRevealTimer) window.clearTimeout(sceneRevealTimer);
       reducedMotionQuery.removeEventListener('change', syncReducedMotion);
       window.removeEventListener('keydown', onKeydown);
       stageEl?.removeEventListener('click', triggerTapClickFeedback, true);
@@ -1944,13 +1956,31 @@
       isFaustoOfficeAudioActive = false;
     };
   });
+
+  $effect(() => {
+    if (isSceneLoaded && isPhaserReady) {
+      if (!isSceneRevealed && !sceneRevealTimer) {
+        sceneRevealTimer = window.setTimeout(() => {
+          isSceneRevealed = true;
+          sceneRevealTimer = undefined;
+        }, sceneRevealDelayMs);
+      }
+      return;
+    }
+
+    if (sceneRevealTimer) {
+      window.clearTimeout(sceneRevealTimer);
+      sceneRevealTimer = undefined;
+    }
+    isSceneRevealed = false;
+  });
 </script>
 
 <section
   bind:this={stageEl}
   class="office-stage"
   class:is-dragging={isDragging}
-  class:is-loaded={isSceneLoaded && isPhaserReady}
+  class:is-loaded={isSceneRevealed}
   data-audio-muted={isAudioMuted}
   data-progress={progress.toFixed(3)}
   aria-label="Scena parallasse dell'ufficio"
@@ -1961,10 +1991,10 @@
   onpointerup={endDrag}
   onpointercancel={endDrag}
 >
-  <SceneProgressBar {progress} />
+  <SceneProgressBar {progress} isVisible={isSceneRevealed} ticks={officeProgressTicks} />
 
   <div bind:this={officePhaserContainerEl} class="office-phaser-layer" aria-hidden="true"></div>
-  {#if !isPhaserReady}
+  {#if !isSceneRevealed}
     <SceneLoadingProgress progress={phaserLoadingProgress} />
   {/if}
 
@@ -2112,7 +2142,9 @@
         {/if}
       {/each}
 
-      <h1 class="office-title" style={getTitleStyle()} aria-label="Ufficio">Ufficio</h1>
+      {#if isSceneRevealed}
+        <h1 class="office-title" style={getTitleStyle()} aria-label="Ufficio">Ufficio</h1>
+      {/if}
 
       <div
         class="office-chef-button"
@@ -2631,7 +2663,15 @@
     z-index: 0;
     inset: 0;
     overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
     pointer-events: none;
+    transition: opacity 260ms ease;
+  }
+
+  .office-stage.is-loaded .office-phaser-layer {
+    opacity: 1;
+    visibility: visible;
   }
 
   .office-phaser-layer :global(canvas) {
@@ -2716,7 +2756,7 @@
   .scene-coordinate-indicator dd {
     font-variant-numeric: tabular-nums;
     font-weight: 800;
-    text-align: right;
+    text-align: left;
   }
 
   .office-asset {
@@ -2761,9 +2801,22 @@
     animation: officeMapIdle 2.6s cubic-bezier(0.45, 0, 0.2, 1) infinite;
   }
 
+  .office-cio-asset img,
+  .office-computer-asset img {
+    transform-origin: 50% 50%;
+    animation: officeLunchboxBobIdle 2.24s ease-in-out infinite;
+  }
+
   .office-interactive-asset:hover img,
   .office-interactive-asset:focus-visible img {
     animation: officeMapHoverLanding 860ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .office-cio-asset:hover img,
+  .office-cio-asset:focus-visible img,
+  .office-computer-asset:hover img,
+  .office-computer-asset:focus-visible img {
+    animation: officeLunchboxHoverShake 620ms cubic-bezier(0.2, 1, 0.28, 1) both;
   }
 
   .office-keys-asset img {
@@ -2990,6 +3043,7 @@
     overflow: hidden;
     white-space: pre-line;
     word-break: break-word;
+    text-align: left;
     -webkit-clip-path: inset(100% 0 0 0);
     clip-path: inset(100% 0 0 0);
     will-change: clip-path;
@@ -3007,6 +3061,7 @@
     position: relative;
     display: block;
     width: 100%;
+    text-align: left;
   }
 
   .speech-bubble-copy.has-page-controls .speech-bubble-text {
@@ -3063,8 +3118,11 @@
   .speech-bubble-meta-label {
     display: flex;
     align-items: center;
+    justify-content: flex-start;
+    width: 100%;
     min-width: 0;
     overflow: hidden;
+    text-align: left;
     text-overflow: ellipsis;
   }
 
@@ -3261,6 +3319,43 @@
 
     68% {
       transform: translate3d(0, 2px, 0) rotate(0.28deg);
+    }
+  }
+
+  @keyframes officeLunchboxBobIdle {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+
+    50% {
+      transform: translate3d(0, -10px, 0);
+    }
+  }
+
+  @keyframes officeLunchboxHoverShake {
+    0% {
+      transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    }
+
+    18% {
+      transform: translate3d(-2px, -8px, 0) rotate(-5.6deg) scale(1.025);
+    }
+
+    32% {
+      transform: translate3d(3px, -5px, 0) rotate(5.6deg) scale(1.018);
+    }
+
+    48% {
+      transform: translate3d(-2px, -4px, 0) rotate(-4deg) scale(1.012);
+    }
+
+    66% {
+      transform: translate3d(2px, -2px, 0) rotate(2.4deg) scale(1.006);
+    }
+
+    100% {
+      transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
     }
   }
 

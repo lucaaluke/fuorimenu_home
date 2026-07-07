@@ -32,6 +32,7 @@
   let isDragging = $state(false);
   let isSceneLoaded = $state(false);
   let isPhaserReady = $state(false);
+  let isSceneRevealed = $state(false);
   let phaserLoadingProgress = $state(0);
   let prefersReducedMotion = $state(false);
   let hasPointerScenePosition = $state(false);
@@ -85,6 +86,8 @@
   let servicePhaserContainerEl: HTMLElement;
   let servicePhaserGame: ParallaxPhaserGameHandle | undefined;
   let servicePhaserResizeTimer: number | undefined;
+  let sceneRevealTimer: ReturnType<typeof setTimeout> | undefined;
+  const sceneRevealDelayMs = 560;
   let dragStartX = 0;
   let dragScrollStart = 0;
   let scrollTrigger:
@@ -108,9 +111,19 @@
   const worldWidth = $derived(Math.max(viewportWidth, sceneWidth * sceneScale));
   const maxScrollX = $derived(Math.max(0, worldWidth - viewportWidth));
   const progress = $derived(maxScrollX > 0 ? clamp(cameraX / maxScrollX, 0, 1) : 0);
-  const isSceneInteractive = $derived(isSceneLoaded && isPhaserReady);
+  const isSceneInteractive = $derived(isSceneRevealed);
   const servicePhaserAssets = [...serviceFloorAssets, ...serviceMiddleAssets, ...serviceForegroundAssets];
   const serviceCoordinateAssets = [...serviceMiddleAssets, ...serviceForegroundAssets];
+  const serviceProgressTicks = $derived(
+    maxScrollX > 0
+      ? [
+          getElisabettaServiceStartCameraX() / maxScrollX,
+          getMarcoServiceStartCameraX() / maxScrollX,
+          getFaustoServiceStartCameraX() / maxScrollX,
+          getNiniServiceStartCameraX() / maxScrollX
+        ]
+      : []
+  );
   const scenePx = (value: number) => px(value, 2);
   const coord = (value: number) => Math.round(value).toString();
   const coordDecimal = (value: number) => value.toFixed(3);
@@ -154,35 +167,35 @@
   const serviceAudioHandoffFadeOutDuration = 0;
   const carloServiceAudioFadeOutDuration = 0.08;
   const carloServiceRevealDurationSeconds = 75.68;
-  const carloServiceEndCameraX = 7800;
+  const carloServiceEndCameraX = 5000;
   const carloServiceSpeech =
     "I sette clienti quali sono? Primo, ovviamente gli atleti. Possono mangiare 24 ore al giorno. Poi il secondo gruppo sono i volontari: sono 18.000 persone; la maggior parte lavorano anche all'aperto, quindi devi dargli dei pasti molto caldi. Il terzo sono la workforce. Sono quelli, come lo ero io, che hanno dei ruoli di management, o anche semplicemente dei ruoli esecutivi. La famiglia olimpica sono presidenti dei Comitati Olimpici Nazionali, sono, in questo caso da noi, Mattarella, Meloni. Questi, devo dire molto onestamente, non sono pretenziosi. Questo gruppo dice \"No signori, non vogliamo mandare il messaggio che noi ci trattiamo bene\". Il quinto gruppo è formato dai media. Sono divisi in due gruppi: i giornalisti e le televisioni. All'interno delle televisioni ci sono anche i giornalisti, però ci sono quei poveri cameraman che anche loro, magari alle 7 del mattino, sono lì con le telecamere che nevica. Il sesto gruppo è il gruppo delle hospitality: questi sono i VIP, gli sponsor, che non hanno problemi di budget. E poi ci sono gli spettatori. A Milano son stati quasi un milione e mezzo. Quindi la mia programmazione generale per i 22 giorni di gara è stata sui 3 milioni circa di pasti.";
   const elisabettaServiceAudioVolume = 1;
   const elisabettaServiceAudioFadeOutDuration = 0.08;
   const elisabettaServiceRevealDurationSeconds = 27.14;
-  const elisabettaServiceStartCameraX = 8000;
-  const elisabettaServiceEndCameraX = 10000;
+  const elisabettaServiceStartCameraX = 5200;
+  const elisabettaServiceEndCameraX = 7200;
   const elisabettaServiceSpeech =
     "L'obiettivo principale del cibo nel villaggio noi lo chiamavamo “Food for Fuel”, cioè quello di dare agli atleti esattamente tutto quello di cui hanno bisogno per aiutarli nelle loro performance, quindi è chiaro che ci sono dei pilastri fondamentali: carboidrati, proteine sempre presenti in rotazione. E poi ovviamente l'atro aspetto fondamentale è quello della Food Safety.";
   const marcoServiceAudioVolume = 1;
   const marcoServiceAudioFadeOutDuration = 0.08;
   const marcoServiceRevealDurationSeconds = 23.17;
-  const marcoServiceStartCameraX = 10200;
-  const marcoServiceEndCameraX = 12200;
+  const marcoServiceStartCameraX = 7400;
+  const marcoServiceEndCameraX = 10400;
   const marcoServiceSpeech =
     "Noi facevamo un menù di 5 giorni che andava a ripetersi. Quello che chiedevano chiaramente era roba fresca, fatta bene, preparata al momento e la disponibilità di orari. Le colazioni partivano alle 5 del mattino. Poi c'erano due persone giù di cucina, più la sala, che allestivano il breakfast: cereali, frutta, verdura, anche la pasta di prima mattina, perché gli atleti comunque hanno bisogno di una dieta particolare.";
   const faustoServiceAudioVolume = 1;
   const faustoServiceAudioFadeOutDuration = 0.08;
   const faustoServiceRevealDurationSeconds = 39.94;
-  const faustoServiceStartCameraX = 12400;
-  const faustoServiceEndCameraX = 14400;
+  const faustoServiceStartCameraX = 10600;
+  const faustoServiceEndCameraX = 13600;
   const faustoServiceSpeech =
     "C'erano sul buffet di benvenuto con il calice piccoli assaggi. Poi l'ospite si spostava nella sala centrale dove c'erano vari buffet, tra cui uno di salumi e formaggi, ovviamente i formaggi locali: il taleggio, il puzzone di Moena... Poi c'erano due primi, sempre caldi, a disposizione dei nostri ospiti. Una polenta sempre fissa e tre dolci a rotazione. Non erano previsti superalcolici. Di alcolico avevamo lo sponsor della birra, e i vini, principalmente Prosecco e poi qualche vino della Valtellina, qualche vino del Veneto e così via.";
   const niniServiceAudioVolume = 1;
   const niniServiceAudioFadeOutDuration = 0.08;
   const niniServiceRevealDurationSeconds = 34;
-  const niniServiceStartCameraX = 14600;
-  const niniServiceEndCameraX = 16800;
+  const niniServiceStartCameraX = 13800;
+  const niniServiceEndCameraX = 16300;
   const niniServiceSpeech =
     "Purtroppo c'erano a volte molti sprechi. Tu prepari per 500, poi era il cliente che faceva lo spreco. Nel senso che, se tu metti la pizza e di fianco metti l'arrosto, secondo te cosa vince? Però l'arrosto doveva essere pronto per 500 come la pizza doveva essere pronta per 500. Fortunatamente sapevano equilibrare e quindi gli sprechi sono stati minimizzati. Lo smaltimento veniva fatto praticamente 2-3 volte al giorno perché i volumi erano tanti. Anche perché, per assurdo, quando fai mille persone, sono mille bottigliette d'acqua. Su quel lato lì, Livigno è stata tanta roba, uno perché erano organizzati, due perché c'era il servizio.";
   const carloServiceEnterDistance = $derived(Math.max(130, viewportWidth * 0.16));
@@ -2258,6 +2271,7 @@
 
     return () => {
       destroyed = true;
+      if (sceneRevealTimer) window.clearTimeout(sceneRevealTimer);
       reducedMotionQuery.removeEventListener('change', syncReducedMotion);
       window.removeEventListener('keydown', onKeydown);
       stageEl?.removeEventListener('click', triggerTapClickFeedback, true);
@@ -2295,13 +2309,31 @@
       isNiniServiceAudioActive = false;
     };
   });
+
+  $effect(() => {
+    if (isSceneLoaded && isPhaserReady) {
+      if (!isSceneRevealed && !sceneRevealTimer) {
+        sceneRevealTimer = window.setTimeout(() => {
+          isSceneRevealed = true;
+          sceneRevealTimer = undefined;
+        }, sceneRevealDelayMs);
+      }
+      return;
+    }
+
+    if (sceneRevealTimer) {
+      window.clearTimeout(sceneRevealTimer);
+      sceneRevealTimer = undefined;
+    }
+    isSceneRevealed = false;
+  });
 </script>
 
 <section
   bind:this={stageEl}
   class="service-stage"
   class:is-dragging={isDragging}
-  class:is-loaded={isSceneLoaded && isPhaserReady}
+  class:is-loaded={isSceneRevealed}
   data-progress={progress.toFixed(3)}
   aria-label="Scena parallasse della sala"
   onwheel={onWheel}
@@ -2311,10 +2343,10 @@
   onpointerup={endDrag}
   onpointercancel={endDrag}
 >
-  <SceneProgressBar {progress} />
+  <SceneProgressBar {progress} isVisible={isSceneRevealed} ticks={serviceProgressTicks} />
 
   <div bind:this={servicePhaserContainerEl} class="service-phaser-layer" aria-hidden="true"></div>
-  {#if !isPhaserReady}
+  {#if !isSceneRevealed}
     <SceneLoadingProgress progress={phaserLoadingProgress} />
   {/if}
 
@@ -2448,7 +2480,9 @@
           </span>
         </button>
       {/if}
-      <h1 class="service-title" style={getTitleStyle()} aria-label="Sala">Sala</h1>
+      {#if isSceneRevealed}
+        <h1 class="service-title" style={getTitleStyle()} aria-label="Sala">Sala</h1>
+      {/if}
       <div
         class="service-chef-button"
         class:is-dialogue-visible={isCarloServiceDialogueVisible()}
@@ -3013,6 +3047,15 @@
     z-index: 0;
     inset: 0;
     overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 260ms ease;
+  }
+
+  .service-stage.is-loaded .service-phaser-layer {
+    opacity: 1;
+    visibility: visible;
     pointer-events: auto;
   }
 
