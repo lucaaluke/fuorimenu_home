@@ -1853,6 +1853,7 @@
           phaserLoadingProgress = progress;
         },
         onReady: () => {
+          phaserLoadingProgress = 1;
           isPhaserReady = true;
         },
         sceneHeight,

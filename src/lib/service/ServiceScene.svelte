@@ -2204,6 +2204,7 @@
           phaserLoadingProgress = progress;
         },
         onReady: () => {
+          phaserLoadingProgress = 1;
           isPhaserReady = true;
           servicePhaserGame?.setAudioMuted(isAudioMuted);
         },
