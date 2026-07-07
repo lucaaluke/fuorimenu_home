@@ -1226,7 +1226,11 @@
         ? reelMotion.slowIntroDistance + (reelMotion.viewSlowDistance - reelMotion.slowIntroDistance) * ease((local - introEnd) / (viewEnd - introEnd))
         : reelMotion.viewSlowDistance + (1 - reelMotion.viewSlowDistance) * (1 - Math.pow(1 - ((local - viewEnd) / (1 - viewEnd)), reelMotion.fastExitPower));
     const entryScale = ease(clamp(local / reelMotion.scaleInDuration));
-    const visibility = local > 0 ? 1 : 0;
+    const opacityIn = ease(clamp(local / Math.max(reelMotion.scaleInDuration * 0.64, 0.001)));
+    const opacityOutStart = reel.opacityOutStart ?? reelMotion.opacityOutStart;
+    const opacityOutDuration = reel.opacityOutDuration ?? reelMotion.opacityOutDuration;
+    const opacityOut = 1 - ease(clamp((local - opacityOutStart) / Math.max(opacityOutDuration, 0.001)));
+    const visibility = opacityIn * opacityOut;
     const pathX = reel.toX - reel.fromX;
     const pathY = reel.toY - reel.fromY;
     const pathLength = Math.hypot(pathX, pathY) || 1;

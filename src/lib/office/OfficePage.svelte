@@ -10,6 +10,7 @@
 
   let isAudioMuted = $state(true);
   let sceneProgress = $state(0);
+  let isSceneRevealed = $state(false);
   let isLeavingSection = false;
   const sectionAudioFadeOutMs = 460;
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
@@ -79,7 +80,7 @@
 </svelte:head>
 
 <main class="office-page">
-  <header class="scene-topbar office-topbar" aria-label="Navigazione ufficio">
+  <header class="scene-topbar office-topbar" class:is-loading={!isSceneRevealed} aria-label="Navigazione ufficio">
     <a
       class="logo press-ring-control"
       href="/?view=brand"
@@ -124,7 +125,11 @@
   />
 
   <section class="office-shell" aria-label="Scena parallasse dell'ufficio">
-    <OfficeScene {isAudioMuted} onProgressChange={(progress) => (sceneProgress = progress)} />
+    <OfficeScene
+      {isAudioMuted}
+      onProgressChange={(progress) => (sceneProgress = progress)}
+      onSceneRevealedChange={(isRevealed) => (isSceneRevealed = isRevealed)}
+    />
   </section>
 </main>
 
@@ -167,6 +172,11 @@
   .icon-button,
   .home-link {
     pointer-events: auto;
+  }
+
+  .scene-topbar.is-loading {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .logo {

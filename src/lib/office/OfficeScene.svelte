@@ -18,9 +18,10 @@
   import { triggerTapClickFeedback } from '$lib/scene/tap-click-feedback';
   import type { ParallaxPhaserGameHandle } from '$lib/scene/phaser/ParallaxPhaserGame';
 
-  let { isAudioMuted = false, onProgressChange } = $props<{
+  let { isAudioMuted = false, onProgressChange, onSceneRevealedChange } = $props<{
     isAudioMuted?: boolean;
     onProgressChange?: (progress: number) => void;
+    onSceneRevealedChange?: (isRevealed: boolean) => void;
   }>();
 
   const { assetVersion, layerSpeed, sceneHeight, sceneWidth } = officeSceneConfig;
@@ -177,7 +178,7 @@
   const officeMapHoverText =
     'Il villaggio di Milano aveva 1500-1600 ospiti, quello di Predazzo 700, Livigno 1100-1200.';
   const officeComputerHoverText =
-    'Mi sono seduto con i responsabili delle varie federazioni, uno alla volta (per quello che inizi tanti, tanti anni prima). Convochi il direttore sportivo delle squadre di hockey e gli chiedi le loro esigenze.';
+    'Con 2.900 atleti e 116 eventi si iniziava anni prima partendo dalle esigenze delle federazioni per organizzare il menù';
   const carloOfficeEnterDistance = $derived(Math.max(130, viewportWidth * 0.16));
   const carloOfficeExitDistance = $derived(Math.max(170, viewportWidth * 0.2));
   const carloOffice2EnterDistance = $derived(Math.max(130, viewportWidth * 0.13));
@@ -1974,6 +1975,10 @@
       sceneRevealTimer = undefined;
     }
     isSceneRevealed = false;
+  });
+
+  $effect(() => {
+    onSceneRevealedChange?.(isSceneRevealed);
   });
 </script>
 

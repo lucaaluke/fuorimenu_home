@@ -18,7 +18,10 @@
     serviceMiddleAssets
   } from './service-scene.config';
 
-  let { isAudioMuted = false } = $props<{ isAudioMuted?: boolean }>();
+  let { isAudioMuted = false, onSceneRevealedChange } = $props<{
+    isAudioMuted?: boolean;
+    onSceneRevealedChange?: (isRevealed: boolean) => void;
+  }>();
 
   const { assetVersion, layerSpeed, sceneHeight, sceneWidth } = resolvedServiceSceneConfig;
   const serviceBackgroundViewportOffsetY = 1;
@@ -2327,6 +2330,10 @@
       sceneRevealTimer = undefined;
     }
     isSceneRevealed = false;
+  });
+
+  $effect(() => {
+    onSceneRevealedChange?.(isSceneRevealed);
   });
 </script>
 

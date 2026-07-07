@@ -8,6 +8,7 @@
   import ServiceScene from './ServiceScene.svelte';
 
   let isAudioMuted = $state(true);
+  let isSceneRevealed = $state(false);
   let isLeavingSection = false;
   const sectionAudioFadeOutMs = 460;
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
@@ -72,7 +73,7 @@
 </svelte:head>
 
 <main class="service-page">
-  <header class="scene-topbar service-topbar" aria-label="Navigazione sala">
+  <header class="scene-topbar service-topbar" class:is-loading={!isSceneRevealed} aria-label="Navigazione sala">
     <a
       class="logo press-ring-control"
       href="/?view=brand"
@@ -109,7 +110,10 @@
   </header>
 
   <section class="service-shell" aria-label="Scena parallasse della sala">
-    <ServiceScene {isAudioMuted} />
+    <ServiceScene
+      {isAudioMuted}
+      onSceneRevealedChange={(isRevealed) => (isSceneRevealed = isRevealed)}
+    />
   </section>
 </main>
 
@@ -152,6 +156,11 @@
   .icon-button,
   .home-link {
     pointer-events: auto;
+  }
+
+  .scene-topbar.is-loading {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .logo {

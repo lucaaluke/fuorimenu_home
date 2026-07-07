@@ -46,9 +46,10 @@
   const sceneController = createSceneController<KitchenControllerState, KitchenControllerEvents>(
     initialKitchenState
   );
-  let { isAudioMuted = false, onProgressChange } = $props<{
+  let { isAudioMuted = false, onProgressChange, onSceneRevealedChange } = $props<{
     isAudioMuted?: boolean;
     onProgressChange?: (progress: number) => void;
+    onSceneRevealedChange?: (isRevealed: boolean) => void;
   }>();
   const { bridge } = sceneController;
   const kitchenAsset = (name: string) => `/assets/${name}?v=${kitchenAssetVersion}`;
@@ -1694,6 +1695,10 @@
       sceneRevealTimer = undefined;
     }
     isSceneRevealed = false;
+  });
+
+  $effect(() => {
+    onSceneRevealedChange?.(isSceneRevealed);
   });
 </script>
 

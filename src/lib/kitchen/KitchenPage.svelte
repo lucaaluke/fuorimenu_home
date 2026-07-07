@@ -10,6 +10,7 @@
 
   let isAudioMuted = $state(true);
   let sceneProgress = $state(0);
+  let isSceneRevealed = $state(false);
   let isLeavingSection = false;
   const sectionAudioFadeOutMs = 460;
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
@@ -78,7 +79,7 @@
 </svelte:head>
 
 <main class="game-page">
-  <header class="scene-topbar kitchen-topbar" aria-label="Navigazione cucina">
+  <header class="scene-topbar kitchen-topbar" class:is-loading={!isSceneRevealed} aria-label="Navigazione cucina">
     <a
       class="logo press-ring-control"
       href="/?view=brand"
@@ -123,7 +124,11 @@
   />
 
   <section class="game-shell" aria-label="Scena parallasse della cucina">
-    <KitchenScene {isAudioMuted} onProgressChange={(progress) => (sceneProgress = progress)} />
+    <KitchenScene
+      {isAudioMuted}
+      onProgressChange={(progress) => (sceneProgress = progress)}
+      onSceneRevealedChange={(isRevealed) => (isSceneRevealed = isRevealed)}
+    />
   </section>
 </main>
 
@@ -166,6 +171,11 @@
   .icon-button,
   .home-link {
     pointer-events: auto;
+  }
+
+  .scene-topbar.is-loading {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .logo {
