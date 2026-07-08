@@ -35,7 +35,8 @@
     sceneWidth,
     title
   } = kitchenSceneConfig;
-  const touchScrollInteractiveSelector = 'a, button, input, textarea, select, video, [role="button"]';
+  const touchScrollInteractiveSelector = 'a, button, input, textarea, select, [role="button"]';
+  const kitchenReturnCameraStorageKey = 'kitchen-return-camera-x';
   const touchScrollDeadZone = 3;
   const touchScrollFactor = 1.54;
   const showLegacyKitchenOverlays = false;
@@ -121,13 +122,13 @@
   const testimonialAudioHandoffFadeOutDuration = 0.16;
   const kitchenDialogueCameraRanges = {
     carlo: { enter: 600, dialogueStart: 600, exit: 4700 },
-    paganini: { enter: 4900, dialogueStart: 4900, exit: 8500 },
-    fausto: { enter: 9000, dialogueStart: 9000, exit: 12800 },
+    paganini: { enter: 4900, dialogueStart: 4900, exit: 8100 },
+    fausto: { enter: 9850, dialogueStart: 9850, exit: 13000 },
     fausto2: { enter: 13000, dialogueStart: 13000, exit: 15300 },
     marco: { enter: 15500, dialogueStart: 15500, exit: 18400 }
   } as const;
   const paganiniTrailerVideo = {
-    cameraX: 8750,
+    cameraX: 9450,
     y: 360,
     width: 1040,
     height: 585,
@@ -413,7 +414,11 @@
   let touchLastY = 0;
   let isSceneLoaded = $state(false);
   let isSceneRevealed = $state(false);
+  let isMobileLoadingIntroEnabled = $state(false);
+  let isMobileLoadingIntroFinished = $state(true);
+  let mobileLoadingIntroTimer: ReturnType<typeof setTimeout> | undefined;
   let sceneRevealTimer: ReturnType<typeof setTimeout> | undefined;
+  const mobileLoadingIntroDurationMs = 1000;
   const sceneRevealDelayMs = 560;
   const isSceneInteractive = $derived(isSceneRevealed);
   let hasPointerScenePosition = $state(false);
@@ -484,6 +489,14 @@
   function scrollBy(delta: number) {
     if (!isSceneInteractive) return;
     kitchenController?.scrollBy(delta);
+  }
+
+  function isInteractiveSceneEventTarget(target: EventTarget | null) {
+    return target instanceof Element && target.closest(touchScrollInteractiveSelector) !== null;
+  }
+
+  function isTextInputEventTarget(target: EventTarget | null) {
+    return target instanceof Element && target.closest('input, textarea, select') !== null;
   }
 
   function getNextTestimonial(testimonial: KitchenTestimonial) {
@@ -659,6 +672,7 @@
   }
 
   function togglePaganiniTrailerVideo(event?: Event) {
+    event?.preventDefault();
     event?.stopPropagation();
     if (!paganiniTrailerVideoEl) return;
 
@@ -707,6 +721,15 @@
     isPaganiniTrailerPlaying = false;
     clearPaganiniTrailerCtaTimer();
     showPaganiniTrailerControl();
+  }
+
+  function stopPaganiniTrailerControlEvent(event: Event) {
+    event.stopPropagation();
+  }
+
+  function saveKitchenReturnCameraX() {
+    if (!browser) return;
+    sessionStorage.setItem(kitchenReturnCameraStorageKey, String(Math.round(cameraX)));
   }
 
   function getHoveredKitchenSTooltipId() {
@@ -1261,6 +1284,8 @@
 
   function onPointerDown(event: PointerEvent) {
     if (event.pointerType === 'touch') return;
+    if (event.button !== 0) return;
+    if (isInteractiveSceneEventTarget(event.target)) return;
     if (!isSceneInteractive) {
       event.preventDefault();
       return;
@@ -1311,8 +1336,15 @@
     }
   }
 
+  function onContextMenu() {
+    isDragging = false;
+    dragAxis = undefined;
+    kitchenController?.endDrag();
+  }
+
   function onKeydown(event: KeyboardEvent) {
     const isSceneScrollKey = event.key === 'ArrowLeft' || event.key === 'ArrowRight';
+    if (isTextInputEventTarget(event.target)) return;
     if (!isSceneInteractive) {
       if (isSceneScrollKey) event.preventDefault();
       return;
@@ -1640,8 +1672,7 @@
       }
 
       if (!isInDialogueRange && (state.hasPlayed || dismissedTestimonialIds[testimonial.id])) {
-        state.hasPlayed = false;
-        dismissedTestimonialIds[testimonial.id] = false;
+        resetTestimonialReplay(testimonial);
       }
 
       if (
@@ -1937,6 +1968,20 @@
     const { resources } = sceneController;
     resources.add(clearPaganiniTrailerControlFadeTimer);
     resources.add(clearPaganiniTrailerCtaTimer);
+    const mobileLoadingIntroQuery = window.matchMedia('(max-width: 760px)');
+    isMobileLoadingIntroEnabled = mobileLoadingIntroQuery.matches;
+    isMobileLoadingIntroFinished = !mobileLoadingIntroQuery.matches;
+
+    if (mobileLoadingIntroQuery.matches) {
+      mobileLoadingIntroTimer = setTimeout(() => {
+        isMobileLoadingIntroFinished = true;
+        mobileLoadingIntroTimer = undefined;
+      }, mobileLoadingIntroDurationMs);
+      resources.add(() => {
+        if (mobileLoadingIntroTimer) clearTimeout(mobileLoadingIntroTimer);
+      });
+    }
+
     const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     const syncReducedMotion = () => {
       prefersReducedMotion = reducedMotionQuery.matches;
@@ -2038,7 +2083,7 @@
   });
 
   $effect(() => {
-    if (isSceneLoaded && isPhaserReady) {
+    if (isSceneLoaded && isPhaserReady && isMobileLoadingIntroFinished) {
       if (!isSceneRevealed && !sceneRevealTimer) {
         sceneRevealTimer = setTimeout(() => {
           isSceneRevealed = true;
@@ -2084,6 +2129,7 @@
   onpointerleave={onPointerLeave}
   onpointerup={endDrag}
   onpointercancel={endDrag}
+  oncontextmenu={onContextMenu}
 >
   <SceneProgressBar progress={narrativeProgress} isVisible={isSceneRevealed} ticks={kitchenProgressTicks} />
 
@@ -2099,8 +2145,6 @@
         preload="metadata"
         playsinline
         aria-label="Trailer intervista Stefano Paganini"
-        onpointerdown={(event) => event.stopPropagation()}
-        onclick={togglePaganiniTrailerVideo}
         onplay={onPaganiniTrailerPlay}
         onpause={onPaganiniTrailerPause}
         onended={onPaganiniTrailerPause}
@@ -2122,7 +2166,9 @@
           ? 'Metti in pausa il trailer di Stefano Paganini'
           : 'Riproduci il trailer di Stefano Paganini'}
         onclick={togglePaganiniTrailerVideo}
-        onpointerdown={(event) => event.stopPropagation()}
+        onpointerdown={stopPaganiniTrailerControlEvent}
+        onpointerup={stopPaganiniTrailerControlEvent}
+        onpointercancel={stopPaganiniTrailerControlEvent}
       >
         <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
           {#if isPaganiniTrailerPlaying}
@@ -2138,7 +2184,10 @@
         href="/interviste/video-paganini?source=kitchen"
         aria-label="Guarda l'intervista completa di Stefano Paganini"
         onpointerdown={(event) => event.stopPropagation()}
-        onclick={(event) => event.stopPropagation()}
+        onclick={(event) => {
+          event.stopPropagation();
+          saveKitchenReturnCameraX();
+        }}
       >
         Intervista completa
       </a>
@@ -2164,7 +2213,41 @@
       {/if}
     </span>
   {/each}
-  {#if !isSceneRevealed}
+  {#if isMobileLoadingIntroEnabled && !isMobileLoadingIntroFinished && !isSceneRevealed}
+    <div class="kitchen-mobile-loading-intro" role="status" aria-live="polite">
+      <svg
+        class="kitchen-mobile-loading-intro-graphic"
+        viewBox="0 0 253 218"
+        aria-labelledby="kitchen-mobile-loading-intro-title"
+      >
+        <title id="kitchen-mobile-loading-intro-title">Per favore ruota il telefono</title>
+        <path
+          class="kitchen-mobile-loading-intro-arrow"
+          d="M42 183C18 158 8 121 16 86C20 66 29 48 42 33"
+        />
+        <path class="kitchen-mobile-loading-intro-arrow-fill" d="M7 41L51 30L43 73Z" />
+        <path
+          class="kitchen-mobile-loading-intro-arrow"
+          d="M212 42C236 67 246 104 238 139C234 159 225 177 212 192"
+        />
+        <path class="kitchen-mobile-loading-intro-arrow-fill" d="M203 188L248 176L211 144Z" />
+        <rect
+          class="kitchen-mobile-loading-intro-phone"
+          x="68.5"
+          y="2.5"
+          width="116"
+          height="213"
+          rx="20"
+        />
+        <rect class="kitchen-mobile-loading-intro-speaker" x="110" y="14" width="36" height="10" rx="5" />
+        <text class="kitchen-mobile-loading-intro-copy" x="126.5" y="101" text-anchor="middle">
+          <tspan x="126.5" dy="0">Per favore</tspan>
+          <tspan x="126.5" dy="16">ruota</tspan>
+          <tspan x="126.5" dy="16">il telefono</tspan>
+        </text>
+      </svg>
+    </div>
+  {:else if !isSceneRevealed}
     <SceneLoadingProgress progress={phaserLoadingProgress} />
   {/if}
 
@@ -2424,6 +2507,49 @@
     cursor: var(--kitchen-pointer-cursor);
   }
 
+  .kitchen-mobile-loading-intro {
+    position: absolute;
+    z-index: 30;
+    inset: 0;
+    display: none;
+    place-items: center;
+    background: var(--color-surface-page);
+    color: var(--color-accent-blue, #2f4f96);
+    pointer-events: none;
+  }
+
+  .kitchen-mobile-loading-intro-graphic {
+    display: block;
+    width: min(68vw, 253px);
+    max-height: min(52svh, 218px);
+  }
+
+  .kitchen-mobile-loading-intro-arrow,
+  .kitchen-mobile-loading-intro-phone {
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 6;
+  }
+
+  .kitchen-mobile-loading-intro-arrow-fill,
+  .kitchen-mobile-loading-intro-speaker {
+    fill: currentColor;
+  }
+
+  .kitchen-mobile-loading-intro-phone {
+    fill: var(--color-surface-page);
+  }
+
+  .kitchen-mobile-loading-intro-copy {
+    fill: currentColor;
+    font-family: "JetBrains Mono", var(--font-text);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+
   .kitchen-phaser-layer {
     position: absolute;
     z-index: 0;
@@ -2478,6 +2604,7 @@
     height: 100%;
     background: var(--color-text-primary);
     object-fit: cover;
+    pointer-events: none;
     cursor: var(--kitchen-pointer-cursor);
   }
 
@@ -2497,14 +2624,21 @@
     color: var(--color-text-primary);
     box-shadow: 0 10px 18px rgb(42 68 132 / 0.18);
     cursor: var(--kitchen-pointer-cursor);
-    opacity: 0.96;
+    opacity: 0;
     padding: 0;
+    pointer-events: none;
     transform: translate3d(-50%, -50%, 0) scale(var(--kitchen-video-button-scale));
     transition:
       opacity 160ms ease,
       transform 190ms cubic-bezier(0.18, 1.35, 0.28, 1),
       box-shadow 160ms ease;
     appearance: none;
+  }
+
+  .kitchen-video-container:hover .kitchen-video-play-button,
+  .kitchen-video-play-button:focus-visible {
+    opacity: 0.96;
+    pointer-events: auto;
   }
 
   .kitchen-video-play-button svg {
@@ -2535,7 +2669,19 @@
 
   .kitchen-video-play-button.is-faded {
     opacity: 0;
-    pointer-events: none;
+  }
+
+  .kitchen-video-container:hover .kitchen-video-play-button.is-faded,
+  .kitchen-video-play-button.is-faded:focus-visible {
+    opacity: 0.72;
+  }
+
+  @media (hover: none) {
+    .kitchen-video-play-button,
+    .kitchen-video-play-button.is-faded {
+      opacity: 0.86;
+      pointer-events: auto;
+    }
   }
 
   .kitchen-video-full-link {

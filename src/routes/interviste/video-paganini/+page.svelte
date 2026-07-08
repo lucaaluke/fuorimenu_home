@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
 
   const paganiniWrittenInterviewHref = '/interviste?chef=paganini&view=full';
-  const paganiniKitchenReturnHref = '/phaser?cameraX=8900';
+  const paganiniKitchenDefaultCameraX = 8900;
+  const kitchenReturnCameraStorageKey = 'kitchen-return-camera-x';
   const paganiniYoutubeEmbedSrc = 'https://www.youtube.com/embed/lIS9D7-pVkU?rel=0';
 
   let viewportWidth = $state(1280);
@@ -26,7 +27,14 @@
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
     const isKitchenSource = params.get('source') === 'kitchen';
-    backHref = isKitchenSource ? paganiniKitchenReturnHref : paganiniWrittenInterviewHref;
+    const storedCameraXValue = sessionStorage.getItem(kitchenReturnCameraStorageKey);
+    const storedCameraX = storedCameraXValue === null ? undefined : Number(storedCameraXValue);
+    const kitchenCameraX =
+      typeof storedCameraX === 'number' && Number.isFinite(storedCameraX)
+        ? storedCameraX
+        : paganiniKitchenDefaultCameraX;
+
+    backHref = isKitchenSource ? `/phaser?cameraX=${Math.round(kitchenCameraX)}` : paganiniWrittenInterviewHref;
     backLabel = isKitchenSource ? 'Torna alla cucina' : "Torna all'intervista scritta di Stefano Paganini";
   });
 </script>

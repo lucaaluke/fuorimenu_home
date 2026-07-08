@@ -2770,12 +2770,7 @@
           >{letter}</span>
       {/each}
     </p>
-    <p bind:this={brandSubtitleEl} class="brand-subtitle" aria-label={brandSubtitle}>
-      <span class="brand-subtitle-jetbrains" aria-hidden="true">Dentro le </span>
-      <span class="brand-subtitle-jetbrains" aria-hidden="true">cucine </span>
-      <br class="brand-subtitle-mobile-break" aria-hidden="true" />
-      <span class="brand-subtitle-jetbrains" aria-hidden="true">di Milano Cortina 2026</span>
-    </p>
+    <p bind:this={brandSubtitleEl} class="brand-subtitle">{brandSubtitle}</p>
   </div>
   <div bind:this={brandScrollCueEl} class="brand-scroll-cue" data-node-id="3448:2821" aria-label="Scorri">
     <span data-node-id="3448:2822">Scorri</span>
@@ -6004,20 +5999,14 @@
     font-size: 32px;
     font-weight: 600;
     line-height: 1.2;
+    letter-spacing: 0;
     text-align: center;
+    white-space: normal;
+    word-spacing: normal;
     opacity: var(--brand-subtitle-opacity, 0);
     transform: translateY(var(--brand-subtitle-y, 14px));
     transition: opacity 120ms linear, transform 140ms ease-out;
     will-change: opacity, transform;
-  }
-
-  .brand-subtitle-jetbrains {
-    font-family: "JetBrains Mono", var(--font-text);
-    font-weight: 700;
-  }
-
-  .brand-subtitle-mobile-break {
-    display: none;
   }
 
   .brand-scroll-cue {
@@ -6925,7 +6914,6 @@
     .brand-word   { font-size: 56px; }
     .brand-lockup { gap: 0; }
     .brand-subtitle { font-size: 16px; }
-    .brand-subtitle-mobile-break { display: block; }
     .brand-scroll-cue { bottom: clamp(0px, 0.5svh, 6px); }
     .floating-raviolo { width: clamp(86px, 28vw, 124px); }
     .floating-pizza { width: clamp(92px, 30vw, 132px); }

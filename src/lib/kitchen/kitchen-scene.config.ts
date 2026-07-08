@@ -453,7 +453,7 @@ const kitchenConstructionPlacedAssets: SceneAsset[] = [
 const kitchenConstructionEasterEggAsset: SceneAsset = kitchenConstructionObjectAsset(
   'easteregg',
   'office-figma/primopiano/easteregg.png',
-  53000,
+  53300,
   -221,
   310,
   1167,

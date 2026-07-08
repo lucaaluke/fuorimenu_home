@@ -14,6 +14,7 @@
   let initialCameraX = $state<number>();
   let isLeavingSection = false;
   const sectionAudioFadeOutMs = 460;
+  const kitchenReturnCameraStorageKey = 'kitchen-return-camera-x';
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
   const showNextSectionLink = $derived(sceneProgress >= 0.96);
 
@@ -42,11 +43,13 @@
   onMount(() => {
     isAudioMuted = readAudioMutedPreference(false);
     const cameraXParam = new URLSearchParams(window.location.search).get('cameraX');
-    const parsedCameraX = cameraXParam ? Number(cameraXParam) : undefined;
+    const storedCameraX = sessionStorage.getItem(kitchenReturnCameraStorageKey);
+    const parsedCameraX = cameraXParam ? Number(cameraXParam) : storedCameraX ? Number(storedCameraX) : undefined;
     if (typeof parsedCameraX === 'number' && Number.isFinite(parsedCameraX)) {
       initialCameraX = parsedCameraX;
       window.history.replaceState(window.history.state, document.title, window.location.pathname);
     }
+    if (storedCameraX !== null) sessionStorage.removeItem(kitchenReturnCameraStorageKey);
 
     if (sessionStorage.getItem('kitchen-card-transition') !== '1') return;
     sessionStorage.removeItem('kitchen-card-transition');

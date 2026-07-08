@@ -75,6 +75,7 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
   let dragStartPosition = 0;
   let dragScrollStart = 0;
   let dragging = false;
+  let isSettingScrollFromController = false;
   let killed = false;
   const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   let prefersReducedMotion = reducedMotionQuery.matches;
@@ -101,22 +102,33 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
     targetCameraX = clamp(applyScrollResistance(value), 0, getMetrics().maxScrollX);
   }
 
-  function getScrollForCameraX(value: number) {
-    const metrics = getMetrics();
+  function getScrollForCameraXFromBounds(value: number, start: number, end: number, metrics = getMetrics()) {
     const progress = metrics.maxScrollX > 0 ? clamp(value / metrics.maxScrollX, 0, 1) : 0;
-    return scrollTrigger.start + (scrollTrigger.end - scrollTrigger.start) * progress;
+    return start + (end - start) * progress;
+  }
+
+  function getScrollForCameraX(value: number) {
+    return getScrollForCameraXFromBounds(value, scrollTrigger.start, scrollTrigger.end);
+  }
+
+  function setScrollFromController(value: number, targetScrollTrigger = scrollTrigger) {
+    isSettingScrollFromController = true;
+    targetScrollTrigger.scroll(value);
+    requestAnimationFrame(() => {
+      isSettingScrollFromController = false;
+    });
   }
 
   function scrollToCameraX(value: number) {
     if (!isScrollEnabled()) {
       cameraX = 0;
       targetCameraX = 0;
-      scrollTrigger.scroll(scrollTrigger.start);
+      setScrollFromController(scrollTrigger.start);
       return;
     }
 
     setTargetCameraX(value);
-    scrollTrigger.scroll(getScrollForCameraX(targetCameraX));
+    setScrollFromController(getScrollForCameraX(targetCameraX));
   }
 
   function evaluateScene(delta: number, now: number) {
@@ -209,14 +221,24 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
         if (self.scroll() !== self.start) self.scroll(self.start);
         return;
       }
-      setTargetCameraX(self.progress * getMetrics().maxScrollX);
+      const metrics = getMetrics();
+      const preservedCameraX = clamp(targetCameraX || cameraX, 0, metrics.maxScrollX);
+      cameraX = preservedCameraX;
+      targetCameraX = preservedCameraX;
+      const preservedScroll = getScrollForCameraXFromBounds(preservedCameraX, self.start, self.end, metrics);
+      if (Math.abs(self.scroll() - preservedScroll) > 0.5) setScrollFromController(preservedScroll, self);
     },
     onUpdate: (self) => {
       if (!isScrollEnabled()) {
         cameraX = 0;
         targetCameraX = 0;
         activeChefId = undefined;
-        if (self.scroll() !== self.start) self.scroll(self.start);
+        if (self.scroll() !== self.start) setScrollFromController(self.start, self);
+        return;
+      }
+      if (!isSettingScrollFromController) {
+        const preservedScroll = getScrollForCameraXFromBounds(targetCameraX || cameraX, self.start, self.end);
+        if (Math.abs(self.scroll() - preservedScroll) > 0.5) setScrollFromController(preservedScroll, self);
         return;
       }
       setTargetCameraX(self.progress * getMetrics().maxScrollX);
@@ -252,16 +274,20 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
     },
     dragTo(clientPosition: number) {
       if (!dragging || !isScrollEnabled()) return;
-      scrollTrigger.scroll(dragScrollStart + (dragStartPosition - clientPosition) * 1.54);
+      setScrollFromController(dragScrollStart + (dragStartPosition - clientPosition) * 1.54);
     },
     endDrag() {
       dragging = false;
     },
     resize() {
       const metrics = getMetrics();
-      cameraX = clamp(cameraX, 0, metrics.maxScrollX);
-      targetCameraX = clamp(targetCameraX, 0, metrics.maxScrollX);
+      const preservedCameraX = clamp(targetCameraX || cameraX, 0, metrics.maxScrollX);
+      cameraX = preservedCameraX;
+      targetCameraX = preservedCameraX;
       ScrollTrigger.refresh();
+      cameraX = clamp(preservedCameraX, 0, getMetrics().maxScrollX);
+      targetCameraX = cameraX;
+      setScrollFromController(getScrollForCameraX(targetCameraX));
     },
     scrollTo(cameraX: number) {
       scrollToCameraX(cameraX);
