@@ -394,6 +394,9 @@
   let toolShedAudioSource: MediaElementAudioSourceNode | undefined;
   const fallbackAudioFadeFrames = new WeakMap<HTMLAudioElement, number>();
   let isDragging = $state(false);
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let dragAxis: 'x' | 'y' | undefined;
   let isSceneLoaded = $state(false);
   let isSceneRevealed = $state(false);
   let sceneRevealTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1159,6 +1162,9 @@
     }
     updatePointerScenePosition(event);
     isDragging = true;
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
+    dragAxis = undefined;
     void startAmbientAudio();
     unlockRelevantTestimonialAudio();
     kitchenController?.beginDrag(event.clientX);
@@ -1169,7 +1175,13 @@
     if (!isSceneInteractive) return;
     updatePointerScenePosition(event);
     if (!isDragging) return;
-    kitchenController?.dragTo(event.clientX);
+    const dragDeltaX = event.clientX - dragStartX;
+    const dragDeltaY = event.clientY - dragStartY;
+    if (!dragAxis && Math.max(Math.abs(dragDeltaX), Math.abs(dragDeltaY)) > 6) {
+      dragAxis = Math.abs(dragDeltaY) > Math.abs(dragDeltaX) ? 'y' : 'x';
+      if (dragAxis === 'y') kitchenController?.beginDrag(dragStartY);
+    }
+    kitchenController?.dragTo(dragAxis === 'y' ? event.clientY : event.clientX);
     unlockRelevantTestimonialAudio();
   }
 
@@ -1184,6 +1196,7 @@
 
   function endDrag(event: PointerEvent) {
     isDragging = false;
+    dragAxis = undefined;
     kitchenController?.endDrag();
     updatePointerScenePosition(event);
     kitchenPhaserGame?.setObjectHoverSuppressed(isPointerOverTestimonialHitbox);

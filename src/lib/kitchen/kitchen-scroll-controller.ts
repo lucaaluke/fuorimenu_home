@@ -72,7 +72,7 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
   let activeChefId: KitchenChefId | undefined;
   let cameraX = 0;
   let targetCameraX = 0;
-  let dragStartX = 0;
+  let dragStartPosition = 0;
   let dragScrollStart = 0;
   let dragging = false;
   let killed = false;
@@ -236,10 +236,10 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
   ScrollTrigger.refresh();
 
   return {
-    beginDrag(clientX: number) {
+    beginDrag(clientPosition: number) {
       if (!isScrollEnabled()) return;
       dragging = true;
-      dragStartX = clientX;
+      dragStartPosition = clientPosition;
       dragScrollStart = scrollTrigger.scroll();
     },
     bridge,
@@ -250,9 +250,9 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
       triggers.clear();
       scrollTrigger.kill();
     },
-    dragTo(clientX: number) {
+    dragTo(clientPosition: number) {
       if (!dragging || !isScrollEnabled()) return;
-      scrollTrigger.scroll(dragScrollStart + (dragStartX - clientX) * 1.54);
+      scrollTrigger.scroll(dragScrollStart + (dragStartPosition - clientPosition) * 1.54);
     },
     endDrag() {
       dragging = false;

@@ -91,6 +91,7 @@
   let sceneRevealTimer: ReturnType<typeof setTimeout> | undefined;
   const sceneRevealDelayMs = 560;
   let dragStartX = 0;
+  let dragStartY = 0;
   let dragScrollStart = 0;
   let scrollTrigger:
     | {
@@ -1193,6 +1194,7 @@
     updatePointerScenePosition(event);
     isDragging = true;
     dragStartX = event.clientX;
+    dragStartY = event.clientY;
     dragScrollStart = scrollTrigger?.scroll() ?? 0;
     stageEl.setPointerCapture(event.pointerId);
   }
@@ -1201,7 +1203,10 @@
     if (!isSceneInteractive) return;
     updatePointerScenePosition(event);
     if (!isDragging) return;
-    scrollTrigger?.scroll(dragScrollStart + (dragStartX - event.clientX) * 1.54);
+    const dragDeltaX = dragStartX - event.clientX;
+    const dragDeltaY = dragStartY - event.clientY;
+    const dominantDelta = Math.abs(dragDeltaY) > Math.abs(dragDeltaX) ? dragDeltaY : dragDeltaX;
+    scrollTrigger?.scroll(dragScrollStart + dominantDelta * 1.54);
   }
 
   function onPointerLeave() {

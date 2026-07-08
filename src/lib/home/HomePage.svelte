@@ -2413,6 +2413,46 @@
       if (isAudioGateVisible) return;
       queueFlow(normalizeWheelDelta(e));
     };
+    let touchLastX = 0;
+    let touchLastY = 0;
+    let isFlowTouchActive = false;
+    const touchFlowScale = 1 / 420;
+    const touchDeadZone = 3;
+    const nativeTouchScrollSelector = [
+      '.about-project',
+      '.about-interviews',
+      '.about-full-interview-scroll'
+    ].join(',');
+    const isNativeTouchScrollTarget = (target: EventTarget | null) =>
+      target instanceof Element && Boolean(target.closest(nativeTouchScrollSelector));
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1 || isAudioGateVisible || isNativeTouchScrollTarget(e.target)) {
+        isFlowTouchActive = false;
+        return;
+      }
+      const touch = e.touches[0];
+      touchLastX = touch.clientX;
+      touchLastY = touch.clientY;
+      isFlowTouchActive = !isAboutOpen;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isFlowTouchActive || e.touches.length !== 1 || isAudioGateVisible || isAboutOpen) return;
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - touchLastX;
+      const deltaY = touch.clientY - touchLastY;
+      touchLastX = touch.clientX;
+      touchLastY = touch.clientY;
+
+      const dominantDelta = Math.abs(deltaY) >= Math.abs(deltaX) ? -deltaY : -deltaX;
+      if (Math.abs(dominantDelta) < touchDeadZone) return;
+
+      e.preventDefault();
+      if (!isAudioMuted) void unlockAmbientAudio();
+      queueFlow(clamp(dominantDelta * touchFlowScale, -flowMotion.reverseMaxWheelStep, flowMotion.maxWheelStep));
+    };
+    const onTouchEnd = () => {
+      isFlowTouchActive = false;
+    };
     const onPointerDownAudioUnlock = () => {
       if (isAudioGateVisible || isAudioMuted) return;
       void unlockAmbientAudio();
@@ -2459,6 +2499,10 @@
     });
     animations.addTicker(moveFloatingAssets);
     sceneResources.addEventListener(window, 'wheel', onWheel as EventListener, { passive: false });
+    sceneResources.addEventListener(window, 'touchstart', onTouchStart as EventListener, { passive: true });
+    sceneResources.addEventListener(window, 'touchmove', onTouchMove as EventListener, { passive: false });
+    sceneResources.addEventListener(window, 'touchend', onTouchEnd as EventListener, { passive: true });
+    sceneResources.addEventListener(window, 'touchcancel', onTouchEnd as EventListener, { passive: true });
     sceneResources.addEventListener(window, 'keydown', onKeydown as EventListener);
     sceneResources.addEventListener(window, 'pointerdown', onPointerDownAudioUnlock, { passive: true });
     sceneResources.addEventListener(window, 'resize', queueRoleHoverTextFit, { passive: true });
