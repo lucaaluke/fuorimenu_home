@@ -89,8 +89,9 @@
   const sceneController = createSceneController<KitchenControllerState, KitchenControllerEvents>(
     initialKitchenState
   );
-  let { isAudioMuted = false, onProgressChange, onSceneRevealedChange } = $props<{
+  let { isAudioMuted = false, initialCameraX, onProgressChange, onSceneRevealedChange } = $props<{
     isAudioMuted?: boolean;
+    initialCameraX?: number;
     onProgressChange?: (progress: number) => void;
     onSceneRevealedChange?: (isRevealed: boolean) => void;
   }>();
@@ -123,7 +124,7 @@
     marco: { enter: 15500, dialogueStart: 15500, exit: 18400 }
   } as const;
   const paganiniTrailerVideo = {
-    cameraX: 9250,
+    cameraX: 8750,
     y: 360,
     width: 1040,
     height: 585,
@@ -335,6 +336,7 @@
         dragTo: (clientX: number) => void;
         endDrag: () => void;
         resize: () => void;
+        scrollTo: (cameraX: number) => void;
         destroy: () => void;
 	      }
 	    | undefined;
@@ -342,6 +344,7 @@
   let phaserResizeTimer: ReturnType<typeof setTimeout> | undefined;
   let phaserLoadingProgress = $state(0);
   let isPhaserReady = $state(false);
+  let hasAppliedInitialCameraX = $state(false);
   let pointerLocalX = $state(0);
   let pointerLocalY = $state(0);
   let toolShedAudioEl: HTMLAudioElement;
@@ -1936,6 +1939,14 @@
   $effect(() => {
     onSceneRevealedChange?.(isSceneRevealed);
   });
+
+  $effect(() => {
+    if (hasAppliedInitialCameraX || !isSceneInteractive || !kitchenController) return;
+    if (typeof initialCameraX !== 'number' || !Number.isFinite(initialCameraX)) return;
+
+    kitchenController.scrollTo(initialCameraX);
+    hasAppliedInitialCameraX = true;
+  });
 </script>
 
 <section
@@ -2005,7 +2016,7 @@
       <a
         class="kitchen-video-full-link"
         class:is-visible={isPaganiniTrailerCtaVisible}
-        href="/interviste/video-paganini"
+        href="/interviste/video-paganini?source=kitchen"
         aria-label="Guarda l'intervista completa di Stefano Paganini"
         onpointerdown={(event) => event.stopPropagation()}
         onclick={(event) => event.stopPropagation()}

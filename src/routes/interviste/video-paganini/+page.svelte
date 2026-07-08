@@ -1,7 +1,37 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+
   const paganiniWrittenInterviewHref = '/interviste?chef=paganini&view=full';
-  const paganiniYoutubeEmbedSrc = 'https://www.youtube.com/embed/VIDEO_ID?rel=0';
+  const paganiniKitchenReturnHref = '/phaser?cameraX=8900';
+  const paganiniYoutubeEmbedSrc = 'https://www.youtube.com/embed/lIS9D7-pVkU?rel=0';
+
+  let viewportWidth = $state(1280);
+  let viewportHeight = $state(720);
+  let backHref = $state(paganiniWrittenInterviewHref);
+  let backLabel = $state("Torna all'intervista scritta di Stefano Paganini");
+
+  const paganiniVideoShellStyle = $derived.by(() => {
+    const isMobile = viewportWidth <= 700;
+    const topOffset = isMobile ? 84 : 136;
+    const sideGutter = isMobile ? 24 : 80;
+    const bottomGap = isMobile ? 32 : Math.min(72, Math.max(40, viewportHeight * 0.06));
+    const availableWidth = Math.max(260, viewportWidth - sideGutter * 2);
+    const availableHeight = Math.max(180, viewportHeight - topOffset - bottomGap);
+    const width = Math.min(1280, availableWidth, availableHeight * (16 / 9));
+    const height = width * (9 / 16);
+
+    return `width: ${width}px; height: ${height}px;`;
+  });
+
+  onMount(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isKitchenSource = params.get('source') === 'kitchen';
+    backHref = isKitchenSource ? paganiniKitchenReturnHref : paganiniWrittenInterviewHref;
+    backLabel = isKitchenSource ? 'Torna alla cucina' : "Torna all'intervista scritta di Stefano Paganini";
+  });
 </script>
+
+<svelte:window bind:innerWidth={viewportWidth} bind:innerHeight={viewportHeight} />
 
 <svelte:head>
   <title>Video Paganini | Fuorimenù</title>
@@ -16,8 +46,8 @@
 <main class="paganini-video-page" aria-labelledby="paganini-video-title">
   <a
     class="paganini-video-back"
-    href={paganiniWrittenInterviewHref}
-    aria-label="Torna all'intervista scritta di Stefano Paganini"
+    href={backHref}
+    aria-label={backLabel}
   >
     <span class="paganini-video-back-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24" focusable="false">
@@ -28,7 +58,7 @@
 
   <h1 id="paganini-video-title" class="sr-only">Video intervista Stefano Paganini</h1>
 
-  <div class="paganini-video-shell">
+  <div class="paganini-video-shell" style={paganiniVideoShellStyle}>
     <iframe
       class="paganini-video-embed"
       src={paganiniYoutubeEmbedSrc}
@@ -42,11 +72,14 @@
 
 <style>
   .paganini-video-page {
+    --paganini-video-top-offset: 136px;
+    --paganini-video-bottom-gap: clamp(40px, 6vh, 72px);
+
     box-sizing: border-box;
     display: grid;
+    grid-template-rows: var(--paganini-video-top-offset) minmax(0, 1fr);
     min-height: var(--app-viewport-height);
-    place-items: center;
-    padding: clamp(76px, 8vw, 108px) var(--layout-page-gutter);
+    padding: 0 var(--layout-page-gutter) var(--paganini-video-bottom-gap);
     background: var(--color-surface-page);
     color: var(--color-text-primary);
     cursor: url('/cursors/retrogusto-cursor.svg') 5 5, auto;
@@ -87,7 +120,9 @@
   }
 
   .paganini-video-shell {
-    width: min(1280px, 100%);
+    grid-row: 2;
+    align-self: center;
+    justify-self: center;
     aspect-ratio: 16 / 9;
     overflow: hidden;
     border: 2px solid var(--color-text-primary);
@@ -116,7 +151,10 @@
 
   @media (max-width: 700px) {
     .paganini-video-page {
-      padding: 82px var(--layout-page-gutter-mobile) 32px;
+      --paganini-video-top-offset: 84px;
+      --paganini-video-bottom-gap: 32px;
+
+      padding: 0 var(--layout-page-gutter-mobile) var(--paganini-video-bottom-gap);
     }
 
     .paganini-video-back {

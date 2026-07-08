@@ -11,6 +11,7 @@
   let isAudioMuted = $state(true);
   let sceneProgress = $state(0);
   let isSceneRevealed = $state(false);
+  let initialCameraX = $state<number>();
   let isLeavingSection = false;
   const sectionAudioFadeOutMs = 460;
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
@@ -40,6 +41,12 @@
 
   onMount(() => {
     isAudioMuted = readAudioMutedPreference(false);
+    const cameraXParam = new URLSearchParams(window.location.search).get('cameraX');
+    const parsedCameraX = cameraXParam ? Number(cameraXParam) : undefined;
+    if (typeof parsedCameraX === 'number' && Number.isFinite(parsedCameraX)) {
+      initialCameraX = parsedCameraX;
+      window.history.replaceState(window.history.state, document.title, window.location.pathname);
+    }
 
     if (sessionStorage.getItem('kitchen-card-transition') !== '1') return;
     sessionStorage.removeItem('kitchen-card-transition');
@@ -126,6 +133,7 @@
   <section class="game-shell" aria-label="Scena parallasse della cucina">
     <KitchenScene
       {isAudioMuted}
+      {initialCameraX}
       onProgressChange={(progress) => (sceneProgress = progress)}
       onSceneRevealedChange={(isRevealed) => (isSceneRevealed = isRevealed)}
     />

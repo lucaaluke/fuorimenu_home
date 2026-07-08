@@ -263,6 +263,9 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
       targetCameraX = clamp(targetCameraX, 0, metrics.maxScrollX);
       ScrollTrigger.refresh();
     },
+    scrollTo(cameraX: number) {
+      scrollToCameraX(cameraX);
+    },
     scrollBy(delta: number) {
       if (!isScrollEnabled()) return;
       scrollToCameraX(targetCameraX + delta);
