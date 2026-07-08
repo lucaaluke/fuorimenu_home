@@ -2979,7 +2979,7 @@
             <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
           </span>
         </button>
-        <a class="about-gate-section" href="/interviste" data-node-id="381:308">
+        <button class="about-gate-section" type="button" data-node-id="381:308" onclick={openAboutInterviews}>
           <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
             <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
           </span>
@@ -2988,7 +2988,7 @@
           <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
             <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
           </span>
-        </a>
+        </button>
       </div>
     {:else if aboutView === 'project'}
       <section
