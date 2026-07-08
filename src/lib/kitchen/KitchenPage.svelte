@@ -124,8 +124,8 @@
 
   <SectionNextLink
     href="/servizio"
-    label="servizio"
-    ariaLabel="Vai alla sezione servizio"
+    label="sala"
+    ariaLabel="Vai alla sezione sala"
     visible={showNextSectionLink}
     onclick={(event) => navigateWithAudioFade(event, '/servizio', { immediate: true })}
   />

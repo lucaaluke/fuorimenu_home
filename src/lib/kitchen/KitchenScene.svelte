@@ -35,6 +35,9 @@
     sceneWidth,
     title
   } = kitchenSceneConfig;
+  const touchScrollInteractiveSelector = 'a, button, input, textarea, select, video, [role="button"]';
+  const touchScrollDeadZone = 3;
+  const touchScrollFactor = 1.54;
   const showLegacyKitchenOverlays = false;
   const phaserObjectScrollFactor = {
     middle: 1.25,
@@ -369,6 +372,7 @@
   let paganiniTrailerCtaTimer: ReturnType<typeof setTimeout> | undefined;
   let hasPlayedToolShedHover = false;
   let hasPlayedStandMixerHover = false;
+  let standMixerFadeOutTimer: ReturnType<typeof setTimeout> | undefined;
   let isAmbientAudioStarted = false;
   let previousKitchenAmbientMix = -1;
   let previousKitchenAmbientDucked = false;
@@ -401,6 +405,12 @@
   let toolShedAudioSource: MediaElementAudioSourceNode | undefined;
   const fallbackAudioFadeFrames = new WeakMap<HTMLAudioElement, number>();
   let isDragging = $state(false);
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let dragAxis: 'x' | 'y' | undefined;
+  let isTouchScrolling = false;
+  let touchLastX = 0;
+  let touchLastY = 0;
   let isSceneLoaded = $state(false);
   let isSceneRevealed = $state(false);
   let sceneRevealTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1210,13 +1220,56 @@
     scrollBy(delta * 0.84);
   }
 
+  function canStartTouchScroll(target: EventTarget | null) {
+    return target instanceof Element && !target.closest(touchScrollInteractiveSelector);
+  }
+
+  function onTouchStart(event: TouchEvent) {
+    if (!isSceneInteractive || event.touches.length !== 1 || !canStartTouchScroll(event.target)) {
+      isTouchScrolling = false;
+      return;
+    }
+
+    const touch = event.touches[0];
+    touchLastX = touch.clientX;
+    touchLastY = touch.clientY;
+    isTouchScrolling = true;
+    void startAmbientAudio();
+    unlockRelevantTestimonialAudio();
+  }
+
+  function onTouchMove(event: TouchEvent) {
+    if (!isTouchScrolling || !isSceneInteractive || event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - touchLastX;
+    const deltaY = touch.clientY - touchLastY;
+    touchLastX = touch.clientX;
+    touchLastY = touch.clientY;
+
+    const dominantDelta = Math.abs(deltaY) > Math.abs(deltaX) ? -deltaY : -deltaX;
+    if (Math.abs(dominantDelta) < touchScrollDeadZone) return;
+
+    event.preventDefault();
+    scrollBy(dominantDelta * touchScrollFactor);
+    unlockRelevantTestimonialAudio();
+  }
+
+  function onTouchEnd() {
+    isTouchScrolling = false;
+  }
+
   function onPointerDown(event: PointerEvent) {
+    if (event.pointerType === 'touch') return;
     if (!isSceneInteractive) {
       event.preventDefault();
       return;
     }
     updatePointerScenePosition(event);
     isDragging = true;
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
+    dragAxis = undefined;
     void startAmbientAudio();
     unlockRelevantTestimonialAudio();
     kitchenController?.beginDrag(event.clientX);
@@ -1224,10 +1277,17 @@
   }
 
   function onPointerMove(event: PointerEvent) {
+    if (event.pointerType === 'touch') return;
     if (!isSceneInteractive) return;
     updatePointerScenePosition(event);
     if (!isDragging) return;
-    kitchenController?.dragTo(event.clientX);
+    const dragDeltaX = event.clientX - dragStartX;
+    const dragDeltaY = event.clientY - dragStartY;
+    if (!dragAxis && Math.max(Math.abs(dragDeltaX), Math.abs(dragDeltaY)) > 6) {
+      dragAxis = Math.abs(dragDeltaY) > Math.abs(dragDeltaX) ? 'y' : 'x';
+      if (dragAxis === 'y') kitchenController?.beginDrag(dragStartY);
+    }
+    kitchenController?.dragTo(dragAxis === 'y' ? event.clientY : event.clientX);
     unlockRelevantTestimonialAudio();
   }
 
@@ -1242,6 +1302,7 @@
 
   function endDrag(event: PointerEvent) {
     isDragging = false;
+    dragAxis = undefined;
     kitchenController?.endDrag();
     updatePointerScenePosition(event);
     kitchenPhaserGame?.setObjectHoverSuppressed(isPointerOverTestimonialHitbox);
@@ -1296,8 +1357,12 @@
     return undefined;
   }
 
+  const standMixerHoverVolume = 0.05;
+  const standMixerFadeOutLead = 0.48;
+  const standMixerFadeOutDuration = 0.42;
+
   function getKitchenSTooltipHoverVolume(soundId: keyof typeof kitchenSTooltipSoundFileById) {
-    if (soundId === 'standMixer') return 0.16;
+    if (soundId === 'standMixer') return standMixerHoverVolume;
     if (soundId === 'toolbox') return 0.22;
     if (soundId === 'alarmClock') return 0.46;
     if (soundId === 'stove') return 0.42;
@@ -1311,6 +1376,11 @@
     if (soundId === 'toolbox') {
       boostToolShedAudio();
       void toolShedAudioContext?.resume();
+    }
+
+    if (soundId === 'standMixer') {
+      playStandMixerAudioWithFade(getKitchenSTooltipHoverVolume(soundId));
+      return;
     }
 
     playHoverSound(getKitchenSTooltipHoverAudio(soundId), getKitchenSTooltipHoverVolume(soundId), 0);
@@ -1397,6 +1467,50 @@
     };
 
     fallbackAudioFadeFrames.set(audio, requestAnimationFrame(step));
+  }
+
+  function clearStandMixerFadeOutTimer() {
+    if (!standMixerFadeOutTimer) return;
+    clearTimeout(standMixerFadeOutTimer);
+    standMixerFadeOutTimer = undefined;
+  }
+
+  function scheduleStandMixerFadeOut() {
+    if (!standMixerAudioEl) return;
+
+    clearStandMixerFadeOutTimer();
+
+    const duration = standMixerAudioEl.duration;
+    if (!Number.isFinite(duration) || duration <= 0) {
+      standMixerAudioEl.addEventListener('loadedmetadata', scheduleStandMixerFadeOut, { once: true });
+      return;
+    }
+
+    const secondsUntilFade = Math.max(
+      duration - standMixerAudioEl.currentTime - standMixerFadeOutLead,
+      0
+    );
+
+    standMixerFadeOutTimer = setTimeout(() => {
+      standMixerFadeOutTimer = undefined;
+      if (standMixerAudioEl.paused || standMixerAudioEl.ended) return;
+
+      fadeAudioVolume(standMixerAudioEl, 0, standMixerFadeOutDuration, () => {
+        standMixerAudioEl.pause();
+        standMixerAudioEl.currentTime = duration;
+        standMixerAudioEl.volume = standMixerHoverVolume;
+      });
+    }, secondsUntilFade * 1000);
+  }
+
+  function playStandMixerAudioWithFade(volume = standMixerHoverVolume) {
+    if (!standMixerAudioEl) return;
+
+    clearStandMixerFadeOutTimer();
+    cancelFallbackAudioFade(standMixerAudioEl);
+    gsap?.killTweensOf(standMixerAudioEl);
+    playHoverSound(standMixerAudioEl, volume, 0);
+    scheduleStandMixerFadeOut();
   }
 
   function setAmbientAudioVolumes(options: { duration?: number } = {}) {
@@ -1554,7 +1668,7 @@
   function playStandMixerHoverSound() {
     if (hasPlayedStandMixerHover) return;
     hasPlayedStandMixerHover = true;
-    playHoverSound(standMixerAudioEl, 0.16);
+    playStandMixerAudioWithFade();
   }
 
   function resetStandMixerHoverSound() {
@@ -1901,11 +2015,16 @@
       isSceneLoaded = true;
     });
     stageEl.addEventListener('click', triggerTapClickFeedback, true);
+    resources.addEventListener(stageEl, 'touchstart', onTouchStart as EventListener, { capture: true, passive: true });
+    resources.addEventListener(stageEl, 'touchmove', onTouchMove as EventListener, { capture: true, passive: false });
+    resources.addEventListener(stageEl, 'touchend', onTouchEnd as EventListener, true);
+    resources.addEventListener(stageEl, 'touchcancel', onTouchEnd as EventListener, true);
     resources.addEventListener(window, 'keydown', onKeydown as EventListener);
 	    return () => {
       stageEl?.removeEventListener('click', triggerTapClickFeedback, true);
       if (sceneRevealTimer) clearTimeout(sceneRevealTimer);
       if (phaserResizeTimer) clearTimeout(phaserResizeTimer);
+      clearStandMixerFadeOutTimer();
       cancelFallbackAudioFade(constructionAudioEl);
       cancelFallbackAudioFade(kitchenAmbientAudioEl);
       pauseAllKitchenHoverSounds();

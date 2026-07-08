@@ -715,7 +715,7 @@
   const carloCraccoInterviewTranscript: InterviewTranscriptSection[] = [
     {
       question:
-        "Partendo dal tema “Le Olimpiadi degli invisibili” in relazione alle Olimpiadi Milano Cortina 2026, l'obiettivo è condurre una ricerca sui retroscena dei Giochi, focalizzandosi su tutto ciò che rende possibile l'evento ma rimane fuori dai riflettori: persone, ruoli, progetti, processi, coordinamento, responsabilità quotidiane. Un punto di vista interno e spesso ignorato di quell'esperienza olimpica. Chi rende possibili le Olimpiadi senza essere protagonista dell'evento? Un evento di questa portata si prepara con anni di anticipo. Dal punto di vista puramente organizzativo, come ha approcciato la sfida di Milano Cortina? Come ha riorganizzato la struttura di Cracco in Galleria e della sua brigata per trasformarlo in un luogo in grado di ospitare l'Omega House conciliando grandi flussi di persone e qualità del cibo senza perdere l'identità del fine dining?",
+        "Chi rende possibili le Olimpiadi senza essere protagonista dell’evento? Un evento di questa portata si prepara con anni di anticipo. Dal punto di vista puramente organizzativo, come ha approcciato la sfida di Milano Cortina? Come ha riorganizzato la struttura di 'Cracco in Galleria' e della sua brigata per trasformarlo in un luogo in grado di ospitare l'Omega House conciliando grandi flussi di persone e qualità del cibo senza perdere l'identità del fine dining?",
       answer:
         "Le Olimpiadi degli invisibili? Sono la realtà, non il tema. La cucina è sempre stata così. Tu vedi il piatto, ma dietro ci sono turni infiniti, gerarchie, logistica, errori corretti al volo. A Milano Cortina ho lavorato esattamente su questo: rendere invisibile la complessità. Ho riorganizzato Cracco in Galleria pensando a chi non si vede chi prepara, chi coordina, chi pulisce, chi controlla le forniture. Se la macchina funziona, è perché queste persone non sbagliano mai. E non possono permetterselo. Il brand Omega ha fatto un takeover totale del Ristorante e della Sala Mengoni, adibita agli eventi. Hanno modificato tutto l'arredamento, costruito pareti e creato ambienti nuovi… uno shock all'inizio, ma il risultato è stato magnifico: un'integrazione perfetta fra la nostra realtà e Omega, un'autentica casa Olimpiadi."
     },
@@ -2413,6 +2413,46 @@
       if (isAudioGateVisible) return;
       queueFlow(normalizeWheelDelta(e));
     };
+    let touchLastX = 0;
+    let touchLastY = 0;
+    let isFlowTouchActive = false;
+    const touchFlowScale = 1 / 420;
+    const touchDeadZone = 3;
+    const nativeTouchScrollSelector = [
+      '.about-project',
+      '.about-interviews',
+      '.about-full-interview-scroll'
+    ].join(',');
+    const isNativeTouchScrollTarget = (target: EventTarget | null) =>
+      target instanceof Element && Boolean(target.closest(nativeTouchScrollSelector));
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1 || isAudioGateVisible || isNativeTouchScrollTarget(e.target)) {
+        isFlowTouchActive = false;
+        return;
+      }
+      const touch = e.touches[0];
+      touchLastX = touch.clientX;
+      touchLastY = touch.clientY;
+      isFlowTouchActive = !isAboutOpen;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isFlowTouchActive || e.touches.length !== 1 || isAudioGateVisible || isAboutOpen) return;
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - touchLastX;
+      const deltaY = touch.clientY - touchLastY;
+      touchLastX = touch.clientX;
+      touchLastY = touch.clientY;
+
+      const dominantDelta = Math.abs(deltaY) >= Math.abs(deltaX) ? -deltaY : -deltaX;
+      if (Math.abs(dominantDelta) < touchDeadZone) return;
+
+      e.preventDefault();
+      if (!isAudioMuted) void unlockAmbientAudio();
+      queueFlow(clamp(dominantDelta * touchFlowScale, -flowMotion.reverseMaxWheelStep, flowMotion.maxWheelStep));
+    };
+    const onTouchEnd = () => {
+      isFlowTouchActive = false;
+    };
     const onPointerDownAudioUnlock = () => {
       if (isAudioGateVisible || isAudioMuted) return;
       void unlockAmbientAudio();
@@ -2459,6 +2499,10 @@
     });
     animations.addTicker(moveFloatingAssets);
     sceneResources.addEventListener(window, 'wheel', onWheel as EventListener, { passive: false });
+    sceneResources.addEventListener(window, 'touchstart', onTouchStart as EventListener, { passive: true });
+    sceneResources.addEventListener(window, 'touchmove', onTouchMove as EventListener, { passive: false });
+    sceneResources.addEventListener(window, 'touchend', onTouchEnd as EventListener, { passive: true });
+    sceneResources.addEventListener(window, 'touchcancel', onTouchEnd as EventListener, { passive: true });
     sceneResources.addEventListener(window, 'keydown', onKeydown as EventListener);
     sceneResources.addEventListener(window, 'pointerdown', onPointerDownAudioUnlock, { passive: true });
     sceneResources.addEventListener(window, 'resize', queueRoleHoverTextFit, { passive: true });
@@ -2935,7 +2979,7 @@
             <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
           </span>
         </button>
-        <a class="about-gate-section" href="/interviste" data-node-id="381:308">
+        <button class="about-gate-section" type="button" data-node-id="381:308" onclick={openAboutInterviews}>
           <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
             <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
           </span>
@@ -2944,7 +2988,7 @@
           <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
             <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
           </span>
-        </a>
+        </button>
       </div>
     {:else if aboutView === 'project'}
       <section
@@ -4493,6 +4537,8 @@
     box-sizing: border-box;
     overflow-x: auto;
     overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
     background: var(--color-surface-page);
     color: var(--color-text-primary);
     scrollbar-width: none;
@@ -5200,6 +5246,8 @@
     box-sizing: border-box;
     overflow-x: auto;
     overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
     color: var(--color-text-primary);
     scrollbar-width: none;
     overscroll-behavior-x: contain;
@@ -6100,10 +6148,10 @@
     background: transparent;
     cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     opacity: var(--role-card-opacity, 0);
-    transform: translateY(var(--role-card-y, 38vh));
+    transform: translate3d(0, var(--role-card-y, 38vh), 0);
     transform-style: flat;
     transform-origin: 50% 50%;
-    -webkit-transform: translateY(var(--role-card-y, 38vh)) translateZ(0);
+    -webkit-transform: translate3d(0, var(--role-card-y, 38vh), 0);
     box-shadow: 0 20px 46px rgb(var(--shadow-brand-rgb) / var(--role-shadow-alpha, 0));
     transition:
       opacity 120ms linear,
@@ -6171,8 +6219,11 @@
     padding: clamp(10px, 3.5%, 18px);
     object-fit: contain;
     transform:
-      translateX(var(--role-bg-x, 0px))
-      translateY(calc(var(--servizio-bg-y) + var(--role-bg-y, 0px)))
+      translate3d(
+        var(--role-bg-x, 0px),
+        calc(var(--servizio-bg-y) + var(--role-bg-y, 0px)),
+        0
+      )
       scale(1);
   }
 
@@ -6183,8 +6234,11 @@
 
   .role-card.is-cucina .role-card-bg {
     transform:
-      translateX(var(--role-bg-x, 0px))
-      translateY(calc(var(--cucina-bg-y) + var(--role-bg-y, 0px)))
+      translate3d(
+        var(--role-bg-x, 0px),
+        calc(var(--cucina-bg-y) + var(--role-bg-y, 0px)),
+        0
+      )
       scale(1);
   }
 
@@ -6199,8 +6253,11 @@
     padding: clamp(2px, 1%, 6px);
     object-fit: contain;
     transform:
-      translateX(calc(var(--ufficio-bg-x) + var(--role-bg-x, 0px)))
-      translateY(calc(var(--ufficio-bg-y) + var(--role-bg-y, 0px)))
+      translate3d(
+        calc(var(--ufficio-bg-x) + var(--role-bg-x, 0px)),
+        calc(var(--ufficio-bg-y) + var(--role-bg-y, 0px)),
+        0
+      )
       scale(1);
   }
 
@@ -6250,10 +6307,13 @@
     border: 2px solid var(--color-border-primary);
     border-radius: var(--role-card-radius);
     background: var(--color-surface-page);
-    transform: translateY(var(--role-card-lift-y, 0px));
-    -webkit-transform: translateY(var(--role-card-lift-y, 0px)) translateZ(0);
+    -webkit-clip-path: inset(0 round var(--role-card-radius));
+    clip-path: inset(0 round var(--role-card-radius));
+    transform: translate3d(0, var(--role-card-lift-y, 0px), 0);
+    -webkit-transform: translate3d(0, var(--role-card-lift-y, 0px), 0);
     transition: transform 210ms cubic-bezier(0.18, 1.35, 0.28, 1);
     will-change: transform;
+    contain: paint;
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
   }
@@ -6281,12 +6341,14 @@
     opacity: 0;
     filter: grayscale(1) sepia(0.16) opacity(0.72);
     transform:
-      translateX(var(--role-bg-x, 0px))
-      translateY(var(--role-bg-y, 0px))
+      translate3d(var(--role-bg-x, 0px), var(--role-bg-y, 0px), 0)
       scale(1);
     transition: opacity 220ms ease, filter 260ms ease, transform 90ms linear;
     user-select: none;
     pointer-events: none;
+    will-change: opacity, filter, transform;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   .role-card-bg-overlay {
@@ -6318,8 +6380,11 @@
     opacity: 0;
     visibility: hidden;
     transform:
-      translateX(var(--role-dialogue-x, 0px))
-      translateY(calc(-100% - 8px + var(--role-dialogue-y, 0px)));
+      translate3d(
+        var(--role-dialogue-x, 0px),
+        calc(-100% - 8px + var(--role-dialogue-y, 0px)),
+        0
+      );
     transition:
       opacity 90ms linear,
       visibility 0s linear 190ms,
@@ -6387,8 +6452,11 @@
     text-align: center;
     opacity: 1;
     transform:
-      translateX(var(--role-copy-x, 0px))
-      translateY(calc(-50% + var(--role-copy-y, 0px)));
+      translate3d(
+        var(--role-copy-x, 0px),
+        calc(-50% + var(--role-copy-y, 0px)),
+        0
+      );
     transition: opacity 160ms ease, transform 180ms ease;
     pointer-events: none;
   }
@@ -6425,8 +6493,11 @@
     height: min(92%, 720px);
     opacity: 0;
     transform:
-      translateX(calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)))
-      translateY(calc(72px + var(--role-person-base-y, 0px) + var(--role-person-y, 0px)));
+      translate3d(
+        calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)),
+        calc(72px + var(--role-person-base-y, 0px) + var(--role-person-y, 0px)),
+        0
+      );
     transition:
       opacity var(--role-reveal-duration) var(--role-reveal-ease),
       transform var(--role-reveal-duration) var(--role-reveal-ease);
@@ -6444,8 +6515,11 @@
     z-index: 5;
     opacity: 0;
     transform:
-      translateX(calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)))
-      translateY(calc(var(--role-person-base-y, 0px) + var(--role-person-y, 0px)));
+      translate3d(
+        calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)),
+        calc(var(--role-person-base-y, 0px) + var(--role-person-y, 0px)),
+        0
+      );
   }
 
   .role-person-fill {
@@ -6496,32 +6570,40 @@
     opacity: 0.52;
     filter: grayscale(1) sepia(0.16) opacity(0.74);
     transform:
-      translateX(var(--role-bg-x, 0px))
-      translateY(var(--role-bg-y, 0px))
+      translate3d(var(--role-bg-x, 0px), var(--role-bg-y, 0px), 0)
       scale(1);
   }
 
   .role-card.is-ufficio.has-dialogue:hover .role-card-bg,
   .role-card.is-ufficio.has-dialogue:focus-visible .role-card-bg {
     transform:
-      translateX(calc(var(--ufficio-bg-x) + var(--role-bg-x, 0px)))
-      translateY(calc(var(--ufficio-bg-y) + var(--role-bg-y, 0px)))
+      translate3d(
+        calc(var(--ufficio-bg-x) + var(--role-bg-x, 0px)),
+        calc(var(--ufficio-bg-y) + var(--role-bg-y, 0px)),
+        0
+      )
       scale(1);
   }
 
   .role-card.is-servizio.has-dialogue:hover .role-card-bg,
   .role-card.is-servizio.has-dialogue:focus-visible .role-card-bg {
     transform:
-      translateX(var(--role-bg-x, 0px))
-      translateY(calc(var(--servizio-bg-y) + var(--role-bg-y, 0px)))
+      translate3d(
+        var(--role-bg-x, 0px),
+        calc(var(--servizio-bg-y) + var(--role-bg-y, 0px)),
+        0
+      )
       scale(1);
   }
 
   .role-card.is-cucina.has-dialogue:hover .role-card-bg,
   .role-card.is-cucina.has-dialogue:focus-visible .role-card-bg {
     transform:
-      translateX(var(--role-bg-x, 0px))
-      translateY(calc(var(--cucina-bg-y) + var(--role-bg-y, 0px)))
+      translate3d(
+        var(--role-bg-x, 0px),
+        calc(var(--cucina-bg-y) + var(--role-bg-y, 0px)),
+        0
+      )
       scale(1);
   }
 
@@ -6534,8 +6616,11 @@
   .role-card.has-dialogue:focus-visible .role-card-copy {
     opacity: 0;
     transform:
-      translateX(var(--role-copy-x, 0px))
-      translateY(calc(-50% - 12px + var(--role-copy-y, 0px)));
+      translate3d(
+        var(--role-copy-x, 0px),
+        calc(-50% - 12px + var(--role-copy-y, 0px)),
+        0
+      );
   }
 
   .role-card.has-dialogue:hover .role-hover-panel,
@@ -6547,16 +6632,18 @@
       visibility 0s linear,
       transform var(--role-reveal-duration) var(--role-reveal-ease);
     transform:
-      translateX(var(--role-dialogue-x, 0px))
-      translateY(var(--role-dialogue-y, 0px));
+      translate3d(var(--role-dialogue-x, 0px), var(--role-dialogue-y, 0px), 0);
   }
 
   .role-card.has-dialogue:hover .role-person,
   .role-card.has-dialogue:focus-visible .role-person {
     opacity: 1;
     transform:
-      translateX(calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)))
-      translateY(calc(var(--role-person-base-y, 0px) + var(--role-person-y, 0px)));
+      translate3d(
+        calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)),
+        calc(var(--role-person-base-y, 0px) + var(--role-person-y, 0px)),
+        0
+      );
   }
 
   .role-card.has-person-fill:hover .role-person-outline,
@@ -6939,6 +7026,15 @@
       touch-action: pan-y;
     }
 
+    .about-interviews {
+      inset: var(--layout-topbar-height-mobile) 0 0;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+    }
+
     .about-project-track {
       display: block;
       width: 100%;
@@ -7062,6 +7158,16 @@
 
     .about-project-scroll-arrow {
       transform: none;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .audio-gate-content p {
+      font-size: 14px;
+    }
+
+    .audio-gate-button-label {
+      font-size: 13px;
     }
   }
 

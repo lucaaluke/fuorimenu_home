@@ -24,6 +24,9 @@
   }>();
 
   const { assetVersion, layerSpeed, sceneHeight, sceneWidth } = resolvedServiceSceneConfig;
+  const touchScrollInteractiveSelector = 'a, button, input, textarea, select, video, [role="button"]';
+  const touchScrollDeadZone = 3;
+  const touchScrollFactor = 1.54;
   const serviceBackgroundViewportOffsetY = 1;
   const serviceMiddleViewportOffsetY = 8;
 
@@ -39,6 +42,9 @@
   let phaserLoadingProgress = $state(0);
   let prefersReducedMotion = $state(false);
   let hasPointerScenePosition = $state(false);
+  let isTouchScrolling = false;
+  let touchLastX = 0;
+  let touchLastY = 0;
   let pointerSceneY = $state(0);
   let pointerSceneX = $state({
     background: 0,
@@ -91,6 +97,7 @@
   let sceneRevealTimer: ReturnType<typeof setTimeout> | undefined;
   const sceneRevealDelayMs = 560;
   let dragStartX = 0;
+  let dragStartY = 0;
   let dragScrollStart = 0;
   let scrollTrigger:
     | {
@@ -1184,7 +1191,44 @@
     scrollBy(axisDelta * 1.08);
   }
 
+  function canStartTouchScroll(target: EventTarget | null) {
+    return target instanceof Element && !target.closest(touchScrollInteractiveSelector);
+  }
+
+  function onTouchStart(event: TouchEvent) {
+    if (!isSceneInteractive || event.touches.length !== 1 || !canStartTouchScroll(event.target)) {
+      isTouchScrolling = false;
+      return;
+    }
+
+    const touch = event.touches[0];
+    touchLastX = touch.clientX;
+    touchLastY = touch.clientY;
+    isTouchScrolling = true;
+  }
+
+  function onTouchMove(event: TouchEvent) {
+    if (!isTouchScrolling || !isSceneInteractive || event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - touchLastX;
+    const deltaY = touch.clientY - touchLastY;
+    touchLastX = touch.clientX;
+    touchLastY = touch.clientY;
+
+    const dominantDelta = Math.abs(deltaY) > Math.abs(deltaX) ? -deltaY : -deltaX;
+    if (Math.abs(dominantDelta) < touchScrollDeadZone) return;
+
+    event.preventDefault();
+    scrollBy(dominantDelta * touchScrollFactor);
+  }
+
+  function onTouchEnd() {
+    isTouchScrolling = false;
+  }
+
   function onPointerDown(event: PointerEvent) {
+    if (event.pointerType === 'touch') return;
     if (!isSceneInteractive) {
       event.preventDefault();
       return;
@@ -1193,15 +1237,20 @@
     updatePointerScenePosition(event);
     isDragging = true;
     dragStartX = event.clientX;
+    dragStartY = event.clientY;
     dragScrollStart = scrollTrigger?.scroll() ?? 0;
     stageEl.setPointerCapture(event.pointerId);
   }
 
   function onPointerMove(event: PointerEvent) {
+    if (event.pointerType === 'touch') return;
     if (!isSceneInteractive) return;
     updatePointerScenePosition(event);
     if (!isDragging) return;
-    scrollTrigger?.scroll(dragScrollStart + (dragStartX - event.clientX) * 1.54);
+    const dragDeltaX = dragStartX - event.clientX;
+    const dragDeltaY = dragStartY - event.clientY;
+    const dominantDelta = Math.abs(dragDeltaY) > Math.abs(dragDeltaX) ? dragDeltaY : dragDeltaX;
+    scrollTrigger?.scroll(dragScrollStart + dominantDelta * 1.54);
   }
 
   function onPointerLeave() {
@@ -2169,6 +2218,10 @@
     reducedMotionQuery.addEventListener('change', syncReducedMotion);
     window.addEventListener('keydown', onKeydown);
     stageEl.addEventListener('click', triggerTapClickFeedback, true);
+    stageEl.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
+    stageEl.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
+    stageEl.addEventListener('touchend', onTouchEnd, true);
+    stageEl.addEventListener('touchcancel', onTouchEnd, true);
     void import('$lib/scene/phaser/ParallaxPhaserGame').then(({ createParallaxPhaserGame }) => {
       if (destroyed || !servicePhaserContainerEl) return;
 
@@ -2262,6 +2315,10 @@
       reducedMotionQuery.removeEventListener('change', syncReducedMotion);
       window.removeEventListener('keydown', onKeydown);
       stageEl?.removeEventListener('click', triggerTapClickFeedback, true);
+      stageEl?.removeEventListener('touchstart', onTouchStart, true);
+      stageEl?.removeEventListener('touchmove', onTouchMove, true);
+      stageEl?.removeEventListener('touchend', onTouchEnd, true);
+      stageEl?.removeEventListener('touchcancel', onTouchEnd, true);
       stopResize();
       removeTicker();
       scrollTrigger?.kill();
