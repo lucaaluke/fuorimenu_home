@@ -145,7 +145,7 @@
   const officeAmbientFadeInDuration = 1.2;
   const officeAmbientFadeOutDuration = 0.36;
   const officeDialogueAudioFadeInDuration = 0.18;
-  const officeDialogueAudioHandoffFadeOutDuration = 0.16;
+  const officeDialogueAudioHandoffFadeOutDuration = 0;
   const carloOfficeAudioVolume = 0.92;
   const carloOfficeAudioFadeOutDuration = 0.18;
   const carloOfficeRevealDurationSeconds = 37.54;
@@ -2248,7 +2248,12 @@
             </span>
           </span>
         </span>
-        <img src="/assets/interviews-hover/zarri.png" alt="Carlo Zarri" draggable="false" />
+        <img
+          class="scene-chef-image"
+          src="/assets/interviews-hover/zarri.png"
+          alt="Carlo Zarri"
+          draggable="false"
+        />
       </div>
 
       <div
@@ -2353,7 +2358,12 @@
             </span>
           </span>
         </span>
-        <img src="/assets/interviews-hover/zarri.png" alt="Carlo Zarri" draggable="false" />
+        <img
+          class="scene-chef-image"
+          src="/assets/interviews-hover/zarri.png"
+          alt="Carlo Zarri"
+          draggable="false"
+        />
       </div>
 
       <div
@@ -2458,7 +2468,12 @@
             </span>
           </span>
         </span>
-        <img src="/assets/interviews-hover/eli.png" alt="Elisabetta Salvadori" draggable="false" />
+        <img
+          class="scene-chef-image"
+          src="/assets/interviews-hover/eli.png"
+          alt="Elisabetta Salvadori"
+          draggable="false"
+        />
       </div>
 
       <div
@@ -2563,7 +2578,12 @@
             </span>
           </span>
         </span>
-        <img src="/assets/interviews-hover/fausto.png" alt="Fausto Meli" draggable="false" />
+        <img
+          class="scene-chef-image"
+          src="/assets/interviews-hover/fausto.png"
+          alt="Fausto Meli"
+          draggable="false"
+        />
       </div>
     </div>
   </div>
@@ -3500,6 +3520,11 @@
   }
 
   @media (max-width: 760px) {
+    .office-chef-button > .scene-chef-image {
+      visibility: hidden !important;
+      opacity: 0 !important;
+    }
+
     .speech-bubble {
       width: var(--speech-bubble-width, min(330px, calc(100vw - 96px)));
     }
@@ -3527,6 +3552,47 @@
 
     .speech-bubble-meta strong {
       font-size: 18px;
+    }
+  }
+
+  @media (max-width: 900px), (hover: none) and (pointer: coarse), (orientation: portrait) and (max-width: 1250px) and (min-height: 1500px) {
+    .office-chef-button > .scene-chef-image {
+      visibility: hidden !important;
+      opacity: 0 !important;
+    }
+  }
+
+  @media (min-width: 390px) and (max-width: 430px) and (min-height: 820px) and (max-height: 920px) {
+    .speech-bubble {
+      --speech-bubble-width: 306px !important;
+      --speech-bubble-copy-height: 152px !important;
+      --speech-bubble-meta-height: 38px !important;
+
+      width: var(--speech-bubble-width);
+    }
+
+    .speech-bubble-copy {
+      flex-basis: var(--speech-bubble-copy-height);
+      height: var(--speech-bubble-copy-height);
+      padding: 14px 16px;
+      font-size: 13px;
+      line-height: 1.28;
+    }
+
+    .speech-bubble-copy.has-page-controls {
+      gap: 7px;
+      padding: 10px 16px 14px;
+    }
+
+    .speech-bubble-meta {
+      flex-basis: var(--speech-bubble-meta-height);
+      height: var(--speech-bubble-meta-height);
+      padding: 0 12px;
+      font-size: 10.5px;
+    }
+
+    .speech-bubble-meta strong {
+      font-size: 16px;
     }
   }
 

@@ -655,14 +655,15 @@
     const scroller = event.currentTarget as HTMLElement;
     if (!scroller) return;
 
+    event.preventDefault();
+    event.stopPropagation();
+
     const maxScrollTop = scroller.scrollHeight - scroller.clientHeight;
     if (maxScrollTop <= 0) return;
 
     const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
     const nextScrollTop = clamp(scroller.scrollTop + delta, 0, maxScrollTop);
 
-    event.preventDefault();
-    event.stopPropagation();
     scroller.scrollTop = nextScrollTop;
   }
 
@@ -819,7 +820,7 @@
         onwheel={handleFullInterviewTranscriptWheel}
       >
         <p class="about-full-interview-quote" data-node-id="495:1430">
-          <span class="about-full-interview-quote-mark" aria-hidden="true">“</span>{activeFullInterviewContent.quote}<span class="about-full-interview-quote-mark" aria-hidden="true">”</span>
+          {activeFullInterviewContent.quote}
         </p>
         <div class="about-full-interview-transcript" data-node-id="495:1432">
           {#each activeFullInterviewContent.transcript as section}
@@ -1235,9 +1236,10 @@
 }
 
 .about-full-interview.is-standalone {
-  min-height: 100%;
+  height: calc(var(--app-viewport-height) - var(--interviste-top-offset, 0px));
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
 }
 
 @media (min-width: 1061px) {
@@ -1245,9 +1247,9 @@
     display: grid;
     grid-template-columns: minmax(150px, clamp(190px, 24vw, calc(var(--about-full-portrait-width) * 1.2))) minmax(0, 641px);
     column-gap: clamp(40px, 7vw, 96px);
-    align-items: start;
+    align-items: center;
     justify-content: center;
-    padding: 37px clamp(40px, 5vw, 80px) 56px;
+    padding: clamp(22px, 3.4vh, 37px) clamp(40px, 5vw, 80px) clamp(24px, 4vh, 56px);
   }
 
   .about-full-interview.is-standalone .about-full-interview-portrait {
@@ -1255,42 +1257,66 @@
     top: auto;
     left: auto;
     width: 100%;
-    height: min(737px, calc(var(--app-viewport-height) - clamp(72px, 8vh, 104px)));
+    height: min(614px, calc(var(--app-viewport-height) - var(--interviste-top-offset, 0px) - clamp(52px, 8vh, 92px)));
   }
 
   .about-full-interview.is-standalone .about-full-interview-portrait img {
     top: 0;
     left: 50%;
     max-width: 100%;
-    height: min(737px, calc(var(--app-viewport-height) - clamp(72px, 8vh, 104px)));
+    height: 100%;
     transform: translateX(-50%);
     object-fit: contain;
   }
 
   .about-full-interview.is-standalone .about-full-interview-copy {
+    display: flex;
+    flex-direction: column;
     width: 100%;
     min-width: 0;
+    height: 100%;
     min-height: 0;
     margin-left: 0;
     padding: 0;
   }
 
   .about-full-interview.is-standalone .about-full-interview-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
     max-height: min(520px, calc(var(--app-viewport-height) - 278px));
   }
 }
 
 @media (max-width: 1060px) {
   .about-full-interview.is-standalone {
-    display: block;
-    padding: 37px clamp(24px, 5vw, 56px) 56px;
+    display: flex;
+    flex-direction: column;
+    padding: clamp(18px, 3svh, 28px) clamp(24px, 5vw, 56px) clamp(20px, 3svh, 36px);
   }
 
   .about-full-interview.is-standalone .about-full-interview-portrait {
-    display: none;
+    position: relative;
+    top: auto;
+    left: auto;
+    flex: 0 0 clamp(150px, 28svh, 240px);
+    width: 100%;
+    height: auto;
+    margin-top: 0;
+  }
+
+  .about-full-interview.is-standalone .about-full-interview-portrait img {
+    top: 0;
+    left: 50%;
+    height: 100%;
+    max-width: 100%;
+    transform: translateX(-50%);
+    object-fit: contain;
   }
 
   .about-full-interview.is-standalone .about-full-interview-copy {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
     width: min(720px, 100%);
     min-height: 0;
     margin: 0 auto;
@@ -1302,8 +1328,10 @@
   }
 
   .about-full-interview.is-standalone .about-full-interview-scroll {
+    flex: 1 1 auto;
     width: 100%;
-    max-height: calc(var(--app-viewport-height) - 310px);
+    min-height: 0;
+    max-height: none;
   }
 }
 
@@ -1461,15 +1489,6 @@
   font-size: 24px;
   font-weight: 800;
   line-height: 1.6;
-}
-
-.about-full-interview-quote-mark {
-  color: var(--brand-100);
-  font-family: Georgia, serif;
-  font-size: 54px;
-  font-weight: 700;
-  line-height: 0;
-  vertical-align: -0.24em;
 }
 
 .about-full-interview-transcript {
@@ -2488,6 +2507,8 @@
   .about-full-interview.is-standalone {
     display: flex;
     flex-direction: column;
+    height: calc(var(--app-viewport-height) - var(--interviste-top-offset, 0px));
+    overflow: hidden;
   }
   .about-full-interview-back {
     top: 20px;
@@ -2500,21 +2521,28 @@
     position: relative;
     top: auto;
     left: auto;
+    flex: 0 0 clamp(156px, 30svh, 238px);
     width: 100%;
-    height: 250px;
-    margin-top: 24px;
+    height: auto;
+    margin-top: 8px;
   }
   .about-full-interview-portrait img {
     top: 0;
     left: 50%;
-    height: 320px;
+    height: 100%;
+    max-width: 100%;
+    object-fit: contain;
     transform: translateX(-50%);
   }
   .about-full-interview-copy {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
     width: 100%;
-    min-height: auto;
+    min-height: 0;
     margin-left: 0;
-    padding: 20px var(--layout-page-gutter-mobile) 48px;
+    overflow: hidden;
+    padding: 12px var(--layout-page-gutter-mobile) 24px;
   }
   .about-full-interview-header h3 {
     font-size: clamp(48px, 15vw, 64px);
@@ -2523,16 +2551,16 @@
     font-size: 14px;
   }
   .about-full-interview-scroll {
+    flex: 1 1 auto;
     width: 100%;
-    max-height: 38svh;
-    margin-top: 34px;
+    min-height: 0;
+    max-height: none;
+    margin-top: 18px;
     padding: 18px 14px clamp(36px, 8vh, 58px) 0;
   }
   .about-full-interview-quote {
     font-size: clamp(18px, 5.4vw, 24px);
-  }
-  .about-full-interview-quote-mark {
-    font-size: 42px;
+    line-height: 1.34;
   }
   .about-full-interview-transcript {
     width: 100%;

@@ -117,15 +117,15 @@
   const kitchenAmbientFadeOutDuration = 0.42;
   const kitchenAmbientSwitchCameraX = 5000;
   const kitchenAmbientCrossfadeDistance = 480;
-  const constructionAmbientVolume = 1.3;
-  const kitchenBackgroundAmbientVolume = 0.4;
-  const testimonialAudioVolume = 0.7;
+  const constructionAmbientVolume = 1.38;
+  const kitchenBackgroundAmbientVolume = 0.46;
+  const testimonialAudioVolume = 0.92;
   const testimonialAudioFadeInDuration = 0.18;
   const testimonialAudioFadeOutDuration = 0.18;
   const testimonialAudioHandoffFadeOutDuration = 0.16;
   const kitchenDialogueCameraRanges = {
     carlo: { enter: 600, dialogueStart: 600, exit: 4700 },
-    paganini: { enter: 4900, dialogueStart: 4900, exit: 7500 },
+    paganini: { enter: 4900, dialogueStart: 4900, exit: 8500 },
     fausto: { enter: 8700, dialogueStart: 8700, exit: 12500 },
     fausto2: { enter: 12700, dialogueStart: 12700, exit: 15000 },
     marco: { enter: 15200, dialogueStart: 15200, exit: 18100 }
@@ -1213,7 +1213,7 @@
     toolShedAudioContext = new AudioContextConstructor();
     toolShedAudioSource = toolShedAudioContext.createMediaElementSource(toolShedAudioEl);
     const gain = toolShedAudioContext.createGain();
-    gain.gain.value = 1.35;
+    gain.gain.value = 1.1;
     toolShedAudioSource.connect(gain);
     gain.connect(toolShedAudioContext.destination);
   }
@@ -1238,8 +1238,8 @@
   }
 
   function getKitchenSTooltipHoverVolume(soundId: keyof typeof kitchenSTooltipSoundFileById) {
-    if (soundId === 'standMixer') return 0.24;
-    if (soundId === 'toolbox') return 0.34;
+    if (soundId === 'standMixer') return 0.16;
+    if (soundId === 'toolbox') return 0.22;
     if (soundId === 'alarmClock') return 0.46;
     if (soundId === 'stove') return 0.42;
     return 0.58;
@@ -1485,7 +1485,7 @@
     hasPlayedToolShedHover = true;
     boostToolShedAudio();
     void toolShedAudioContext?.resume();
-    playHoverSound(toolShedAudioEl, 0.34);
+    playHoverSound(toolShedAudioEl, 0.22);
   }
 
   function resetToolShedHoverSound() {
@@ -1495,7 +1495,7 @@
   function playStandMixerHoverSound() {
     if (hasPlayedStandMixerHover) return;
     hasPlayedStandMixerHover = true;
-    playHoverSound(standMixerAudioEl, 0.24);
+    playHoverSound(standMixerAudioEl, 0.16);
   }
 
   function resetStandMixerHoverSound() {
@@ -2089,7 +2089,12 @@
           </span>
         </span>
       </span>
-      <img src={testimonial.imageSrc} alt={testimonial.imageAlt} draggable="false" />
+      <img
+        class="scene-chef-image"
+        src={testimonial.imageSrc}
+        alt={testimonial.imageAlt}
+        draggable="false"
+      />
     </div>
   {/each}
 </section>
@@ -3657,6 +3662,11 @@
   }
 
   @media (max-width: 760px) {
+    .chef-button > .scene-chef-image {
+      visibility: hidden !important;
+      opacity: 0 !important;
+    }
+
     .speech-bubble {
       left: 50%;
       top: var(--speech-bubble-top, calc(var(--layout-topbar-height-mobile) + 40px));
@@ -3694,6 +3704,47 @@
 
     .speech-bubble-meta strong {
       font-size: 18px;
+    }
+  }
+
+  @media (max-width: 900px), (hover: none) and (pointer: coarse), (orientation: portrait) and (max-width: 1250px) and (min-height: 1500px) {
+    .chef-button > .scene-chef-image {
+      visibility: hidden !important;
+      opacity: 0 !important;
+    }
+  }
+
+  @media (min-width: 390px) and (max-width: 430px) and (min-height: 820px) and (max-height: 920px) {
+    .speech-bubble {
+      --speech-bubble-width: 306px !important;
+      --speech-bubble-copy-height: 152px !important;
+      --speech-bubble-meta-height: 38px !important;
+
+      width: var(--speech-bubble-width);
+    }
+
+    .speech-bubble-copy {
+      flex-basis: var(--speech-bubble-copy-height);
+      height: var(--speech-bubble-copy-height);
+      padding: 14px 16px;
+      font-size: 13px;
+      line-height: 1.28;
+    }
+
+    .speech-bubble-copy.has-page-controls {
+      gap: 7px;
+      padding: 10px 16px 14px;
+    }
+
+    .speech-bubble-meta {
+      flex-basis: var(--speech-bubble-meta-height);
+      height: var(--speech-bubble-meta-height);
+      padding: 0 12px;
+      font-size: 10.5px;
+    }
+
+    .speech-bubble-meta strong {
+      font-size: 16px;
     }
   }
 

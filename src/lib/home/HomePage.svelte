@@ -65,6 +65,7 @@
   let gsap: Gsap;
   let flowTween: ReturnType<Gsap['to']> | undefined;
   let cardEnterTween: ReturnType<Gsap['timeline']> | undefined;
+  let isRoleCardTransitioning = $state(false);
   let roleHoverResizeObserver: ResizeObserver | undefined;
   let roleHoverFitFrame = 0;
   let fullInterviewScrollbarFrame = 0;
@@ -174,7 +175,7 @@
   const backgroundAudio: AudioCueConfig = {
     src: '/sound/home_backgroundok.mp3',
     startTime: 0,
-    targetVolume: 1,
+    targetVolume: 0.88,
     fadeInDuration: 1.2,
     loop: true
   };
@@ -1442,8 +1443,10 @@
   }
 
   function enterRoleCard(event: MouseEvent, item: RoleItem, index: number) {
-    if (!item.href || cardEnterTween) return;
+    if (!item.href || cardEnterTween || isRoleCardTransitioning) return;
     event.preventDefault();
+    isRoleCardTransitioning = true;
+    stopAllRoleAudio({ duration: 0 });
     fadeOutHomeAudioForSectionTransition();
 
     const card = roleCards[index];
@@ -1724,10 +1727,25 @@
   function syncAboutProjectTeamState(scroller = aboutProjectEl) {
     if (!scroller) return;
 
-    const teamVisible = scroller.scrollLeft >= scroller.clientWidth * 0.5;
+    const teamVisible = isAboutProjectVerticalLayout(scroller)
+      ? scroller.scrollTop >= scroller.clientHeight * 0.45
+      : scroller.scrollLeft >= scroller.clientWidth * 0.5;
     isAboutProjectTeamVisible = teamVisible;
     aboutProjectTargetSlide = teamVisible ? 1 : 0;
-    if (teamVisible) void ensureAboutProjectPhaser();
+    if (teamVisible && !isAboutProjectVerticalLayout(scroller)) void ensureAboutProjectPhaser();
+  }
+
+  function isAboutProjectVerticalLayout(scroller: HTMLElement) {
+    const isMobileProjectViewport =
+      typeof window !== 'undefined' &&
+      window.matchMedia(
+        '(max-width: 900px), (orientation: portrait) and (max-width: 1250px) and (min-height: 1500px)'
+      ).matches;
+
+    return (
+      isMobileProjectViewport ||
+      (scroller.scrollHeight > scroller.clientHeight + 1 && scroller.scrollWidth <= scroller.clientWidth + 1)
+    );
   }
 
   function scrollAboutProjectToSlide(slide: 0 | 1, behavior: ScrollBehavior = 'smooth') {
@@ -1736,6 +1754,11 @@
 
     aboutProjectTargetSlide = slide;
     isAboutProjectTeamVisible = slide === 1;
+    if (isAboutProjectVerticalLayout(scroller)) {
+      scroller.scrollTo({ top: scroller.clientHeight * slide, behavior });
+      return;
+    }
+
     if (slide === 1) void ensureAboutProjectPhaser();
     scroller.scrollTo({ left: scroller.clientWidth * slide, behavior });
   }
@@ -1897,14 +1920,15 @@
     const scroller = event.currentTarget as HTMLElement;
     if (!scroller) return;
 
+    event.preventDefault();
+    event.stopPropagation();
+
     const maxScrollTop = scroller.scrollHeight - scroller.clientHeight;
     if (maxScrollTop <= 0) return;
 
     const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
     const nextScrollTop = clamp(scroller.scrollTop + delta, 0, maxScrollTop);
 
-    event.preventDefault();
-    event.stopPropagation();
     scroller.scrollTop = nextScrollTop;
     updateFullInterviewScrollbar();
   }
@@ -1950,6 +1974,11 @@
     const scroller = event.currentTarget as HTMLElement;
     if (!scroller) return;
     syncAboutProjectTeamState(scroller);
+    if (isAboutProjectVerticalLayout(scroller)) {
+      if (aboutProjectScrollSnapTimeout) window.clearTimeout(aboutProjectScrollSnapTimeout);
+      aboutProjectScrollSnapTimeout = undefined;
+      return;
+    }
 
     if (aboutProjectScrollSnapTimeout) window.clearTimeout(aboutProjectScrollSnapTimeout);
     aboutProjectScrollSnapTimeout = window.setTimeout(() => {
@@ -1962,6 +1991,7 @@
   function handleProjectWheel(event: WheelEvent) {
     const scroller = event.currentTarget as HTMLElement;
     if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+    if (isAboutProjectVerticalLayout(scroller)) return;
     event.preventDefault();
     event.stopPropagation();
 
@@ -1982,8 +2012,9 @@
   }
 
   async function startRoleAudio(role: AudioRole) {
-    if (isAudioMuted) return;
+    if (isAudioMuted || isRoleCardTransitioning) return;
     await unlockAmbientAudio();
+    if (isAudioMuted || isRoleCardTransitioning) return;
     await audioCues.play(role);
   }
 
@@ -2697,7 +2728,9 @@
     </p>
     <p bind:this={brandSubtitleEl} class="brand-subtitle" aria-label={brandSubtitle}>
       <span class="brand-subtitle-jetbrains" aria-hidden="true">Dentro le </span>
-      <span class="brand-subtitle-jetbrains" aria-hidden="true">cucine di Milano Cortina 2026</span>
+      <span class="brand-subtitle-jetbrains" aria-hidden="true">cucine </span>
+      <br class="brand-subtitle-mobile-break" aria-hidden="true" />
+      <span class="brand-subtitle-jetbrains" aria-hidden="true">di Milano Cortina 2026</span>
     </p>
   </div>
   <div bind:this={brandScrollCueEl} class="brand-scroll-cue" data-node-id="3448:2821" aria-label="Scorri">
@@ -2726,7 +2759,12 @@
   </button>
 </header>
 
-<section bind:this={rolesScreen} class="roles-screen" aria-label="Aree Fuorimenù">
+<section
+  bind:this={rolesScreen}
+  class="roles-screen"
+  class:is-card-entering={isRoleCardTransitioning}
+  aria-label="Aree Fuorimenù"
+>
   <div class="role-grid">
     {#snippet roleCardBody(item: RoleItem)}
       <div class="role-card-top">
@@ -4790,7 +4828,9 @@
     position: absolute;
     inset: 136px 0 0;
     box-sizing: border-box;
+    height: calc(var(--app-viewport-height) - 136px);
     overflow: hidden;
+    overscroll-behavior: contain;
     border-top: 2px solid var(--color-text-primary);
     background: var(--color-surface-page);
     color: var(--color-text-primary);
@@ -4854,7 +4894,7 @@
     top: 1px;
     left: max(24px, calc((var(--about-full-text-left) - var(--about-full-portrait-width)) / 2));
     width: var(--about-full-portrait-width);
-    height: 737px;
+    height: min(614px, calc(var(--app-viewport-height) - 136px - 24px));
     overflow: hidden;
     pointer-events: none;
     animation: fullInterviewChefIn 680ms cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -4866,7 +4906,7 @@
     left: 0;
     display: block;
     width: auto;
-    height: 614px;
+    height: 100%;
     user-select: none;
   }
 
@@ -4874,7 +4914,8 @@
     position: relative;
     box-sizing: border-box;
     width: min(682px, calc(100vw - var(--about-full-text-left) - 24px));
-    min-height: 740px;
+    height: 100%;
+    min-height: 0;
     margin-left: var(--about-full-text-left);
     padding: 37px 0 56px;
     animation: fullInterviewTextIn 620ms ease 180ms both;
@@ -4964,7 +5005,7 @@
     font-family: var(--font-text);
     font-size: 24px;
     font-weight: 800;
-    line-height: 1.6;
+    line-height: 1.34;
   }
 
   .about-full-interview-transcript {
@@ -5927,6 +5968,10 @@
     font-weight: 700;
   }
 
+  .brand-subtitle-mobile-break {
+    display: none;
+  }
+
   .brand-scroll-cue {
     position: absolute;
     z-index: 4;
@@ -6110,6 +6155,10 @@
 
   .role-card.is-linked {
     cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+  }
+
+  .roles-screen.is-card-entering .role-card {
+    pointer-events: none;
   }
 
   .role-card.is-servizio {
@@ -6571,6 +6620,9 @@
     .audio-gate-content {
       width: calc(100vw - var(--spacing-8));
     }
+    .audio-gate-utensils {
+      display: none;
+    }
     .audio-gate-utensil {
       top: 21svh;
       width: clamp(58px, 18vw, 76px);
@@ -6584,7 +6636,7 @@
     }
     .audio-gate-content p {
       max-width: 250px;
-      font-size: 16px;
+      font-size: 24px;
     }
     .audio-gate-button-frame {
       min-width: 132px;
@@ -6641,6 +6693,9 @@
     }
     .about-full-interview {
       inset: var(--layout-topbar-height-mobile) 0 0;
+      display: flex;
+      flex-direction: column;
+      height: calc(var(--app-viewport-height) - var(--layout-topbar-height-mobile));
       padding: 0;
     }
     .about-full-interview-back {
@@ -6654,21 +6709,28 @@
       position: relative;
       top: auto;
       left: auto;
+      flex: 0 0 clamp(156px, 30svh, 238px);
       width: 100%;
-      height: 250px;
-      margin-top: 24px;
+      height: auto;
+      margin-top: 8px;
     }
     .about-full-interview-portrait img {
       top: 0;
       left: 50%;
-      height: 320px;
+      height: 100%;
+      max-width: 100%;
+      object-fit: contain;
       transform: translateX(-50%);
     }
     .about-full-interview-copy {
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
       width: 100%;
-      min-height: auto;
+      min-height: 0;
       margin-left: 0;
-      padding: 20px var(--layout-page-gutter-mobile) 48px;
+      overflow: hidden;
+      padding: 12px var(--layout-page-gutter-mobile) 24px;
     }
     .about-full-interview-header h3 {
       font-size: clamp(48px, 15vw, 64px);
@@ -6677,16 +6739,20 @@
       font-size: 14px;
     }
     .about-full-interview-scroll-frame {
+      flex: 1 1 auto;
       width: 100%;
-      max-height: 48svh;
+      min-height: 0;
+      max-height: none;
       margin-top: 0;
     }
     .about-full-interview-scroll {
+      height: 100%;
       padding: 0 14px 84px 0;
     }
     .about-full-interview-quote {
-      margin-top: 34px;
+      margin-top: 22px;
       font-size: clamp(18px, 5.4vw, 24px);
+      line-height: 1.34;
     }
     .about-full-interview-transcript {
       width: 100%;
@@ -6769,9 +6835,10 @@
     }
     .reel-card    { width: min(38vw, 148px); }
     .next-screen  { padding: var(--layout-page-gutter-mobile); }
-    .brand-word   { font-size: clamp(40px, 10.5vw, 76px); }
+    .brand-word   { font-size: 56px; }
     .brand-lockup { gap: 0; }
-    .brand-subtitle { font-size: 24px; }
+    .brand-subtitle { font-size: 16px; }
+    .brand-subtitle-mobile-break { display: block; }
     .brand-scroll-cue { bottom: clamp(0px, 0.5svh, 6px); }
     .floating-raviolo { width: clamp(86px, 28vw, 124px); }
     .floating-pizza { width: clamp(92px, 30vw, 132px); }
@@ -6781,13 +6848,13 @@
       --role-grid-height: calc(var(--app-viewport-height) - var(--layout-topbar-height-mobile) - 16px);
       --role-card-gap: clamp(6px, 1vh, 8px);
       --role-card-mobile-row-height: calc((var(--role-grid-height) - var(--role-card-gap) * 2) / 3);
-      --role-card-max-width: min(calc(100vw - var(--spacing-5)), calc(var(--role-card-mobile-row-height) * 0.7127));
+      --role-card-max-width: 100%;
 
       top: calc(var(--layout-topbar-height-mobile) + 8px);
-      left: 50%;
-      right: auto;
+      left: var(--layout-page-gutter-mobile);
+      right: var(--layout-page-gutter-mobile);
       box-sizing: border-box;
-      width: calc(100vw - var(--spacing-5));
+      width: auto;
       height: var(--role-grid-height);
       grid-template-columns: var(--role-card-max-width);
       grid-template-rows: repeat(3, minmax(0, var(--role-card-mobile-row-height)));
@@ -6795,15 +6862,15 @@
       justify-content: center;
       align-content: center;
       align-items: center;
-      transform: translateX(-50%);
     }
     .role-card {
       --role-card-radius: clamp(34px, 12vw, 54px);
 
       min-height: 0;
       width: var(--role-card-max-width);
-      max-height: var(--role-card-mobile-row-height);
-      aspect-ratio: var(--role-card-aspect);
+      height: 100%;
+      max-height: none;
+      aspect-ratio: auto;
       border-radius: var(--role-card-radius);
       justify-self: center;
     }
@@ -6859,6 +6926,222 @@
     }
     .role-card.is-servizio .role-person {
       bottom: -134px;
+    }
+  }
+
+  @media (max-width: 900px), (orientation: portrait) and (max-width: 1250px) and (min-height: 1500px) {
+    .about-project {
+      inset: var(--layout-topbar-height-mobile) 0 0;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+    }
+
+    .about-project-track {
+      display: block;
+      width: 100%;
+      min-width: 100%;
+      height: auto;
+      min-height: 0;
+      padding-bottom: 44px;
+    }
+
+    .about-project-slide {
+      width: 100%;
+      min-height: 0;
+      height: auto;
+      padding: 28px var(--layout-page-gutter-mobile);
+      overflow: visible;
+    }
+
+    .about-project-copy-slide {
+      --about-project-slide-padding-y: 28px;
+      --about-project-title-size: clamp(44px, 13vw, 62px);
+      --about-project-copy-gap: 22px;
+
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      padding-bottom: 20px;
+    }
+
+    .about-project-team-slide {
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      padding: 10px var(--layout-page-gutter-mobile) 52px;
+    }
+
+    .about-project-phaser {
+      display: none;
+    }
+
+    .about-project-team-grid {
+      position: relative;
+      left: auto;
+      top: auto;
+      width: 100%;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(20px, 5svh, 42px) clamp(10px, 3vw, 18px);
+      transform: none;
+    }
+
+    .about-project-team-slot {
+      gap: 8px;
+      transform: none;
+    }
+
+    .about-project-team-photo {
+      display: block;
+      width: min(100%, 96px);
+      height: clamp(118px, 30svh, 152px);
+      object-fit: contain;
+      object-position: center bottom;
+    }
+
+    .about-project-team-name {
+      font-size: clamp(10px, 2.7vw, 12px);
+      line-height: 1.05;
+    }
+
+    .about-project-team-links {
+      gap: 7px;
+    }
+
+    .about-project-team-link {
+      width: 24px;
+      height: 24px;
+    }
+
+    .about-project-intro {
+      height: auto;
+      width: 100%;
+      min-height: 0;
+      justify-content: flex-start;
+    }
+
+    .about-project-intro-copy {
+      gap: var(--about-project-copy-gap);
+    }
+
+    .about-project-intro h3 {
+      font-size: var(--about-project-title-size);
+    }
+
+    .about-project-intro p {
+      width: min(340px, 100%);
+      font-size: 14px;
+      line-height: 1.28;
+    }
+
+    .about-project-politecnico {
+      display: none;
+    }
+
+    .about-project-scroll-cue {
+      position: relative;
+      left: auto;
+      right: auto;
+      top: auto;
+      bottom: auto;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      margin: clamp(26px, 5svh, 42px) 0 0;
+      max-width: none;
+      justify-content: center;
+      font-size: 12px;
+      line-height: 1.2;
+      text-align: center;
+      transform: none;
+    }
+
+    .about-project-scroll-arrow {
+      transform: none;
+    }
+  }
+
+  @media (min-width: 390px) and (max-width: 430px) and (min-height: 820px) and (max-height: 920px) {
+    :global(:root) {
+      --home-scroll-cue-bottom: 32px;
+    }
+
+    .audio-gate-content {
+      width: min(354px, calc(100vw - 48px));
+    }
+
+    .audio-gate-content p {
+      max-width: 318px;
+      font-size: 24px;
+      line-height: 1.22;
+    }
+
+    .intro {
+      padding: 20px;
+    }
+
+    h1,
+    .next-message {
+      width: min(354px, 100%);
+      font-size: 24px;
+      line-height: 1.42;
+    }
+
+    .next-message-letter,
+    .next-message .space {
+      font-size: 24px;
+    }
+
+    .reel-card {
+      width: 148px;
+    }
+
+    .brand-lockup {
+      width: min(362px, calc(100vw - 40px));
+      padding-block: 22px;
+    }
+
+    .brand-word {
+      font-size: 56px;
+      line-height: 1.1;
+    }
+
+    .brand-subtitle {
+      max-width: 320px;
+      font-size: 16px;
+      line-height: 1.25;
+    }
+
+    .roles-top-bar {
+      height: var(--layout-topbar-height-mobile);
+      padding: var(--layout-topbar-padding-mobile);
+    }
+
+    .role-grid {
+      --role-grid-height: calc(var(--app-viewport-height) - var(--layout-topbar-height-mobile) - 18px);
+      --role-card-gap: 8px;
+
+      top: calc(var(--layout-topbar-height-mobile) + 8px);
+      left: var(--layout-page-gutter-mobile);
+      right: var(--layout-page-gutter-mobile);
+    }
+
+    .role-card {
+      --role-card-radius: 34px;
+    }
+
+    .role-card-copy h2 {
+      font-size: 42px;
+      line-height: 1.08;
+    }
+
+    .role-card-copy p {
+      font-size: 11px;
+      line-height: 1.24;
     }
   }
 </style>

@@ -159,40 +159,40 @@
   const serviceLunchboxHoverText =
     'Per gestire allergie e intolleranze alimentari, il servizio prevede sempre alternative dedicate';
   const serviceEasterEggAsset = serviceForegroundAssets.find((asset) => asset.id === 'easteregg');
-  const serviceAmbientVolume = 0.28;
-  const serviceAmbientDuckedVolume = 0.1;
+  const serviceAmbientVolume = 0.24;
+  const serviceAmbientDuckedVolume = 0.08;
   const serviceAmbientFadeInDuration = 1.2;
   const serviceAmbientFadeOutDuration = 0.36;
-  const carloServiceAudioVolume = 0.86;
+  const carloServiceAudioVolume = 0.92;
   const serviceAudioFadeInDuration = 0.18;
-  const serviceAudioHandoffFadeOutDuration = 0.16;
+  const serviceAudioHandoffFadeOutDuration = 0;
   const carloServiceAudioFadeOutDuration = 0.18;
   const carloServiceRevealDurationSeconds = 75.68;
   const carloServiceEndCameraX = 5000;
   const carloServiceSpeech =
     "I sette clienti quali sono? Primo, ovviamente gli atleti. Possono mangiare 24 ore al giorno. Poi il secondo gruppo sono i volontari: sono 18.000 persone; la maggior parte lavorano anche all'aperto, quindi devi dargli dei pasti molto caldi. Il terzo sono la workforce. Sono quelli, come lo ero io, che hanno dei ruoli di management, o anche semplicemente dei ruoli esecutivi. La famiglia olimpica sono presidenti dei Comitati Olimpici Nazionali, sono, in questo caso da noi, Mattarella, Meloni. Questi, devo dire molto onestamente, non sono pretenziosi. Questo gruppo dice \"No signori, non vogliamo mandare il messaggio che noi ci trattiamo bene\". Il quinto gruppo è formato dai media. Sono divisi in due gruppi: i giornalisti e le televisioni. All'interno delle televisioni ci sono anche i giornalisti, però ci sono quei poveri cameraman che anche loro, magari alle 7 del mattino, sono lì con le telecamere che nevica. Il sesto gruppo è il gruppo delle hospitality: questi sono i VIP, gli sponsor, che non hanno problemi di budget. E poi ci sono gli spettatori. A Milano son stati quasi un milione e mezzo. Quindi la mia programmazione generale per i 22 giorni di gara è stata sui 3 milioni circa di pasti.";
-  const elisabettaServiceAudioVolume = 0.86;
+  const elisabettaServiceAudioVolume = 0.92;
   const elisabettaServiceAudioFadeOutDuration = 0.18;
   const elisabettaServiceRevealDurationSeconds = 27.14;
   const elisabettaServiceStartCameraX = 5200;
   const elisabettaServiceEndCameraX = 7200;
   const elisabettaServiceSpeech =
     "L'obiettivo principale del cibo nel villaggio noi lo chiamavamo “Food for Fuel”, cioè quello di dare agli atleti esattamente tutto quello di cui hanno bisogno per aiutarli nelle loro performance, quindi è chiaro che ci sono dei pilastri fondamentali: carboidrati, proteine sempre presenti in rotazione. E poi ovviamente l'atro aspetto fondamentale è quello della Food Safety.";
-  const marcoServiceAudioVolume = 0.86;
+  const marcoServiceAudioVolume = 0.92;
   const marcoServiceAudioFadeOutDuration = 0.18;
   const marcoServiceRevealDurationSeconds = 23.17;
   const marcoServiceStartCameraX = 7400;
   const marcoServiceEndCameraX = 10400;
   const marcoServiceSpeech =
     "Noi facevamo un menù di 5 giorni che andava a ripetersi. Quello che chiedevano chiaramente era roba fresca, fatta bene, preparata al momento e la disponibilità di orari. Le colazioni partivano alle 5 del mattino. Poi c'erano due persone giù di cucina, più la sala, che allestivano il breakfast: cereali, frutta, verdura, anche la pasta di prima mattina, perché gli atleti comunque hanno bisogno di una dieta particolare.";
-  const faustoServiceAudioVolume = 0.86;
+  const faustoServiceAudioVolume = 0.92;
   const faustoServiceAudioFadeOutDuration = 0.18;
   const faustoServiceRevealDurationSeconds = 39.94;
   const faustoServiceStartCameraX = 10600;
   const faustoServiceEndCameraX = 13600;
   const faustoServiceSpeech =
     "C'erano sul buffet di benvenuto con il calice piccoli assaggi. Poi l'ospite si spostava nella sala centrale dove c'erano vari buffet, tra cui uno di salumi e formaggi, ovviamente i formaggi locali: il taleggio, il puzzone di Moena... Poi c'erano due primi, sempre caldi, a disposizione dei nostri ospiti. Una polenta sempre fissa e tre dolci a rotazione. Non erano previsti superalcolici. Di alcolico avevamo lo sponsor della birra, e i vini, principalmente Prosecco e poi qualche vino della Valtellina, qualche vino del Veneto e così via.";
-  const niniServiceAudioVolume = 0.86;
+  const niniServiceAudioVolume = 0.92;
   const niniServiceAudioFadeOutDuration = 0.18;
   const niniServiceRevealDurationSeconds = 34;
   const niniServiceStartCameraX = 13800;
@@ -2543,7 +2543,12 @@
             </span>
           </span>
         </span>
-        <img src="/assets/interviews-hover/zarri.png" alt="Carlo Zarri" draggable="false" />
+        <img
+          class="scene-chef-image"
+          src="/assets/interviews-hover/zarri.png"
+          alt="Carlo Zarri"
+          draggable="false"
+        />
       </div>
       <div
         class="service-chef-button"
@@ -2634,7 +2639,12 @@
             </span>
           </span>
         </span>
-        <img src="/assets/interviews-hover/eli.png" alt="Elisabetta Salvadori" draggable="false" />
+        <img
+          class="scene-chef-image"
+          src="/assets/interviews-hover/eli.png"
+          alt="Elisabetta Salvadori"
+          draggable="false"
+        />
       </div>
       <div
         class="service-chef-button"
@@ -2725,7 +2735,12 @@
             </span>
           </span>
         </span>
-        <img src="/assets/interviews-hover/marco.png" alt="Marco Frassante" draggable="false" />
+        <img
+          class="scene-chef-image"
+          src="/assets/interviews-hover/marco.png"
+          alt="Marco Frassante"
+          draggable="false"
+        />
       </div>
       <div
         class="service-chef-button"
@@ -2816,7 +2831,12 @@
             </span>
           </span>
         </span>
-        <img src="/assets/interviews-hover/fausto.png" alt="Fausto Meli" draggable="false" />
+        <img
+          class="scene-chef-image"
+          src="/assets/interviews-hover/fausto.png"
+          alt="Fausto Meli"
+          draggable="false"
+        />
       </div>
       <div
         class="service-chef-button"
@@ -2907,7 +2927,12 @@
             </span>
           </span>
         </span>
-        <img src="/assets/interviews-hover/nini.png" alt="Nini" draggable="false" />
+        <img
+          class="scene-chef-image"
+          src="/assets/interviews-hover/nini.png"
+          alt="Nini"
+          draggable="false"
+        />
       </div>
     </div>
   </div>
@@ -3538,6 +3563,54 @@
     to {
       -webkit-clip-path: inset(0 0 0 0);
       clip-path: inset(0 0 0 0);
+    }
+  }
+
+  @media (max-width: 760px) {
+    .service-chef-button > .scene-chef-image {
+      visibility: hidden !important;
+      opacity: 0 !important;
+    }
+  }
+
+  @media (max-width: 900px), (hover: none) and (pointer: coarse), (orientation: portrait) and (max-width: 1250px) and (min-height: 1500px) {
+    .service-chef-button > .scene-chef-image {
+      visibility: hidden !important;
+      opacity: 0 !important;
+    }
+  }
+
+  @media (min-width: 390px) and (max-width: 430px) and (min-height: 820px) and (max-height: 920px) {
+    .speech-bubble {
+      --speech-bubble-width: 306px !important;
+      --speech-bubble-copy-height: 152px !important;
+      --speech-bubble-meta-height: 38px !important;
+
+      width: var(--speech-bubble-width);
+    }
+
+    .speech-bubble-copy {
+      flex-basis: var(--speech-bubble-copy-height);
+      height: var(--speech-bubble-copy-height);
+      padding: 14px 16px;
+      font-size: 13px;
+      line-height: 1.28;
+    }
+
+    .speech-bubble-copy.has-page-controls {
+      gap: 7px;
+      padding: 10px 16px 14px;
+    }
+
+    .speech-bubble-meta {
+      flex-basis: var(--speech-bubble-meta-height);
+      height: var(--speech-bubble-meta-height);
+      padding: 0 12px;
+      font-size: 10.5px;
+    }
+
+    .speech-bubble-meta strong {
+      font-size: 16px;
     }
   }
 
