@@ -6104,10 +6104,10 @@
     background: transparent;
     cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     opacity: var(--role-card-opacity, 0);
-    transform: translateY(var(--role-card-y, 38vh));
+    transform: translate3d(0, var(--role-card-y, 38vh), 0);
     transform-style: flat;
     transform-origin: 50% 50%;
-    -webkit-transform: translateY(var(--role-card-y, 38vh)) translateZ(0);
+    -webkit-transform: translate3d(0, var(--role-card-y, 38vh), 0);
     box-shadow: 0 20px 46px rgb(var(--shadow-brand-rgb) / var(--role-shadow-alpha, 0));
     transition:
       opacity 120ms linear,
@@ -6175,8 +6175,11 @@
     padding: clamp(10px, 3.5%, 18px);
     object-fit: contain;
     transform:
-      translateX(var(--role-bg-x, 0px))
-      translateY(calc(var(--servizio-bg-y) + var(--role-bg-y, 0px)))
+      translate3d(
+        var(--role-bg-x, 0px),
+        calc(var(--servizio-bg-y) + var(--role-bg-y, 0px)),
+        0
+      )
       scale(1);
   }
 
@@ -6187,8 +6190,11 @@
 
   .role-card.is-cucina .role-card-bg {
     transform:
-      translateX(var(--role-bg-x, 0px))
-      translateY(calc(var(--cucina-bg-y) + var(--role-bg-y, 0px)))
+      translate3d(
+        var(--role-bg-x, 0px),
+        calc(var(--cucina-bg-y) + var(--role-bg-y, 0px)),
+        0
+      )
       scale(1);
   }
 
@@ -6203,8 +6209,11 @@
     padding: clamp(2px, 1%, 6px);
     object-fit: contain;
     transform:
-      translateX(calc(var(--ufficio-bg-x) + var(--role-bg-x, 0px)))
-      translateY(calc(var(--ufficio-bg-y) + var(--role-bg-y, 0px)))
+      translate3d(
+        calc(var(--ufficio-bg-x) + var(--role-bg-x, 0px)),
+        calc(var(--ufficio-bg-y) + var(--role-bg-y, 0px)),
+        0
+      )
       scale(1);
   }
 
@@ -6254,10 +6263,13 @@
     border: 2px solid var(--color-border-primary);
     border-radius: var(--role-card-radius);
     background: var(--color-surface-page);
-    transform: translateY(var(--role-card-lift-y, 0px));
-    -webkit-transform: translateY(var(--role-card-lift-y, 0px)) translateZ(0);
+    -webkit-clip-path: inset(0 round var(--role-card-radius));
+    clip-path: inset(0 round var(--role-card-radius));
+    transform: translate3d(0, var(--role-card-lift-y, 0px), 0);
+    -webkit-transform: translate3d(0, var(--role-card-lift-y, 0px), 0);
     transition: transform 210ms cubic-bezier(0.18, 1.35, 0.28, 1);
     will-change: transform;
+    contain: paint;
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
   }
@@ -6285,12 +6297,14 @@
     opacity: 0;
     filter: grayscale(1) sepia(0.16) opacity(0.72);
     transform:
-      translateX(var(--role-bg-x, 0px))
-      translateY(var(--role-bg-y, 0px))
+      translate3d(var(--role-bg-x, 0px), var(--role-bg-y, 0px), 0)
       scale(1);
     transition: opacity 220ms ease, filter 260ms ease, transform 90ms linear;
     user-select: none;
     pointer-events: none;
+    will-change: opacity, filter, transform;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   .role-card-bg-overlay {
@@ -6322,8 +6336,11 @@
     opacity: 0;
     visibility: hidden;
     transform:
-      translateX(var(--role-dialogue-x, 0px))
-      translateY(calc(-100% - 8px + var(--role-dialogue-y, 0px)));
+      translate3d(
+        var(--role-dialogue-x, 0px),
+        calc(-100% - 8px + var(--role-dialogue-y, 0px)),
+        0
+      );
     transition:
       opacity 90ms linear,
       visibility 0s linear 190ms,
@@ -6391,8 +6408,11 @@
     text-align: center;
     opacity: 1;
     transform:
-      translateX(var(--role-copy-x, 0px))
-      translateY(calc(-50% + var(--role-copy-y, 0px)));
+      translate3d(
+        var(--role-copy-x, 0px),
+        calc(-50% + var(--role-copy-y, 0px)),
+        0
+      );
     transition: opacity 160ms ease, transform 180ms ease;
     pointer-events: none;
   }
@@ -6429,8 +6449,11 @@
     height: min(92%, 720px);
     opacity: 0;
     transform:
-      translateX(calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)))
-      translateY(calc(72px + var(--role-person-base-y, 0px) + var(--role-person-y, 0px)));
+      translate3d(
+        calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)),
+        calc(72px + var(--role-person-base-y, 0px) + var(--role-person-y, 0px)),
+        0
+      );
     transition:
       opacity var(--role-reveal-duration) var(--role-reveal-ease),
       transform var(--role-reveal-duration) var(--role-reveal-ease);
@@ -6448,8 +6471,11 @@
     z-index: 5;
     opacity: 0;
     transform:
-      translateX(calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)))
-      translateY(calc(var(--role-person-base-y, 0px) + var(--role-person-y, 0px)));
+      translate3d(
+        calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)),
+        calc(var(--role-person-base-y, 0px) + var(--role-person-y, 0px)),
+        0
+      );
   }
 
   .role-person-fill {
@@ -6500,32 +6526,40 @@
     opacity: 0.52;
     filter: grayscale(1) sepia(0.16) opacity(0.74);
     transform:
-      translateX(var(--role-bg-x, 0px))
-      translateY(var(--role-bg-y, 0px))
+      translate3d(var(--role-bg-x, 0px), var(--role-bg-y, 0px), 0)
       scale(1);
   }
 
   .role-card.is-ufficio.has-dialogue:hover .role-card-bg,
   .role-card.is-ufficio.has-dialogue:focus-visible .role-card-bg {
     transform:
-      translateX(calc(var(--ufficio-bg-x) + var(--role-bg-x, 0px)))
-      translateY(calc(var(--ufficio-bg-y) + var(--role-bg-y, 0px)))
+      translate3d(
+        calc(var(--ufficio-bg-x) + var(--role-bg-x, 0px)),
+        calc(var(--ufficio-bg-y) + var(--role-bg-y, 0px)),
+        0
+      )
       scale(1);
   }
 
   .role-card.is-servizio.has-dialogue:hover .role-card-bg,
   .role-card.is-servizio.has-dialogue:focus-visible .role-card-bg {
     transform:
-      translateX(var(--role-bg-x, 0px))
-      translateY(calc(var(--servizio-bg-y) + var(--role-bg-y, 0px)))
+      translate3d(
+        var(--role-bg-x, 0px),
+        calc(var(--servizio-bg-y) + var(--role-bg-y, 0px)),
+        0
+      )
       scale(1);
   }
 
   .role-card.is-cucina.has-dialogue:hover .role-card-bg,
   .role-card.is-cucina.has-dialogue:focus-visible .role-card-bg {
     transform:
-      translateX(var(--role-bg-x, 0px))
-      translateY(calc(var(--cucina-bg-y) + var(--role-bg-y, 0px)))
+      translate3d(
+        var(--role-bg-x, 0px),
+        calc(var(--cucina-bg-y) + var(--role-bg-y, 0px)),
+        0
+      )
       scale(1);
   }
 
@@ -6538,8 +6572,11 @@
   .role-card.has-dialogue:focus-visible .role-card-copy {
     opacity: 0;
     transform:
-      translateX(var(--role-copy-x, 0px))
-      translateY(calc(-50% - 12px + var(--role-copy-y, 0px)));
+      translate3d(
+        var(--role-copy-x, 0px),
+        calc(-50% - 12px + var(--role-copy-y, 0px)),
+        0
+      );
   }
 
   .role-card.has-dialogue:hover .role-hover-panel,
@@ -6551,16 +6588,18 @@
       visibility 0s linear,
       transform var(--role-reveal-duration) var(--role-reveal-ease);
     transform:
-      translateX(var(--role-dialogue-x, 0px))
-      translateY(var(--role-dialogue-y, 0px));
+      translate3d(var(--role-dialogue-x, 0px), var(--role-dialogue-y, 0px), 0);
   }
 
   .role-card.has-dialogue:hover .role-person,
   .role-card.has-dialogue:focus-visible .role-person {
     opacity: 1;
     transform:
-      translateX(calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)))
-      translateY(calc(var(--role-person-base-y, 0px) + var(--role-person-y, 0px)));
+      translate3d(
+        calc(-50% + var(--role-person-base-x, 0px) + var(--role-person-x, 0px)),
+        calc(var(--role-person-base-y, 0px) + var(--role-person-y, 0px)),
+        0
+      );
   }
 
   .role-card.has-person-fill:hover .role-person-outline,
