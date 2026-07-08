@@ -651,6 +651,15 @@
     onFullInterviewChange?.(false);
   }
 
+  function openPaganiniWrittenInterviewFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('chef') !== 'paganini' || params.get('view') !== 'full') return;
+
+    activeInterviewName = 'Stefano Paganini';
+    isFullInterview = true;
+    onFullInterviewChange?.(true);
+  }
+
   function handleFullInterviewTranscriptWheel(event: WheelEvent) {
     const scroller = event.currentTarget as HTMLElement;
     if (!scroller) return;
@@ -772,6 +781,7 @@
   }
 
   onMount(() => {
+    openPaganiniWrittenInterviewFromUrl();
     isAudioMuted = readAudioMutedPreference(isAudioMuted);
     fitAllMiniPortraits();
     window.addEventListener('resize', fitAllMiniPortraits);
@@ -833,9 +843,9 @@
       </div>
     </article>
     {#if activeInterviewDetail.name === 'Stefano Paganini'}
-      <button
+      <a
         class="paganini-video-button"
-        type="button"
+        href="/interviste/video-paganini"
         aria-label="Guarda l’intervista di Stefano Paganini"
         data-node-id="5355:17123"
       >
@@ -845,7 +855,7 @@
             <path d="M9 6.8L17 12L9 17.2V6.8Z" />
           </svg>
         </span>
-      </button>
+      </a>
     {/if}
   </section>
 {/if}
@@ -1554,6 +1564,7 @@
   font-size: 16px;
   font-weight: 800;
   line-height: normal;
+  text-decoration: none;
   appearance: none;
   isolation: isolate;
   overflow: visible;

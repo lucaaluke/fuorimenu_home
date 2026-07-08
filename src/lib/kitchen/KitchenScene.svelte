@@ -80,14 +80,6 @@
     'S-planetaria': 'standMixer',
     'S-cassetta-attrezzi': 'toolbox'
   };
-  const paganiniTrailerVideo = {
-    x: 7700,
-    y: 610,
-    width: 520,
-    height: 292.5,
-    scrollFactor: phaserObjectScrollFactor.foreground,
-    src: '/assets/kitchen/objects/video-paganini-trailer_v2.mp4'
-  } as const;
   const initialKitchenState: KitchenControllerState = {
     cameraX: 0,
     targetCameraX: 0,
@@ -126,9 +118,16 @@
   const kitchenDialogueCameraRanges = {
     carlo: { enter: 600, dialogueStart: 600, exit: 4700 },
     paganini: { enter: 4900, dialogueStart: 4900, exit: 8500 },
-    fausto: { enter: 8700, dialogueStart: 8700, exit: 12500 },
-    fausto2: { enter: 12700, dialogueStart: 12700, exit: 15000 },
-    marco: { enter: 15200, dialogueStart: 15200, exit: 18100 }
+    fausto: { enter: 9000, dialogueStart: 9000, exit: 12800 },
+    fausto2: { enter: 13000, dialogueStart: 13000, exit: 15300 },
+    marco: { enter: 15500, dialogueStart: 15500, exit: 18400 }
+  } as const;
+  const paganiniTrailerVideo = {
+    cameraX: 9250,
+    y: 360,
+    width: 1040,
+    height: 585,
+    src: '/assets/kitchen/objects/video-paganini-trailer_v2.mp4'
   } as const;
   const faustoSpeech =
     "Sei istituti alberghieri, tra cui l'Istituto di Busto Arsizio, l'Istituto Lagrange di Milano, l'Istituto di Bormio, l'Istituto di Cortina e l'Istituto di Brunico ci hanno aiutato per effettuare tutte le tipologie di servizi. Io avevo 8 chef, quindi uno per ogni sito, con cui avevo più contatti diretti. Ogni chef aveva questa sua brigata in base alla grandezza del luogo dove operava. Brunico aveva uno chef, due sous-chef e 15 ragazzi. La grande difficoltà che ho trovato io personalmente, è che, lavorando per un'azienda americana, loro hanno uno stile completamente diverso. Non posso dire che loro siano più bravi, non lo dirò mai. Posso dire che loro sono più pignoli? Sì. Per i primi 3-4 mesi entrare nella loro fase di lavoro non è stato semplice.";
@@ -359,6 +358,12 @@
   let faustoAudioEl: HTMLAudioElement;
   let fausto2AudioEl: HTMLAudioElement;
   let marcoAudioEl: HTMLAudioElement;
+  let paganiniTrailerVideoEl = $state<HTMLVideoElement>();
+  let isPaganiniTrailerPlaying = $state(false);
+  let isPaganiniTrailerControlFaded = $state(false);
+  let isPaganiniTrailerCtaVisible = $state(false);
+  let paganiniTrailerControlFadeTimer: ReturnType<typeof setTimeout> | undefined;
+  let paganiniTrailerCtaTimer: ReturnType<typeof setTimeout> | undefined;
   let hasPlayedToolShedHover = false;
   let hasPlayedStandMixerHover = false;
   let isAmbientAudioStarted = false;
@@ -629,7 +634,7 @@
   }
 
   function getPaganiniTrailerVideoStyle() {
-    const x = paganiniTrailerVideo.x * sceneScale - cameraX * paganiniTrailerVideo.scrollFactor;
+    const x = paganiniTrailerVideo.cameraX - cameraX;
     const top = viewportHeight - (kitchenConstructionFloorTopY - paganiniTrailerVideo.y) * sceneScale;
 
     return [
@@ -638,6 +643,57 @@
       `top: ${scenePx(top)}`,
       `transform: translate3d(${scenePx(x)}, 0, 0)`
     ].join(';');
+  }
+
+  function togglePaganiniTrailerVideo(event?: Event) {
+    event?.stopPropagation();
+    if (!paganiniTrailerVideoEl) return;
+
+    if (paganiniTrailerVideoEl.paused) {
+      void paganiniTrailerVideoEl.play();
+      return;
+    }
+
+    paganiniTrailerVideoEl.pause();
+  }
+
+  function clearPaganiniTrailerControlFadeTimer() {
+    if (!paganiniTrailerControlFadeTimer) return;
+    clearTimeout(paganiniTrailerControlFadeTimer);
+    paganiniTrailerControlFadeTimer = undefined;
+  }
+
+  function clearPaganiniTrailerCtaTimer() {
+    if (!paganiniTrailerCtaTimer) return;
+    clearTimeout(paganiniTrailerCtaTimer);
+    paganiniTrailerCtaTimer = undefined;
+  }
+
+  function showPaganiniTrailerControl() {
+    clearPaganiniTrailerControlFadeTimer();
+    isPaganiniTrailerControlFaded = false;
+  }
+
+  function onPaganiniTrailerPlay() {
+    isPaganiniTrailerPlaying = true;
+    isPaganiniTrailerControlFaded = false;
+    isPaganiniTrailerCtaVisible = false;
+    clearPaganiniTrailerControlFadeTimer();
+    clearPaganiniTrailerCtaTimer();
+    paganiniTrailerControlFadeTimer = setTimeout(() => {
+      if (isPaganiniTrailerPlaying) isPaganiniTrailerControlFaded = true;
+      paganiniTrailerControlFadeTimer = undefined;
+    }, 1000);
+    paganiniTrailerCtaTimer = setTimeout(() => {
+      if (isPaganiniTrailerPlaying) isPaganiniTrailerCtaVisible = true;
+      paganiniTrailerCtaTimer = undefined;
+    }, 3500);
+  }
+
+  function onPaganiniTrailerPause() {
+    isPaganiniTrailerPlaying = false;
+    clearPaganiniTrailerCtaTimer();
+    showPaganiniTrailerControl();
   }
 
   function getHoveredKitchenSTooltipId() {
@@ -1762,6 +1818,8 @@
   onMount(() => {
     let destroyed = false;
     const { resources } = sceneController;
+    resources.add(clearPaganiniTrailerControlFadeTimer);
+    resources.add(clearPaganiniTrailerCtaTimer);
     const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     const syncReducedMotion = () => {
       prefersReducedMotion = reducedMotionQuery.matches;
@@ -1905,14 +1963,17 @@
   {#if isSceneRevealed}
     <div class="kitchen-video-container" style={getPaganiniTrailerVideoStyle()}>
       <video
+        bind:this={paganiniTrailerVideoEl}
         class="kitchen-scene-video"
         src={paganiniTrailerVideo.src}
         preload="metadata"
         playsinline
-        controls
         aria-label="Trailer intervista Stefano Paganini"
         onpointerdown={(event) => event.stopPropagation()}
-        onclick={(event) => event.stopPropagation()}
+        onclick={togglePaganiniTrailerVideo}
+        onplay={onPaganiniTrailerPlay}
+        onpause={onPaganiniTrailerPause}
+        onended={onPaganiniTrailerPause}
       >
         <track
           kind="captions"
@@ -1922,11 +1983,35 @@
           default
         />
       </video>
-      <span class="kitchen-video-play-hint" aria-hidden="true">
-        <svg viewBox="0 0 24 24" focusable="false">
-          <path d="M9 6.8L17 12L9 17.2V6.8Z" />
+      <button
+        class="kitchen-video-play-button"
+        class:is-playing={isPaganiniTrailerPlaying}
+        class:is-faded={isPaganiniTrailerControlFaded}
+        type="button"
+        aria-label={isPaganiniTrailerPlaying
+          ? 'Metti in pausa il trailer di Stefano Paganini'
+          : 'Riproduci il trailer di Stefano Paganini'}
+        onclick={togglePaganiniTrailerVideo}
+        onpointerdown={(event) => event.stopPropagation()}
+      >
+        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+          {#if isPaganiniTrailerPlaying}
+            <path d="M8.25 6.5V17.5M15.75 6.5V17.5" />
+          {:else}
+            <path d="M8.5 6.75L17 12L8.5 17.25V6.75Z" />
+          {/if}
         </svg>
-      </span>
+      </button>
+      <a
+        class="kitchen-video-full-link"
+        class:is-visible={isPaganiniTrailerCtaVisible}
+        href="/interviste/video-paganini"
+        aria-label="Guarda l'intervista completa di Stefano Paganini"
+        onpointerdown={(event) => event.stopPropagation()}
+        onclick={(event) => event.stopPropagation()}
+      >
+        Intervista completa
+      </a>
     </div>
   {/if}
   {#each kitchenSTooltipAssets as asset (asset.id)}
@@ -2266,35 +2351,111 @@
     cursor: var(--kitchen-pointer-cursor);
   }
 
-  .kitchen-video-play-hint {
+  .kitchen-video-play-button {
+    --kitchen-video-button-scale: 1;
+
     position: absolute;
     left: 50%;
     top: 50%;
     display: grid;
-    width: clamp(38px, 4.4vw, 62px);
-    height: clamp(38px, 4.4vw, 62px);
+    width: clamp(46px, 5vw, 74px);
+    height: clamp(46px, 5vw, 74px);
     place-items: center;
-    border: 2px solid var(--color-surface-page);
+    border: 2px solid var(--color-text-primary);
     border-radius: var(--radius-full);
-    background: rgb(42 68 132 / 0.78);
-    color: var(--color-surface-page);
-    opacity: 0.92;
-    pointer-events: none;
-    transform: translate3d(-50%, -50%, 0);
-    transition: opacity 160ms ease, transform 180ms ease;
+    background: var(--color-surface-page);
+    color: var(--color-text-primary);
+    box-shadow: 0 10px 18px rgb(42 68 132 / 0.18);
+    cursor: var(--kitchen-pointer-cursor);
+    opacity: 0.96;
+    padding: 0;
+    transform: translate3d(-50%, -50%, 0) scale(var(--kitchen-video-button-scale));
+    transition:
+      opacity 160ms ease,
+      transform 190ms cubic-bezier(0.18, 1.35, 0.28, 1),
+      box-shadow 160ms ease;
+    appearance: none;
   }
 
-  .kitchen-video-play-hint svg {
+  .kitchen-video-play-button svg {
     display: block;
-    width: 54%;
-    height: 54%;
-    fill: currentColor;
+    width: 48%;
+    height: 48%;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2.4;
   }
 
-  .kitchen-video-container:hover .kitchen-video-play-hint,
-  .kitchen-video-container:focus-within .kitchen-video-play-hint {
+  .kitchen-video-play-button:hover,
+  .kitchen-video-play-button:focus-visible {
+    opacity: 1;
+    box-shadow: 0 12px 22px rgb(42 68 132 / 0.22);
+  }
+
+  .kitchen-video-play-button:active {
+    --kitchen-video-button-scale: 0.92;
+  }
+
+  .kitchen-video-play-button:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 5px;
+  }
+
+  .kitchen-video-play-button.is-faded {
     opacity: 0;
-    transform: translate3d(-50%, -50%, 0) scale(0.92);
+    pointer-events: none;
+  }
+
+  .kitchen-video-full-link {
+    position: absolute;
+    right: clamp(12px, 2vw, 24px);
+    bottom: clamp(12px, 2vw, 24px);
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: clamp(38px, 4vw, 50px);
+    padding: 0 clamp(14px, 2vw, 22px);
+    border: 2px solid var(--color-text-primary);
+    border-radius: var(--radius-full);
+    background: var(--color-surface-page);
+    color: var(--color-text-primary);
+    box-shadow: 0 10px 18px rgb(42 68 132 / 0.18);
+    cursor: var(--kitchen-pointer-cursor);
+    font-family: var(--font-text);
+    font-size: clamp(12px, 1.15vw, 16px);
+    font-weight: 800;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+    text-decoration: none;
+    transform: translate3d(0, 8px, 0) scale(0.98);
+    transition:
+      opacity 180ms ease,
+      transform 220ms cubic-bezier(0.18, 1.35, 0.28, 1),
+      box-shadow 160ms ease;
+  }
+
+  .kitchen-video-full-link.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  .kitchen-video-full-link:hover,
+  .kitchen-video-full-link:focus-visible {
+    box-shadow: 0 12px 22px rgb(42 68 132 / 0.22);
+  }
+
+  .kitchen-video-full-link:active {
+    transform: translate3d(0, 0, 0) scale(0.94);
+  }
+
+  .kitchen-video-full-link:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 5px;
   }
 
   .kitchen-s-tooltip-hitbox {
