@@ -35,6 +35,9 @@
     sceneWidth,
     title
   } = kitchenSceneConfig;
+  const touchScrollInteractiveSelector = 'a, button, input, textarea, select, video, [role="button"]';
+  const touchScrollDeadZone = 3;
+  const touchScrollFactor = 1.54;
   const showLegacyKitchenOverlays = false;
   const phaserObjectScrollFactor = {
     middle: 1.25,
@@ -397,6 +400,9 @@
   let dragStartX = 0;
   let dragStartY = 0;
   let dragAxis: 'x' | 'y' | undefined;
+  let isTouchScrolling = false;
+  let touchLastX = 0;
+  let touchLastY = 0;
   let isSceneLoaded = $state(false);
   let isSceneRevealed = $state(false);
   let sceneRevealTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1155,7 +1161,47 @@
     scrollBy(delta * 0.84);
   }
 
+  function canStartTouchScroll(target: EventTarget | null) {
+    return target instanceof Element && !target.closest(touchScrollInteractiveSelector);
+  }
+
+  function onTouchStart(event: TouchEvent) {
+    if (!isSceneInteractive || event.touches.length !== 1 || !canStartTouchScroll(event.target)) {
+      isTouchScrolling = false;
+      return;
+    }
+
+    const touch = event.touches[0];
+    touchLastX = touch.clientX;
+    touchLastY = touch.clientY;
+    isTouchScrolling = true;
+    void startAmbientAudio();
+    unlockRelevantTestimonialAudio();
+  }
+
+  function onTouchMove(event: TouchEvent) {
+    if (!isTouchScrolling || !isSceneInteractive || event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - touchLastX;
+    const deltaY = touch.clientY - touchLastY;
+    touchLastX = touch.clientX;
+    touchLastY = touch.clientY;
+
+    const dominantDelta = Math.abs(deltaY) > Math.abs(deltaX) ? -deltaY : -deltaX;
+    if (Math.abs(dominantDelta) < touchScrollDeadZone) return;
+
+    event.preventDefault();
+    scrollBy(dominantDelta * touchScrollFactor);
+    unlockRelevantTestimonialAudio();
+  }
+
+  function onTouchEnd() {
+    isTouchScrolling = false;
+  }
+
   function onPointerDown(event: PointerEvent) {
+    if (event.pointerType === 'touch') return;
     if (!isSceneInteractive) {
       event.preventDefault();
       return;
@@ -1172,6 +1218,7 @@
   }
 
   function onPointerMove(event: PointerEvent) {
+    if (event.pointerType === 'touch') return;
     if (!isSceneInteractive) return;
     updatePointerScenePosition(event);
     if (!isDragging) return;
@@ -1907,6 +1954,10 @@
       isSceneLoaded = true;
     });
     stageEl.addEventListener('click', triggerTapClickFeedback, true);
+    resources.addEventListener(stageEl, 'touchstart', onTouchStart as EventListener, { capture: true, passive: true });
+    resources.addEventListener(stageEl, 'touchmove', onTouchMove as EventListener, { capture: true, passive: false });
+    resources.addEventListener(stageEl, 'touchend', onTouchEnd as EventListener, true);
+    resources.addEventListener(stageEl, 'touchcancel', onTouchEnd as EventListener, true);
     resources.addEventListener(window, 'keydown', onKeydown as EventListener);
 	    return () => {
       stageEl?.removeEventListener('click', triggerTapClickFeedback, true);
