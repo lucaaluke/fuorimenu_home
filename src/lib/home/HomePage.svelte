@@ -715,7 +715,7 @@
   const carloCraccoInterviewTranscript: InterviewTranscriptSection[] = [
     {
       question:
-        "Partendo dal tema “Le Olimpiadi degli invisibili” in relazione alle Olimpiadi Milano Cortina 2026, l'obiettivo è condurre una ricerca sui retroscena dei Giochi, focalizzandosi su tutto ciò che rende possibile l'evento ma rimane fuori dai riflettori: persone, ruoli, progetti, processi, coordinamento, responsabilità quotidiane. Un punto di vista interno e spesso ignorato di quell'esperienza olimpica. Chi rende possibili le Olimpiadi senza essere protagonista dell'evento? Un evento di questa portata si prepara con anni di anticipo. Dal punto di vista puramente organizzativo, come ha approcciato la sfida di Milano Cortina? Come ha riorganizzato la struttura di Cracco in Galleria e della sua brigata per trasformarlo in un luogo in grado di ospitare l'Omega House conciliando grandi flussi di persone e qualità del cibo senza perdere l'identità del fine dining?",
+        "Chi rende possibili le Olimpiadi senza essere protagonista dell’evento? Un evento di questa portata si prepara con anni di anticipo. Dal punto di vista puramente organizzativo, come ha approcciato la sfida di Milano Cortina? Come ha riorganizzato la struttura di 'Cracco in Galleria' e della sua brigata per trasformarlo in un luogo in grado di ospitare l'Omega House conciliando grandi flussi di persone e qualità del cibo senza perdere l'identità del fine dining?",
       answer:
         "Le Olimpiadi degli invisibili? Sono la realtà, non il tema. La cucina è sempre stata così. Tu vedi il piatto, ma dietro ci sono turni infiniti, gerarchie, logistica, errori corretti al volo. A Milano Cortina ho lavorato esattamente su questo: rendere invisibile la complessità. Ho riorganizzato Cracco in Galleria pensando a chi non si vede chi prepara, chi coordina, chi pulisce, chi controlla le forniture. Se la macchina funziona, è perché queste persone non sbagliano mai. E non possono permetterselo. Il brand Omega ha fatto un takeover totale del Ristorante e della Sala Mengoni, adibita agli eventi. Hanno modificato tutto l'arredamento, costruito pareti e creato ambienti nuovi… uno shock all'inizio, ma il risultato è stato magnifico: un'integrazione perfetta fra la nostra realtà e Omega, un'autentica casa Olimpiadi."
     },
@@ -4493,6 +4493,8 @@
     box-sizing: border-box;
     overflow-x: auto;
     overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
     background: var(--color-surface-page);
     color: var(--color-text-primary);
     scrollbar-width: none;
@@ -5200,6 +5202,8 @@
     box-sizing: border-box;
     overflow-x: auto;
     overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
     color: var(--color-text-primary);
     scrollbar-width: none;
     overscroll-behavior-x: contain;
@@ -6939,6 +6943,15 @@
       touch-action: pan-y;
     }
 
+    .about-interviews {
+      inset: var(--layout-topbar-height-mobile) 0 0;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+    }
+
     .about-project-track {
       display: block;
       width: 100%;
@@ -7062,6 +7075,16 @@
 
     .about-project-scroll-arrow {
       transform: none;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .audio-gate-content p {
+      font-size: 14px;
+    }
+
+    .audio-gate-button-label {
+      font-size: 13px;
     }
   }
 

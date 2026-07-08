@@ -1460,6 +1460,8 @@
   padding: 22px 22px clamp(42px, 7vh, 68px) 0;
   overflow-x: hidden;
   overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   overscroll-behavior: contain;
   scrollbar-color: var(--color-text-primary) var(--color-surface-page);
   scrollbar-width: thin;
@@ -1668,6 +1670,8 @@
   box-sizing: border-box;
   overflow-x: auto;
   overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
   color: var(--color-text-primary);
   scrollbar-width: none;
   overscroll-behavior-x: contain;
