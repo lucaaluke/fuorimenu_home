@@ -1238,7 +1238,7 @@
   }
 
   function getKitchenSTooltipHoverVolume(soundId: keyof typeof kitchenSTooltipSoundFileById) {
-    if (soundId === 'standMixer') return 0.04;
+    if (soundId === 'standMixer') return 0.08;
     if (soundId === 'toolbox') return 0.22;
     if (soundId === 'alarmClock') return 0.46;
     if (soundId === 'stove') return 0.42;
