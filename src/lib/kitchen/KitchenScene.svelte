@@ -361,6 +361,7 @@
   let marcoAudioEl: HTMLAudioElement;
   let hasPlayedToolShedHover = false;
   let hasPlayedStandMixerHover = false;
+  let standMixerFadeOutTimer: ReturnType<typeof setTimeout> | undefined;
   let isAmbientAudioStarted = false;
   let previousKitchenAmbientMix = -1;
   let previousKitchenAmbientDucked = false;
@@ -1237,8 +1238,12 @@
     return undefined;
   }
 
+  const standMixerHoverVolume = 0.05;
+  const standMixerFadeOutLead = 0.48;
+  const standMixerFadeOutDuration = 0.42;
+
   function getKitchenSTooltipHoverVolume(soundId: keyof typeof kitchenSTooltipSoundFileById) {
-    if (soundId === 'standMixer') return 0.08;
+    if (soundId === 'standMixer') return standMixerHoverVolume;
     if (soundId === 'toolbox') return 0.22;
     if (soundId === 'alarmClock') return 0.46;
     if (soundId === 'stove') return 0.42;
@@ -1252,6 +1257,11 @@
     if (soundId === 'toolbox') {
       boostToolShedAudio();
       void toolShedAudioContext?.resume();
+    }
+
+    if (soundId === 'standMixer') {
+      playStandMixerAudioWithFade(getKitchenSTooltipHoverVolume(soundId));
+      return;
     }
 
     playHoverSound(getKitchenSTooltipHoverAudio(soundId), getKitchenSTooltipHoverVolume(soundId), 0);
@@ -1338,6 +1348,50 @@
     };
 
     fallbackAudioFadeFrames.set(audio, requestAnimationFrame(step));
+  }
+
+  function clearStandMixerFadeOutTimer() {
+    if (!standMixerFadeOutTimer) return;
+    clearTimeout(standMixerFadeOutTimer);
+    standMixerFadeOutTimer = undefined;
+  }
+
+  function scheduleStandMixerFadeOut() {
+    if (!standMixerAudioEl) return;
+
+    clearStandMixerFadeOutTimer();
+
+    const duration = standMixerAudioEl.duration;
+    if (!Number.isFinite(duration) || duration <= 0) {
+      standMixerAudioEl.addEventListener('loadedmetadata', scheduleStandMixerFadeOut, { once: true });
+      return;
+    }
+
+    const secondsUntilFade = Math.max(
+      duration - standMixerAudioEl.currentTime - standMixerFadeOutLead,
+      0
+    );
+
+    standMixerFadeOutTimer = setTimeout(() => {
+      standMixerFadeOutTimer = undefined;
+      if (standMixerAudioEl.paused || standMixerAudioEl.ended) return;
+
+      fadeAudioVolume(standMixerAudioEl, 0, standMixerFadeOutDuration, () => {
+        standMixerAudioEl.pause();
+        standMixerAudioEl.currentTime = duration;
+        standMixerAudioEl.volume = standMixerHoverVolume;
+      });
+    }, secondsUntilFade * 1000);
+  }
+
+  function playStandMixerAudioWithFade(volume = standMixerHoverVolume) {
+    if (!standMixerAudioEl) return;
+
+    clearStandMixerFadeOutTimer();
+    cancelFallbackAudioFade(standMixerAudioEl);
+    gsap?.killTweensOf(standMixerAudioEl);
+    playHoverSound(standMixerAudioEl, volume, 0);
+    scheduleStandMixerFadeOut();
   }
 
   function setAmbientAudioVolumes(options: { duration?: number } = {}) {
@@ -1495,7 +1549,7 @@
   function playStandMixerHoverSound() {
     if (hasPlayedStandMixerHover) return;
     hasPlayedStandMixerHover = true;
-    playHoverSound(standMixerAudioEl, 0.04);
+    playStandMixerAudioWithFade();
   }
 
   function resetStandMixerHoverSound() {
@@ -1845,6 +1899,7 @@
       stageEl?.removeEventListener('click', triggerTapClickFeedback, true);
       if (sceneRevealTimer) clearTimeout(sceneRevealTimer);
       if (phaserResizeTimer) clearTimeout(phaserResizeTimer);
+      clearStandMixerFadeOutTimer();
       cancelFallbackAudioFade(constructionAudioEl);
       cancelFallbackAudioFade(kitchenAmbientAudioEl);
       pauseAllKitchenHoverSounds();
