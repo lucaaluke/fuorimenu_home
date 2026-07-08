@@ -2540,7 +2540,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
   <link
-    href="https://fonts.googleapis.com/css2?family=DynaPuff:wght@400..700&family=Fasthand&family=JetBrains+Mono:ital,wght@0,400;0,800;1,700;1,800&family=Roboto:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=DynaPuff:wght@400..700&family=Fasthand&family=JetBrains+Mono:ital,wght@0,400;0,700;0,800;1,700;1,800&family=Roboto:wght@400;500&display=swap"
     rel="stylesheet"
   />
 </svelte:head>
@@ -5995,9 +5995,9 @@
     max-width: calc(100vw - 48px);
     margin: 0;
     color: var(--color-text-primary);
-    font-family: var(--font-display);
+    font-family: var(--font-text);
     font-size: 32px;
-    font-weight: 600;
+    font-weight: 700;
     line-height: 1.2;
     letter-spacing: 0;
     text-align: center;

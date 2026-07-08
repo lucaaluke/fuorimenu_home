@@ -39,6 +39,8 @@
   const kitchenReturnCameraStorageKey = 'kitchen-return-camera-x';
   const touchScrollDeadZone = 3;
   const touchScrollFactor = 1.54;
+  const mouseWheelPixelThreshold = 40;
+  const mouseWheelScrollFactor = 0.42;
   const showLegacyKitchenOverlays = false;
   const phaserObjectScrollFactor = {
     middle: 1.25,
@@ -107,6 +109,7 @@
     minFactor: 0.68,
     zoneBeforeDisappearPx: 350
   };
+  const testimonialPresenceFadeProgress = 0.012;
   const tailStartX = 23600;
   const carloSpeech =
     "C'erano grosse difficoltà su Santa Giulia. Il 30 di gennaio era ancora un cantiere, quindi si entrava con l'elmetto col giubbotto catarifrangente; la situazione era veramente drammatica.\nDa dicembre 2025 abbiamo cambiato completamente la strategia per quel sito, perché era un sito che si sapeva che avrebbe avuto delle grosse difficoltà, perché a volte si faceva anche fino a 11.000 spettatori per tre gare al giorno.";
@@ -512,12 +515,10 @@
   function getKitchenProgressTicks() {
     if (maxScrollX <= 0) return [];
 
-    return [
-      cameraXToProgress(kitchenDialogueCameraRanges.paganini.dialogueStart),
-      cameraXToProgress(kitchenDialogueCameraRanges.fausto.dialogueStart),
-      cameraXToProgress(kitchenDialogueCameraRanges.fausto2.dialogueStart),
-      cameraXToProgress(kitchenDialogueCameraRanges.marco.dialogueStart)
-    ];
+    return kitchenTestimonials
+      .slice(1)
+      .flatMap(getKitchenProgressTickProgresses)
+      .filter((progress) => Number.isFinite(progress));
   }
 
   function getTestimonialCameraRange(testimonial: KitchenTestimonial) {
@@ -817,13 +818,59 @@
     return value * value * (3 - 2 * value);
   }
 
+  function getSmoothProgressInputForThreshold(threshold: number) {
+    const target = clamp(threshold, 0, 1);
+    let low = 0;
+    let high = 1;
+
+    for (let index = 0; index < 18; index += 1) {
+      const middle = (low + high) / 2;
+      if (smoothProgress(middle) < target) {
+        low = middle;
+      } else {
+        high = middle;
+      }
+    }
+
+    return (low + high) / 2;
+  }
+
+  function getTestimonialDialogueVisibleStartProgress(testimonial: KitchenTestimonial) {
+    const threshold = testimonial.dialogueVisibleThreshold ?? 0.94;
+    const visibleFadeProgress = getSmoothProgressInputForThreshold(threshold);
+    const enterProgress =
+      getTestimonialEnterProgress(testimonial) +
+      testimonialPresenceFadeProgress * visibleFadeProgress;
+    const range = getTestimonialCameraRange(testimonial);
+    const dialogueStartProgress = range ? cameraXToProgress(range.dialogueStart) : enterProgress;
+
+    return clamp(Math.max(enterProgress, dialogueStartProgress), 0, 1);
+  }
+
+  function getKitchenProgressTickProgresses(testimonial: KitchenTestimonial) {
+    const dialogueStartProgress = getTestimonialDialogueVisibleStartProgress(testimonial);
+
+    if (testimonial.id === 'paganini') {
+      return [
+        dialogueStartProgress,
+        getTestimonialExitProgress(testimonial) ?? dialogueStartProgress
+      ];
+    }
+
+    return [dialogueStartProgress];
+  }
+
   function getRawTestimonialPresence(testimonial: KitchenTestimonial) {
-    const enter = clamp((narrativeProgress - getTestimonialEnterProgress(testimonial)) / 0.012, 0, 1);
+    const enter = clamp(
+      (narrativeProgress - getTestimonialEnterProgress(testimonial)) / testimonialPresenceFadeProgress,
+      0,
+      1
+    );
     const exitProgress = getTestimonialExitProgress(testimonial);
     const exit =
       exitProgress === undefined
         ? 1
-        : 1 - clamp((narrativeProgress - exitProgress) / 0.012, 0, 1);
+        : 1 - clamp((narrativeProgress - exitProgress) / testimonialPresenceFadeProgress, 0, 1);
 
     return clamp(smoothProgress(enter) * smoothProgress(exit), 0, 1);
   }
@@ -1233,14 +1280,31 @@
     return startTime + clamp(revealProgress, 0, 0.98) * Math.max(revealDuration, 0.001);
   }
 
+  function isLikelyMouseWheelEvent(event: WheelEvent) {
+    if (event.deltaMode !== WheelEvent.DOM_DELTA_PIXEL) return true;
+    if (Math.abs(event.deltaX) > 0) return false;
+
+    return Number.isInteger(event.deltaY) && Math.abs(event.deltaY) >= mouseWheelPixelThreshold;
+  }
+
+  function isMouseWheelBlockedTarget(target: EventTarget | null) {
+    return target instanceof Element && target.closest('.kitchen-video-container') !== null;
+  }
+
   function onWheel(event: WheelEvent) {
+    const isMouseWheel = isLikelyMouseWheelEvent(event);
+    if (isMouseWheel && isMouseWheelBlockedTarget(event.target)) {
+      event.preventDefault();
+      return;
+    }
+
     const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
 
     event.preventDefault();
     if (!isSceneInteractive) return;
     void startAmbientAudio();
     unlockRelevantTestimonialAudio();
-    scrollBy(delta * 0.84);
+    scrollBy(delta * (isMouseWheel ? mouseWheelScrollFactor : 0.84));
   }
 
   function canStartTouchScroll(target: EventTarget | null) {
@@ -1374,7 +1438,7 @@
     if (isAudioMuted || !audio) return;
     audio.pause();
     audio.currentTime = startTime;
-    audio.volume = volume;
+    audio.volume = getSafeAudioVolume(volume);
     void audio.play().catch(() => {});
   }
 
@@ -1443,9 +1507,13 @@
     const voiceDuck = activeTestimonialAudioId ? 0.18 : 1;
 
     return {
-      construction: isAudioMuted ? 0 : constructionAmbientVolume * (1 - mix) * voiceDuck,
-      kitchen: isAudioMuted ? 0 : kitchenBackgroundAmbientVolume * mix * voiceDuck
+      construction: getSafeAudioVolume(isAudioMuted ? 0 : constructionAmbientVolume * (1 - mix) * voiceDuck),
+      kitchen: getSafeAudioVolume(isAudioMuted ? 0 : kitchenBackgroundAmbientVolume * mix * voiceDuck)
     };
+  }
+
+  function getSafeAudioVolume(volume: number) {
+    return clamp(Number.isFinite(volume) ? volume : 0, 0, 1);
   }
 
   function cancelFallbackAudioFade(audio: HTMLAudioElement | undefined) {
@@ -1461,11 +1529,13 @@
     duration: number,
     onComplete?: () => void
   ) {
+    const targetVolume = getSafeAudioVolume(volume);
+
     cancelFallbackAudioFade(audio);
 
     if (gsap && duration > 0) {
       gsap.to(audio, {
-        volume,
+        volume: targetVolume,
         duration,
         ease: 'power2.out',
         overwrite: true,
@@ -1475,25 +1545,25 @@
     }
 
     if (duration <= 0) {
-      audio.volume = volume;
+      audio.volume = targetVolume;
       onComplete?.();
       return;
     }
 
-    const initialVolume = audio.volume;
+    const initialVolume = getSafeAudioVolume(audio.volume);
     const startedAt = performance.now();
     const durationMs = duration * 1000;
 
     const step = (now: number) => {
       const progress = Math.min((now - startedAt) / durationMs, 1);
-      audio.volume = initialVolume + (volume - initialVolume) * progress;
+      audio.volume = getSafeAudioVolume(initialVolume + (targetVolume - initialVolume) * progress);
 
       if (progress < 1) {
         fallbackAudioFadeFrames.set(audio, requestAnimationFrame(step));
         return;
       }
 
-      audio.volume = volume;
+      audio.volume = targetVolume;
       fallbackAudioFadeFrames.delete(audio);
       onComplete?.();
     };
@@ -1997,6 +2067,7 @@
       kitchenPhaserGame?.setCameraX(state.cameraX);
 	    }));
 	    resources.add(createViewportObserver(stageEl, syncViewport));
+    resources.addEventListener(stageEl, 'wheel', onWheel as EventListener, { passive: false });
 
     if (browser && phaserContainerEl) {
       import('$lib/kitchen/phaser/KitchenPhaserGame').then(({ createKitchenPhaserGame }) => {
@@ -2109,6 +2180,9 @@
     if (typeof initialCameraX !== 'number' || !Number.isFinite(initialCameraX)) return;
 
     kitchenController.scrollTo(initialCameraX);
+    requestAnimationFrame(() => {
+      kitchenController?.scrollTo(initialCameraX);
+    });
     hasAppliedInitialCameraX = true;
   });
 </script>
@@ -2123,7 +2197,6 @@
   data-active-chef={activeChefId ?? ''}
   data-narrative-progress={narrativeProgress.toFixed(3)}
   aria-label="Scena parallasse della cucina"
-  onwheel={onWheel} 
   onpointerdown={onPointerDown}
   onpointermove={onPointerMove}
   onpointerleave={onPointerLeave}
@@ -2137,7 +2210,15 @@
     <div bind:this={phaserContainerEl} class="kitchen-phaser-layer" aria-hidden="true"></div>
   {/if}
   {#if isSceneRevealed}
-    <div class="kitchen-video-container" style={getPaganiniTrailerVideoStyle()}>
+    <div
+      class="kitchen-video-container"
+      style={getPaganiniTrailerVideoStyle()}
+      role="group"
+      aria-label="Trailer intervista Stefano Paganini"
+      onpointerdown={stopPaganiniTrailerControlEvent}
+      onpointerup={stopPaganiniTrailerControlEvent}
+      onpointercancel={stopPaganiniTrailerControlEvent}
+    >
       <video
         bind:this={paganiniTrailerVideoEl}
         class="kitchen-scene-video"

@@ -236,12 +236,10 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
         if (self.scroll() !== self.start) setScrollFromController(self.start, self);
         return;
       }
-      if (!isSettingScrollFromController) {
-        const preservedScroll = getScrollForCameraXFromBounds(targetCameraX || cameraX, self.start, self.end);
-        if (Math.abs(self.scroll() - preservedScroll) > 0.5) setScrollFromController(preservedScroll, self);
-        return;
-      }
-      setTargetCameraX(self.progress * getMetrics().maxScrollX);
+      if (isSettingScrollFromController) return;
+
+      const preservedScroll = getScrollForCameraXFromBounds(targetCameraX || cameraX, self.start, self.end);
+      if (Math.abs(self.scroll() - preservedScroll) > 0.5) setScrollFromController(preservedScroll, self);
     },
     pin: options.stageEl,
     scrub: true,

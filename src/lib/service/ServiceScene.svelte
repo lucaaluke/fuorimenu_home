@@ -2902,7 +2902,7 @@
         style={`${getNiniServiceStyle()}; --reveal-delay: 420ms;`}
         role="button"
         tabindex="0"
-        aria-label="Testimonianza Nini servizio"
+        aria-label="Testimonianza Stefano Paganini servizio"
         onpointerdown={(event) => {
           event.stopPropagation();
           hasPlayedNiniServiceAudio = false;
@@ -2931,12 +2931,12 @@
             {#if niniServiceSpeechPageCount > 1}
               <span
                 class="speech-bubble-page-controls"
-                aria-label={`Dialogo ${niniServiceVisiblePageIndex + 1} di ${niniServiceSpeechPageCount} per Nini`}
+                aria-label={`Dialogo ${niniServiceVisiblePageIndex + 1} di ${niniServiceSpeechPageCount} per Stefano Paganini`}
               >
                 <button
                   class="speech-bubble-page-button speech-bubble-page-button-prev"
                   type="button"
-                  aria-label="Dialogo precedente di Nini"
+                  aria-label="Dialogo precedente di Stefano Paganini"
                   disabled={niniServiceVisiblePageIndex <= 0}
                   onpointerdown={(event) => event.stopPropagation()}
                   onclick={rewindNiniServicePage}
@@ -2958,7 +2958,7 @@
                 <button
                   class="speech-bubble-page-button speech-bubble-page-button-next"
                   type="button"
-                  aria-label="Dialogo successivo di Nini"
+                  aria-label="Dialogo successivo di Stefano Paganini"
                   disabled={niniServiceVisiblePageIndex >= niniServiceSpeechPageCount - 1}
                   onpointerdown={(event) => event.stopPropagation()}
                   onclick={advanceNiniServicePage}
@@ -2977,10 +2977,10 @@
               </span>
             {/if}
           </span>
-          <span class="speech-bubble-meta" aria-label="Executive Chef - Nini">
+          <span class="speech-bubble-meta" aria-label="Executive Chef - Stefano Paganini">
             <span class="speech-bubble-meta-label">
               <span>Executive Chef - </span>
-              <strong>Nini</strong>
+              <strong>Stefano Paganini</strong>
             </span>
           </span>
         </span>
