@@ -194,9 +194,9 @@
       enterProgress: 0.168,
       exitProgress: 0.235,
       dialogueVisibleThreshold: 0.16,
-      imageAspectRatio: 519 / 315,
+      imageAspectRatio: 2960 / 1304,
       imageAlt: '',
-      imageSrc: '/images/stefano-paganini-figma.svg',
+      imageSrc: '/assets/interviews-hover/nini.png',
       metaLabel: 'Executive Chef - Stefano Paganini',
       name: 'Stefano Paganini',
       rolePrefix: 'Executive Chef - ',
@@ -972,8 +972,46 @@
     ].join(';');
   }
 
+  function getPaganiniTestimonialStyle(presence: number) {
+    const assetWidth = 1304;
+    const assetHeight = 2960;
+    const characterScale = viewportWidth <= 760 ? 1.1 : 1.16;
+    const kitchenMatchingWidth = Math.max(315, Math.min(370, viewportWidth * 0.245));
+    const kitchenMatchingHeight = kitchenMatchingWidth * (565 / 185) * characterScale;
+    const width = kitchenMatchingHeight / (assetHeight / assetWidth);
+    const chefHeight = width * (assetHeight / assetWidth);
+    const dialogueHeight = getTestimonialBubbleHeight();
+    const gap = viewportWidth <= 760 ? 14 : 12;
+    const characterLift = viewportWidth <= 760 ? 36 : 64;
+    const topInset = testimonialDialogueTopInset;
+    const testimonialTop = topInset + dialogueHeight + gap - characterLift;
+    const bottomOffset = testimonialTop + chefHeight - viewportHeight;
+    const entryY = (1 - presence) * Math.max(360, Math.min(520, viewportHeight * 0.54));
+    const bubbleWidth = getTestimonialBubbleWidth();
+    const bubbleLeft = viewportWidth <= 760 ? 24 : 80;
+    const characterLeft = bubbleLeft + bubbleWidth / 2 - width / 2;
+    const bubbleOffsetX = 0;
+    const bubbleArrowLeft = clamp(bubbleWidth / 2 - bubbleOffsetX, 18, bubbleWidth - 18);
+    const dialogueTop = topInset - testimonialTop;
+
+    return [
+      `left: ${scenePx(characterLeft)}`,
+      `bottom: ${scenePx(-bottomOffset)}`,
+      `width: ${scenePx(width)}`,
+      `--chef-entry-y: ${scenePx(entryY)}`,
+      `--chef-entry-opacity: ${presence.toFixed(3)}`,
+      `--speech-bubble-width: ${scenePx(bubbleWidth)}`,
+      `--speech-bubble-copy-height: ${scenePx(getTestimonialBubbleCopyHeight())}`,
+      `--speech-bubble-meta-height: ${scenePx(getTestimonialBubbleMetaHeight())}`,
+      `--speech-bubble-offset-x: ${scenePx(bubbleOffsetX)}`,
+      `--speech-bubble-arrow-left: ${scenePx(bubbleArrowLeft)}`,
+      `--speech-bubble-top: ${scenePx(dialogueTop)}`
+    ].join(';');
+  }
+
   function getTestimonialStyle(testimonial: KitchenTestimonial) {
     const presence = getTestimonialPresence(testimonial);
+    if (testimonial.id === 'paganini') return getPaganiniTestimonialStyle(presence);
     if (testimonial.id === 'marco') return getMarcoTestimonialStyle(presence);
 
     const entryY = (1 - presence) * Math.max(420, Math.min(560, viewportHeight * 0.58));
