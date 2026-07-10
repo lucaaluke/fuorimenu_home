@@ -3272,6 +3272,7 @@
 
   .audio-gate {
     --audio-gate-orbit-size: min(calc(100vw - 48px), calc(var(--app-viewport-height) - 48px), 634px);
+    --audio-gate-utensil-offset: clamp(300px, calc(var(--audio-gate-orbit-size) * 0.74), 470px);
 
     position: fixed;
     z-index: 100;
@@ -3313,11 +3314,11 @@
     --tool-idle-angle: 0.9deg;
 
     position: absolute;
-    top: 18.8svh;
-    left: calc((100vw - var(--audio-gate-orbit-size)) / 4);
+    top: 50%;
+    left: calc(50% - var(--audio-gate-utensil-offset));
     width: clamp(86px, 12vw, 174px);
     height: min(149svh, 890px);
-    transform: translate3d(-50%, 118svh, 0) rotate(var(--tool-start-angle));
+    transform: translate3d(-50%, calc(-50% + 118svh), 0) rotate(var(--tool-start-angle));
     transform-origin: 50% 90%;
     will-change: transform, opacity;
     animation: audioGateUtensilRise 980ms cubic-bezier(0.16, 1, 0.3, 1) var(--utensil-rise-delay, 0ms) both;
@@ -3349,8 +3350,8 @@
     --tool-shake-angle-b: -1.8deg;
     --tool-idle-angle: -1.3deg;
 
-    top: 15.9svh;
-    left: calc(100vw - ((100vw - var(--audio-gate-orbit-size)) / 4));
+    top: 50%;
+    left: calc(50% + var(--audio-gate-utensil-offset));
     width: clamp(68px, 9.4vw, 134px);
     height: min(178svh, 1068px);
     animation-delay: calc(var(--utensil-rise-delay, 0ms) + 80ms);
@@ -3358,15 +3359,15 @@
 
   @keyframes audioGateUtensilRise {
     0% {
-      transform: translate3d(-50%, 118svh, 0) rotate(var(--tool-start-angle));
+      transform: translate3d(-50%, calc(-50% + 118svh), 0) rotate(var(--tool-start-angle));
     }
 
     76% {
-      transform: translate3d(-50%, -10px, 0) rotate(calc(var(--tool-angle) - 1.2deg));
+      transform: translate3d(-50%, calc(-50% - 10px), 0) rotate(calc(var(--tool-angle) - 1.2deg));
     }
 
     100% {
-      transform: translate3d(-50%, 0, 0) rotate(var(--tool-angle));
+      transform: translate3d(-50%, -50%, 0) rotate(var(--tool-angle));
     }
   }
 
@@ -3461,7 +3462,7 @@
 
     .audio-gate-utensil {
       animation: none;
-      transform: translateX(-50%) rotate(var(--tool-angle));
+      transform: translate(-50%, -50%) rotate(var(--tool-angle));
     }
 
     .audio-gate-utensil img {
@@ -3774,7 +3775,7 @@
   .audio-gate.is-opening .audio-gate-utensil {
     opacity: 0;
     animation: none;
-    transform: translate3d(-50%, 26px, 0) rotate(var(--tool-angle));
+    transform: translate3d(-50%, calc(-50% + 26px), 0) rotate(var(--tool-angle));
     transition:
       opacity 220ms ease,
       transform 280ms ease;
@@ -4480,11 +4481,11 @@
     --about-utensil-length: clamp(470px, 52.5vw, 760px);
 
     top: clamp(50px, 8vh, 86px);
-    left: calc(50% + var(--about-word-width) / 2);
+    left: 50%;
     width: var(--about-utensil-length);
     height: calc(var(--about-utensil-length) * 150.086 / 844.959);
-    transform: translate3d(-200%, 0, 0) scaleX(0.96);
-    transform-origin: 100% 50%;
+    transform: translate3d(-150%, 0, 0) scaleX(0.96);
+    transform-origin: 50% 50%;
   }
 
   .about-gate-fork img {
@@ -4498,12 +4499,12 @@
   .about-gate-knife {
     --about-utensil-length: clamp(532px, 57vw, 855px);
 
-    left: calc(50% - var(--about-word-width) / 2);
+    left: 50%;
     bottom: clamp(52px, 8vh, 88px);
     width: var(--about-utensil-length);
     height: calc(var(--about-utensil-length) * 134.155 / 1130.78);
-    transform: translate3d(100%, 0, 0) scaleX(0.96);
-    transform-origin: 0 50%;
+    transform: translate3d(50%, 0, 0) scaleX(0.96);
+    transform-origin: 50% 50%;
   }
 
   .about-gate-knife img {
@@ -4517,13 +4518,13 @@
   .about-gate-section:hover .about-gate-fork,
   .about-gate-section:focus-visible .about-gate-fork {
     opacity: 1;
-    transform: translate3d(-100%, 0, 0) scaleX(0.96);
+    transform: translate3d(-50%, 0, 0) scaleX(0.96);
   }
 
   .about-gate-section:hover .about-gate-knife,
   .about-gate-section:focus-visible .about-gate-knife {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scaleX(0.96);
+    transform: translate3d(-50%, 0, 0) scaleX(0.96);
   }
 
   .about-project {
@@ -6101,16 +6102,24 @@
   .role-grid {
     --role-card-aspect: 373.448 / 524;
     --role-grid-height: min(620px, calc(var(--app-viewport-height) - var(--layout-topbar-height) - 86px));
-    --role-card-max-width: min(386px, calc(var(--role-grid-height) * 0.7127), calc((100vw - var(--layout-page-gutter) * 2 - var(--spacing-5) * 2) / 3));
+    --role-grid-topbar-half: 52px;
+    --role-card-gap: var(--spacing-5);
+    --role-card-max-width: min(386px, calc(var(--role-grid-height) * 0.7127), calc((100vw - var(--layout-page-gutter) * 2 - var(--role-card-gap) * 2) / 3));
+    --role-grid-width: min(
+      calc(100vw - var(--layout-page-gutter) * 2),
+      calc(var(--role-card-max-width) * 3 + var(--role-card-gap) * 2)
+    );
 
     position: absolute; z-index: 2;
-    top: calc(var(--layout-topbar-height) + 26px); left: var(--layout-page-gutter); right: var(--layout-page-gutter);
+    top: calc(50% + var(--role-grid-topbar-half)); left: 50%;
+    width: var(--role-grid-width);
     height: var(--role-grid-height);
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    justify-content: stretch;
+    grid-template-columns: repeat(3, minmax(0, var(--role-card-max-width)));
+    justify-content: center;
     align-items: center;
-    column-gap: var(--spacing-5);
+    column-gap: var(--role-card-gap);
+    transform: translate(-50%, -50%);
     transform-style: flat;
   }
 
@@ -6151,16 +6160,10 @@
     backface-visibility: hidden;
   }
 
-  .role-card:nth-child(1) {
-    justify-self: start;
-  }
-
-  .role-card:nth-child(2) {
-    justify-self: center;
-  }
-
+  .role-card:nth-child(1),
+  .role-card:nth-child(2),
   .role-card:nth-child(3) {
-    justify-self: end;
+    justify-self: center;
   }
 
   .role-card::before {
@@ -6658,7 +6661,6 @@
       --role-card-gap: clamp(10px, 1.6vw, 18px);
       --role-card-max-width: min(368px, calc(var(--role-grid-height) * 0.7127), calc((100vw - var(--layout-page-gutter) * 2 - var(--role-card-gap) * 2) / 3));
 
-      top: calc(var(--layout-topbar-height) + 22px);
       column-gap: var(--role-card-gap);
     }
 
@@ -6921,11 +6923,12 @@
     .roles-top-bar { height: var(--layout-topbar-height-mobile); padding: var(--layout-topbar-padding-mobile); }
     .role-grid {
       --role-grid-height: calc(var(--app-viewport-height) - var(--layout-topbar-height-mobile) - 16px);
+      --role-grid-topbar-half: 44px;
       --role-card-gap: clamp(6px, 1vh, 8px);
       --role-card-mobile-row-height: calc((var(--role-grid-height) - var(--role-card-gap) * 2) / 3);
       --role-card-max-width: 100%;
 
-      top: calc(var(--layout-topbar-height-mobile) + 8px);
+      top: calc(50% + var(--role-grid-topbar-half));
       left: var(--layout-page-gutter-mobile);
       right: var(--layout-page-gutter-mobile);
       box-sizing: border-box;
@@ -6937,6 +6940,7 @@
       justify-content: center;
       align-content: center;
       align-items: center;
+      transform: translateY(-50%);
     }
     .role-card {
       --role-card-radius: clamp(34px, 12vw, 54px);
@@ -7217,9 +7221,10 @@
 
     .role-grid {
       --role-grid-height: calc(var(--app-viewport-height) - var(--layout-topbar-height-mobile) - 18px);
+      --role-grid-topbar-half: 42px;
       --role-card-gap: 8px;
 
-      top: calc(var(--layout-topbar-height-mobile) + 8px);
+      top: calc(50% + var(--role-grid-topbar-half));
       left: var(--layout-page-gutter-mobile);
       right: var(--layout-page-gutter-mobile);
     }

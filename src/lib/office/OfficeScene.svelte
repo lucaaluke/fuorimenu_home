@@ -25,7 +25,7 @@
   }>();
 
   const { assetVersion, layerSpeed, sceneHeight, sceneWidth } = officeSceneConfig;
-  const touchScrollInteractiveSelector = 'a, button, input, textarea, select, video, [role="button"]';
+  const touchScrollInteractiveSelector = 'a, button, input, textarea, select, video';
   const touchScrollDeadZone = 3;
   const touchScrollFactor = 1.54;
 
@@ -517,7 +517,7 @@
   }
 
   function onTouchStart(event: TouchEvent) {
-    if (!isSceneInteractive || event.touches.length !== 1 || !canStartTouchScroll(event.target)) {
+    if (event.touches.length !== 1 || !canStartTouchScroll(event.target)) {
       isTouchScrolling = false;
       return;
     }
@@ -525,14 +525,26 @@
     const touch = event.touches[0];
     touchLastX = touch.clientX;
     touchLastY = touch.clientY;
-    isTouchScrolling = true;
-    void startAmbientAudio();
+    isTouchScrolling = isSceneInteractive;
+    if (isSceneInteractive) void startAmbientAudio();
   }
 
   function onTouchMove(event: TouchEvent) {
-    if (!isTouchScrolling || !isSceneInteractive || event.touches.length !== 1) return;
+    if (event.touches.length !== 1 || !canStartTouchScroll(event.target)) {
+      isTouchScrolling = false;
+      return;
+    }
+    if (!isSceneInteractive) return;
 
     const touch = event.touches[0];
+    if (!isTouchScrolling) {
+      touchLastX = touch.clientX;
+      touchLastY = touch.clientY;
+      isTouchScrolling = true;
+      void startAmbientAudio();
+      return;
+    }
+
     const deltaX = touch.clientX - touchLastX;
     const deltaY = touch.clientY - touchLastY;
     touchLastX = touch.clientX;
@@ -1944,7 +1956,17 @@
         officePhaserGame = game;
         officePhaserGame?.setCameraX(cameraX);
         scheduleOfficePhaserResize();
+      }).catch((error) => {
+        console.error('Office scene failed to start Phaser', error);
+        if (destroyed) return;
+        phaserLoadingProgress = 1;
+        isPhaserReady = true;
       });
+    }).catch((error) => {
+      console.error('Office scene failed to load Phaser module', error);
+      if (destroyed) return;
+      phaserLoadingProgress = 1;
+      isPhaserReady = true;
     });
     void loadGsapWithScrollTrigger().then(({ gsap: loadedGsap, ScrollTrigger }) => {
       if (destroyed) return;
@@ -1988,6 +2010,8 @@
       loadedGsap.ticker.add(tick);
       removeTicker = () => loadedGsap.ticker.remove(tick);
       ScrollTrigger.refresh();
+    }).catch((error) => {
+      console.error('Office scene failed to start scroll controller', error);
     });
     requestAnimationFrame(() => {
       isSceneLoaded = true;

@@ -35,7 +35,7 @@
     sceneWidth,
     title
   } = kitchenSceneConfig;
-  const touchScrollInteractiveSelector = 'a, button, input, textarea, select, [role="button"]';
+  const touchScrollInteractiveSelector = 'a, button, input, textarea, select, video';
   const kitchenReturnCameraStorageKey = 'kitchen-return-camera-x';
   const touchScrollDeadZone = 3;
   const touchScrollFactor = 1.54;
@@ -1350,7 +1350,7 @@
   }
 
   function onTouchStart(event: TouchEvent) {
-    if (!isSceneInteractive || event.touches.length !== 1 || !canStartTouchScroll(event.target)) {
+    if (event.touches.length !== 1 || !canStartTouchScroll(event.target)) {
       isTouchScrolling = false;
       return;
     }
@@ -1358,15 +1358,30 @@
     const touch = event.touches[0];
     touchLastX = touch.clientX;
     touchLastY = touch.clientY;
-    isTouchScrolling = true;
-    void startAmbientAudio();
-    unlockRelevantTestimonialAudio();
+    isTouchScrolling = isSceneInteractive;
+    if (isSceneInteractive) {
+      void startAmbientAudio();
+      unlockRelevantTestimonialAudio();
+    }
   }
 
   function onTouchMove(event: TouchEvent) {
-    if (!isTouchScrolling || !isSceneInteractive || event.touches.length !== 1) return;
+    if (event.touches.length !== 1 || !canStartTouchScroll(event.target)) {
+      isTouchScrolling = false;
+      return;
+    }
+    if (!isSceneInteractive) return;
 
     const touch = event.touches[0];
+    if (!isTouchScrolling) {
+      touchLastX = touch.clientX;
+      touchLastY = touch.clientY;
+      isTouchScrolling = true;
+      void startAmbientAudio();
+      unlockRelevantTestimonialAudio();
+      return;
+    }
+
     const deltaX = touch.clientX - touchLastX;
     const deltaY = touch.clientY - touchLastY;
     touchLastX = touch.clientX;
@@ -2137,16 +2152,28 @@
           kitchenPhaserGame?.setCameraX(cameraX);
           schedulePhaserResize();
           resources.add(() => kitchenPhaserGame?.destroy());
+        }).catch((error) => {
+          console.error('Kitchen scene failed to start Phaser', error);
+          if (destroyed) return;
+          phaserLoadingProgress = 1;
+          isPhaserReady = true;
         });
+      }).catch((error) => {
+        console.error('Kitchen scene failed to load Phaser module', error);
+        if (destroyed) return;
+        phaserLoadingProgress = 1;
+        isPhaserReady = true;
       });
     }
 
     void loadGsap().then((loadedGsap) => {
       if (destroyed) return;
       gsap = loadedGsap;
+    }).catch((error) => {
+      console.error('Kitchen scene failed to load GSAP', error);
     });
 
-    import('$lib/kitchen/kitchen-scroll-controller').then(({ mountKitchenScrollController }) => {
+    void import('$lib/kitchen/kitchen-scroll-controller').then(({ mountKitchenScrollController }) => {
       if (destroyed) return;
       mountKitchenScrollController({
         applyScrollResistance: applyTestimonialScrollResistance,
@@ -2162,7 +2189,11 @@
         }
         kitchenController = controller;
         resources.add(() => kitchenController?.destroy());
+      }).catch((error) => {
+        console.error('Kitchen scene failed to start scroll controller', error);
       });
+    }).catch((error) => {
+      console.error('Kitchen scene failed to load scroll controller', error);
     });
 
     resources.addFrame(() => {

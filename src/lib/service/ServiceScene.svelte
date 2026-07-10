@@ -24,7 +24,7 @@
   }>();
 
   const { assetVersion, layerSpeed, sceneHeight, sceneWidth } = resolvedServiceSceneConfig;
-  const touchScrollInteractiveSelector = 'a, button, input, textarea, select, video, [role="button"]';
+  const touchScrollInteractiveSelector = 'a, button, input, textarea, select, video';
   const touchScrollDeadZone = 3;
   const touchScrollFactor = 1.54;
   const serviceBackgroundViewportOffsetY = 1;
@@ -1196,7 +1196,7 @@
   }
 
   function onTouchStart(event: TouchEvent) {
-    if (!isSceneInteractive || event.touches.length !== 1 || !canStartTouchScroll(event.target)) {
+    if (event.touches.length !== 1 || !canStartTouchScroll(event.target)) {
       isTouchScrolling = false;
       return;
     }
@@ -1204,13 +1204,24 @@
     const touch = event.touches[0];
     touchLastX = touch.clientX;
     touchLastY = touch.clientY;
-    isTouchScrolling = true;
+    isTouchScrolling = isSceneInteractive;
   }
 
   function onTouchMove(event: TouchEvent) {
-    if (!isTouchScrolling || !isSceneInteractive || event.touches.length !== 1) return;
+    if (event.touches.length !== 1 || !canStartTouchScroll(event.target)) {
+      isTouchScrolling = false;
+      return;
+    }
+    if (!isSceneInteractive) return;
 
     const touch = event.touches[0];
+    if (!isTouchScrolling) {
+      touchLastX = touch.clientX;
+      touchLastY = touch.clientY;
+      isTouchScrolling = true;
+      return;
+    }
+
     const deltaX = touch.clientX - touchLastX;
     const deltaY = touch.clientY - touchLastY;
     touchLastX = touch.clientX;
@@ -2261,7 +2272,17 @@
         servicePhaserGame = game;
         servicePhaserGame?.setCameraX(cameraX);
         scheduleServicePhaserResize();
+      }).catch((error) => {
+        console.error('Service scene failed to start Phaser', error);
+        if (destroyed) return;
+        phaserLoadingProgress = 1;
+        isPhaserReady = true;
       });
+    }).catch((error) => {
+      console.error('Service scene failed to load Phaser module', error);
+      if (destroyed) return;
+      phaserLoadingProgress = 1;
+      isPhaserReady = true;
     });
     void loadGsapWithScrollTrigger().then(({ gsap, ScrollTrigger }) => {
       if (destroyed) return;
@@ -2304,6 +2325,8 @@
       gsap.ticker.add(tick);
       removeTicker = () => gsap.ticker.remove(tick);
       ScrollTrigger.refresh();
+    }).catch((error) => {
+      console.error('Service scene failed to start scroll controller', error);
     });
     requestAnimationFrame(() => {
       isSceneLoaded = true;
