@@ -3341,6 +3341,9 @@
     --tool-start-angle: -4deg;
     --tool-shake-angle-a: -3deg;
     --tool-shake-angle-b: 2deg;
+
+    width: clamp(82px, 11.5vw, 208px);
+    height: min(178svh, 1068px);
   }
 
   .audio-gate-knife {
@@ -4478,7 +4481,7 @@
   }
 
   .about-gate-fork {
-    --about-utensil-length: clamp(470px, 52.5vw, 760px);
+    --about-utensil-length: clamp(532px, 57vw, 855px);
 
     top: clamp(50px, 8vh, 86px);
     left: 50%;
@@ -6756,7 +6759,7 @@
       font-size: 15px;
     }
     .about-gate-fork {
-      --about-utensil-length: clamp(288px, 82vw, 470px);
+      --about-utensil-length: clamp(322px, 91vw, 532px);
       top: clamp(20px, 4.5vh, 38px);
     }
     .about-gate-knife {
