@@ -150,21 +150,21 @@
 
   const roleAudio: Record<AudioRole, AudioCueConfig> = {
     ufficio: {
-      src: '/sound/office.mp3',
+      src: '/assets/audio/office.mp3',
       startTime: 0.5,
       maxTime: 0,
       targetVolume: 0.62,
       fadeInDuration: 0.05
     },
     cucina: {
-      src: '/sound/kitchen.mp3',
+      src: '/assets/audio/kitchen.mp3',
       startTime: 0,
       maxTime: 0,
       targetVolume: 0.42,
       fadeInDuration: 0.12
     },
     servizio: {
-      src: '/sound/restaurant.mp3',
+      src: '/assets/audio/restaurant.mp3',
       startTime: 0,
       maxTime: 0,
       targetVolume: 1,
@@ -173,14 +173,14 @@
     }
   };
   const backgroundAudio: AudioCueConfig = {
-    src: '/sound/home_backgroundok.mp3',
+    src: '/assets/audio/home_backgroundok.mp3',
     startTime: 0,
     targetVolume: 0.88,
     fadeInDuration: 1.2,
     loop: true
   };
   const roleAudioEntries = audioRoles.map((role) => ({ role, config: roleAudio[role] }));
-  const interviewAssetBase = '/assets/interviews/';
+  const interviewAssetBase = '/assets/interviews/portraits/';
   const aboutProjectAssets: AboutProjectPhaserAsset[] = ([
     { name: 'mobile2', alt: '', x: 4294, y: 1643, width: 1647, height: 1021, isBackdrop: true },
     { name: 'mobile1', alt: '', x: 5919, y: 1692, width: 1797, height: 972, isBackdrop: true },
@@ -192,7 +192,7 @@
     { name: 'vigex', alt: 'Ritratto team Vigex', x: 7051, y: 1299, width: 458, height: 620 }
   ] satisfies Array<Omit<AboutProjectPhaserAsset, 'src'>>).map((asset) => ({
     ...asset,
-    src: `/assets/about/${asset.name}.png`
+    src: `/assets/home/about/${asset.name}.png`
   }));
   const aboutProjectTeamContacts: AboutProjectTeamContact[] = [
     {
@@ -240,12 +240,12 @@
       nameHeight: 231,
       faceWidth: 85,
       faceHeight: 85,
-      portraitSrc: '/assets/interviews/nini.png',
+      portraitSrc: '/assets/interviews/portraits/nini.png',
       featuredHover: {
         role: 'Executive Chef',
         description:
           'Lo chef piemontese ha fatto parte del team incaricato della ristorazione olimpica internazionale a Livigno.',
-        bodySrc: '/assets/interviews-hover/stefano-paganini-figma.svg'
+        bodySrc: '/assets/interviews/hover/stefano-paganini-figma.svg'
       },
       pieces: [
         { src: 'stefano-ring.svg', x: -1.31, y: -1.31, width: 87.62, height: 87.62 },
@@ -259,7 +259,7 @@
       nameHeight: 231,
       faceWidth: 86,
       faceHeight: 87,
-      portraitSrc: '/assets/interviews/zarri.png',
+      portraitSrc: '/assets/interviews/portraits/zarri.png',
       portraitY: 8,
       portraitScale: 1.15,
       pieces: [
@@ -276,7 +276,7 @@
       faceHeight: 86,
       portraitY: 14,
       portraitScale: 1.14,
-      portraitSrc: '/assets/interviews/eli.png',
+      portraitSrc: '/assets/interviews/portraits/eli.png',
       pieces: [
         { src: 'salvadori-ring.svg', x: -1.31, y: -0.31, width: 87.62, height: 87.62 },
         { src: 'salvadori-layer-1.svg', x: -5.0, y: 7.0, width: 100.93, height: 389.82, maskSrc: 'salvadori-mask.svg', maskX: 3.69, maskY: -8.31, maskSize: 87.62 },
@@ -292,7 +292,7 @@
       faceWidth: 85,
       faceHeight: 87,
       portraitY: 6,
-      portraitSrc: '/assets/interviews/fausto.png',
+      portraitSrc: '/assets/interviews/portraits/fausto.png',
       pieces: [
         { src: 'meli-ring.svg', x: -1.31, y: 0.69, width: 87.62, height: 87.62 },
         { src: 'meli-layer-1.svg', x: -14.0, y: 6.0, width: 113.98, height: 365.62, maskSrc: 'meli-mask.svg', maskX: 12.69, maskY: -7.31, maskSize: 87.62 },
@@ -305,7 +305,7 @@
       nameHeight: 288,
       faceWidth: 85,
       faceHeight: 85,
-      portraitSrc: '/assets/interviews/marco.png',
+      portraitSrc: '/assets/interviews/portraits/marco.png',
       portraitScale: 1.38,
       portraitY: 0,
       pieces: [{ src: 'frassante-face.svg', x: -1.31, y: -1.41, width: 87.62, height: 87.62 }]
@@ -316,7 +316,7 @@
       nameHeight: 288,
       faceWidth: 85,
       faceHeight: 87,
-      portraitSrc: '/assets/interviews/cracco.png',
+      portraitSrc: '/assets/interviews/portraits/cracco.png',
       portraitY: 14,
       portraitScale: 1.28,
       pieces: [{ src: 'cracco-face.svg', x: -1.31, y: 0, width: 87.62, height: 88.31 }]
@@ -327,7 +327,7 @@
       nameHeight: 288,
       faceWidth: 85,
       faceHeight: 85,
-      portraitSrc: '/assets/interviews/ken.png',
+      portraitSrc: '/assets/interviews/portraits/ken.png',
       portraitY: 22,
       portraitScale: 1.2,
       pieces: [
@@ -346,7 +346,7 @@
       role: 'Executive Chef',
       description:
         'Lo chef piemontese ha fatto parte del team incaricato della ristorazione olimpica internazionale a Livigno.',
-      portraitSrc: '/assets/interviews-hover/nini.png'
+      portraitSrc: '/assets/interviews/hover/nini.png'
     },
     'Carlo Zarri': {
       name: 'Carlo Zarri',
@@ -355,7 +355,7 @@
       role: 'Chief Executive Chef',
       description:
         "Architetto iniziale del progetto gastronomico di Milano-Cortina 2026 ha gestito la ristorazione all'Arena di Santa Giulia.",
-      portraitSrc: '/assets/interviews-hover/zarri.png',
+      portraitSrc: '/assets/interviews/hover/zarri.png',
       portraitX: 0,
       portraitY: 0,
       portraitHeight: 614
@@ -367,7 +367,7 @@
       role: 'Head Food and Beverage',
       description:
         "coordinatrice generale di tutta la strategia di ristorazione dell'evento, dalle Olimpiadi alle Paralimpiadi.",
-      portraitSrc: '/assets/interviews-hover/eli.png',
+      portraitSrc: '/assets/interviews/hover/eli.png',
       portraitX: 0,
       portraitY: 0,
       portraitHeight: 614,
@@ -381,7 +381,7 @@
       role: 'Executive Chef',
       description:
         'Chef di grande esperienza ha fatto da ponte tra il mondo della scuola e la grande macchina olimpica.',
-      portraitSrc: '/assets/interviews-hover/fausto.png',
+      portraitSrc: '/assets/interviews/hover/fausto.png',
       portraitX: 0,
       portraitY: 0,
       portraitHeight: 614,
@@ -395,7 +395,7 @@
       role: 'Executive Chef',
       description:
         "ha ricoperto un ruolo di coordinamento e leadership all'interno del Villaggio Olimpico di Livigno.",
-      portraitSrc: '/assets/interviews-hover/marco.png',
+      portraitSrc: '/assets/interviews/hover/marco.png',
       portraitX: 0,
       portraitY: 0,
       portraitHeight: 614,
@@ -409,7 +409,7 @@
       role: 'Chef Ambassador',
       description:
         "Ambasciatore dell'eccellenza italiana, firmando un piatto iconico che è diventato uno dei simboli virali di questa edizione dei Giochi.",
-      portraitSrc: '/assets/interviews-hover/cracco.png',
+      portraitSrc: '/assets/interviews/hover/cracco.png',
       portraitX: 0,
       portraitY: 0,
       portraitHeight: 614,
@@ -423,7 +423,7 @@
       role: 'Guest Chef International',
       description:
         'chef americano, ha avuto un ruolo speciale come chef internazionale nelle cucine di Milano-Cortina 2026',
-      portraitSrc: '/assets/interviews-hover/ken.png',
+      portraitSrc: '/assets/interviews/hover/ken.png',
       portraitX: 0,
       portraitY: 0,
       portraitHeight: 614,
@@ -1071,8 +1071,8 @@
       hoverName: 'Carlo Zarri',
       hoverAction: 'seguimi nell’ufficio',
       hoverClosing: 'ed esplora l’ambiente',
-      backgroundSrc: '/assets/cardsbackground/sfondoufficio.png',
-      personSrc: '/assets/interviews-hover/zarri.png',
+      backgroundSrc: '/assets/home/cards/sfondoufficio.png',
+      personSrc: '/assets/interviews/hover/zarri.png',
       href: '/ufficio'
     },
     {
@@ -1084,8 +1084,8 @@
       hoverName: 'Stefano Paganini',
       hoverAction: 'seguimi in cucina',
       hoverClosing: 'ed esplora l’ambiente',
-      backgroundSrc: '/assets/cardsbackground/sfondocucina.png',
-      personSrc: '/images/stefano-paganini-figma.svg',
+      backgroundSrc: '/assets/home/cards/sfondocucina.png',
+      personSrc: '/assets/interviews/hover/stefano-paganini-figma.svg',
       href: '/phaser'
     },
     {
@@ -1098,8 +1098,8 @@
       hoverName: 'Fausto Meli',
       hoverAction: 'seguimi in sala',
       hoverClosing: 'ed esplora l’ambiente',
-      backgroundSrc: '/assets/cardsbackground/sfondoservizio.png',
-      personSrc: '/assets/interviews-hover/fausto.png',
+      backgroundSrc: '/assets/home/cards/sfondoservizio.png',
+      personSrc: '/assets/interviews/hover/fausto.png',
       href: '/servizio'
     }
   ];
@@ -1128,7 +1128,7 @@
     motion: FloatingMotion;
   }> = [
     {
-      src: '/images/raviolo.svg',
+      src: '/assets/home/food-icons/raviolo.svg',
       label: 'Raviolo',
       className: 'floating-raviolo',
       nodeId: '266:413',
@@ -1139,7 +1139,7 @@
       motion: { x: 84, y: 96, vx: 92, vy: 74, tiltX: 0, tiltY: 0, spinAngle: 0, hover: false, hoverProgress: 0 }
     },
     {
-      src: '/images/pizza.svg',
+      src: '/assets/home/food-icons/pizza.svg',
       label: 'Pizza',
       className: 'floating-pizza',
       nodeId: '2567:2664',
@@ -1150,7 +1150,7 @@
       motion: { x: 220, y: 280, vx: -82, vy: 96, tiltX: 0, tiltY: 0, spinAngle: 0, hover: false, hoverProgress: 0 }
     },
     {
-      src: '/images/fusillo.svg',
+      src: '/assets/home/food-icons/fusillo.svg',
       label: 'Fusillo',
       className: 'floating-fusillo',
       nodeId: '266:420',
@@ -1176,21 +1176,21 @@
   };
 
   const reels: ReelItem[] = [
-    { src: '/videos/tiramisu.mp4', bg: 'var(--reel-placeholder-neutral)', fromX: -8,  fromY:  4, toX: -34, toY: -18, rotate: -8,  layer:  0 },
-    { src: '/videos/1.mp4',        bg: 'var(--color-text-primary)',        fromX:  7,  fromY: -3, toX:  30, toY:  16, rotate:  7,  layer:  1 },
-    { src: '/videos/2.mp4',        bg: 'var(--reel-placeholder-gold)',     fromX: -4,  fromY: -8, toX: -18, toY:  28, rotate: 10,  layer:  0 },
-    { src: '/videos/3.mp4',        bg: 'var(--color-surface-dark)',        fromX: 13,  fromY:  8, toX:  36, toY: -24, rotate: -11, layer:  1, opacityOutStart: 0.58, opacityOutDuration: 0.16 },
-    { src: '/videos/4.mp4',        bg: 'var(--reel-placeholder-lavender)', fromX: -10, fromY: -2, toX: -40, toY:   6, rotate: -5,  layer: -1 },
-    { src: '/videos/5.mp4',        bg: 'var(--reel-placeholder-neutral)',  fromX:  5,  fromY:  6, toX:  24, toY: -30, rotate:  9,  layer:  0 },
-    { src: '/videos/6.mp4',        bg: 'var(--reel-placeholder-gold)',     fromX: -12, fromY:  7, toX: -28, toY:  18, rotate: -12, layer: -1 },
-    { src: '/videos/7.mp4',        bg: 'var(--color-text-primary)',        fromX: 10,  fromY: -7, toX:  38, toY:   2, rotate:  5,  layer:  1 },
-    { src: '/videos/8.mp4',        bg: 'var(--color-surface-dark)',        fromX: -6,  fromY: -5, toX: -36, toY: -28, rotate:  8,  layer:  0 },
-    { src: '/videos/9.mp4',        bg: 'var(--reel-placeholder-lavender)', fromX: 12,  fromY:  3, toX:  42, toY:  24, rotate: -9,  layer:  1 },
-    { src: '/videos/10.mp4',       bg: 'var(--reel-placeholder-neutral)',  fromX: -3,  fromY:  9, toX: -16, toY:  34, rotate:  6,  layer: -1 },
-    { src: '/videos/11.mp4',       bg: 'var(--color-text-primary)',        fromX:  3,  fromY: -9, toX:  16, toY: -34, rotate: -7,  layer:  0 },
-    { src: '/videos/12.mp4',       bg: 'var(--reel-placeholder-gold)',     fromX: -14, fromY:  1, toX: -44, toY:  -4, rotate: 11,  layer: -1 },
-    { src: '/videos/13.mp4',       bg: 'var(--color-surface-dark)',        fromX: 14,  fromY: -1, toX:  44, toY:   8, rotate: -10, layer:  1 },
-    { src: '/videos/14.mp4',       bg: 'var(--reel-placeholder-lavender)', fromX: -7,  fromY: -10, toX: -22, toY: -36, rotate: -6,  layer:  0 }
+    { src: '/assets/video/reels/tiramisu.mp4', bg: 'var(--reel-placeholder-neutral)', fromX: -8,  fromY:  4, toX: -34, toY: -18, rotate: -8,  layer:  0 },
+    { src: '/assets/video/reels/1.mp4',        bg: 'var(--color-text-primary)',        fromX:  7,  fromY: -3, toX:  30, toY:  16, rotate:  7,  layer:  1 },
+    { src: '/assets/video/reels/2.mp4',        bg: 'var(--reel-placeholder-gold)',     fromX: -4,  fromY: -8, toX: -18, toY:  28, rotate: 10,  layer:  0 },
+    { src: '/assets/video/reels/3.mp4',        bg: 'var(--color-surface-dark)',        fromX: 13,  fromY:  8, toX:  36, toY: -24, rotate: -11, layer:  1, opacityOutStart: 0.58, opacityOutDuration: 0.16 },
+    { src: '/assets/video/reels/4.mp4',        bg: 'var(--reel-placeholder-lavender)', fromX: -10, fromY: -2, toX: -40, toY:   6, rotate: -5,  layer: -1 },
+    { src: '/assets/video/reels/5.mp4',        bg: 'var(--reel-placeholder-neutral)',  fromX:  5,  fromY:  6, toX:  24, toY: -30, rotate:  9,  layer:  0 },
+    { src: '/assets/video/reels/6.mp4',        bg: 'var(--reel-placeholder-gold)',     fromX: -12, fromY:  7, toX: -28, toY:  18, rotate: -12, layer: -1 },
+    { src: '/assets/video/reels/7.mp4',        bg: 'var(--color-text-primary)',        fromX: 10,  fromY: -7, toX:  38, toY:   2, rotate:  5,  layer:  1 },
+    { src: '/assets/video/reels/8.mp4',        bg: 'var(--color-surface-dark)',        fromX: -6,  fromY: -5, toX: -36, toY: -28, rotate:  8,  layer:  0 },
+    { src: '/assets/video/reels/9.mp4',        bg: 'var(--reel-placeholder-lavender)', fromX: 12,  fromY:  3, toX:  42, toY:  24, rotate: -9,  layer:  1 },
+    { src: '/assets/video/reels/10.mp4',       bg: 'var(--reel-placeholder-neutral)',  fromX: -3,  fromY:  9, toX: -16, toY:  34, rotate:  6,  layer: -1 },
+    { src: '/assets/video/reels/11.mp4',       bg: 'var(--color-text-primary)',        fromX:  3,  fromY: -9, toX:  16, toY: -34, rotate: -7,  layer:  0 },
+    { src: '/assets/video/reels/12.mp4',       bg: 'var(--reel-placeholder-gold)',     fromX: -14, fromY:  1, toX: -44, toY:  -4, rotate: 11,  layer: -1 },
+    { src: '/assets/video/reels/13.mp4',       bg: 'var(--color-surface-dark)',        fromX: 14,  fromY: -1, toX:  44, toY:   8, rotate: -10, layer:  1 },
+    { src: '/assets/video/reels/14.mp4',       bg: 'var(--reel-placeholder-lavender)', fromX: -7,  fromY: -10, toX: -22, toY: -36, rotate: -6,  layer:  0 }
   ];
 
   function shuffleIndexes(indexes: number[]) {
@@ -2580,10 +2580,10 @@
       style={`--utensil-rise-delay: ${Math.round(audioGateUtensilRiseDelay * 1000)}ms; --utensil-shake-delay: ${Math.round(audioGateUtensilShakeDelay * 1000)}ms; --utensil-idle-delay: ${Math.round(audioGateUtensilIdleDelay * 1000)}ms`}
     >
       <div class="audio-gate-utensil audio-gate-fork" data-node-id="4197:2170">
-        <img src="/assets/audio-gate-fork.svg" alt="" draggable="false" data-node-id="4197:2168" />
+        <img src="/assets/ui/audio-gate/fork.svg" alt="" draggable="false" data-node-id="4197:2168" />
       </div>
       <div class="audio-gate-utensil audio-gate-knife" data-node-id="4197:2173">
-        <img src="/assets/audio-gate-knife.svg" alt="" draggable="false" data-node-id="4197:2169" />
+        <img src="/assets/ui/audio-gate/knife.svg" alt="" draggable="false" data-node-id="4197:2169" />
       </div>
     </div>
 
@@ -2809,7 +2809,7 @@
       <div class="role-card-top">
         <img
           class="role-card-bg"
-          src={item.backgroundSrc ?? '/images/figma-kitchen-scene.png'}
+          src={item.backgroundSrc ?? '/assets/home/cards/figma-kitchen-scene.png'}
           alt=""
           draggable="false"
         />
@@ -2966,22 +2966,22 @@
       <div class="about-gate-grid" aria-label="Argomenti about" data-node-id="381:155">
         <button class="about-gate-section" type="button" data-node-id="381:277" onclick={openAboutProject}>
           <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
-            <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
+            <img src="/assets/ui/about-gate/fork.svg" alt="" draggable="false" />
           </span>
           <span class="about-gate-title">Progetto</span>
           <span class="about-gate-subtitle">Concept e team</span>
           <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
-            <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
+            <img src="/assets/ui/about-gate/knife.svg" alt="" draggable="false" />
           </span>
         </button>
         <a class="about-gate-section" href="/interviste" data-node-id="381:308">
           <span class="about-gate-utensil about-gate-fork" aria-hidden="true">
-            <img src="/assets/about-gate-fork.svg" alt="" draggable="false" />
+            <img src="/assets/ui/about-gate/fork.svg" alt="" draggable="false" />
           </span>
           <span class="about-gate-title">Interviste</span>
           <span class="about-gate-subtitle">Archivio dei contenuti</span>
           <span class="about-gate-utensil about-gate-knife" aria-hidden="true">
-            <img src="/assets/about-gate-knife.svg" alt="" draggable="false" />
+            <img src="/assets/ui/about-gate/knife.svg" alt="" draggable="false" />
           </span>
         </a>
       </div>
@@ -3009,7 +3009,7 @@
               </div>
               <img
                 class="about-project-politecnico"
-                src="/assets/about/politecnico-project.png"
+                src="/assets/home/about/politecnico-project.png"
                 alt="Politecnico Milano 1863"
                 draggable="false"
               />
@@ -3262,12 +3262,12 @@
     width: 100%; height: 100%;
     margin: 0; overflow: hidden;
     background: var(--color-surface-page);
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, auto;
+    cursor: url('/assets/ui/cursors/retrogusto-cursor.svg') 5 5, auto;
     overscroll-behavior: none;
   }
   :global(button), :global(a) {
     font: inherit;
-    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
   }
 
   .audio-gate {
@@ -3280,7 +3280,7 @@
     overflow: hidden;
     background: var(--color-text-primary);
     color: var(--color-text-inverse);
-    cursor: url('/cursors/retrogusto-cursor-light.svg') 5 5, auto;
+    cursor: url('/assets/ui/cursors/retrogusto-cursor-light.svg') 5 5, auto;
     opacity: 1;
   }
 
@@ -3307,6 +3307,7 @@
   }
 
   .audio-gate-utensil {
+    --audio-gate-utensil-rest-y: clamp(96px, 18svh, 220px);
     --tool-angle: 0deg;
     --tool-start-angle: 0deg;
     --tool-shake-angle-a: 2.8deg;
@@ -3341,12 +3342,10 @@
     --tool-start-angle: -4deg;
     --tool-shake-angle-a: -3deg;
     --tool-shake-angle-b: 2deg;
-
-    width: clamp(82px, 11.5vw, 208px);
-    height: min(178svh, 1068px);
   }
 
   .audio-gate-knife {
+    --audio-gate-utensil-rest-y: clamp(136px, 30svh, 270px);
     --tool-angle: 0.7deg;
     --tool-start-angle: 4deg;
     --tool-shake-angle-a: 2.5deg;
@@ -3366,11 +3365,11 @@
     }
 
     76% {
-      transform: translate3d(-50%, calc(-50% - 10px), 0) rotate(calc(var(--tool-angle) - 1.2deg));
+      transform: translate3d(-50%, calc(-50% + var(--audio-gate-utensil-rest-y) - 10px), 0) rotate(calc(var(--tool-angle) - 1.2deg));
     }
 
     100% {
-      transform: translate3d(-50%, -50%, 0) rotate(var(--tool-angle));
+      transform: translate3d(-50%, calc(-50% + var(--audio-gate-utensil-rest-y)), 0) rotate(var(--tool-angle));
     }
   }
 
@@ -3527,7 +3526,7 @@
     border-radius: var(--radius-full);
     color: var(--color-text-inverse);
     background: var(--color-text-primary);
-    cursor: url('/cursors/retrogusto-pointer-on-dark.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-dark.svg?v=3') 4 3, pointer;
     transform:
       translate(var(--button-lift-x), var(--button-lift-y))
       scale(var(--button-hover-scale));
@@ -3636,7 +3635,7 @@
     color: var(--color-text-inverse);
     background: var(--color-text-primary);
     box-shadow: none;
-    cursor: url('/cursors/retrogusto-pointer-on-dark.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-dark.svg?v=3') 4 3, pointer;
     transform:
       translate(var(--button-lift-x, 0px), var(--button-lift-y, 0px))
       scale(var(--button-hover-scale, 1));
@@ -3778,7 +3777,7 @@
   .audio-gate.is-opening .audio-gate-utensil {
     opacity: 0;
     animation: none;
-    transform: translate3d(-50%, calc(-50% + 26px), 0) rotate(var(--tool-angle));
+    transform: translate3d(-50%, calc(-50% + var(--audio-gate-utensil-rest-y) + 26px), 0) rotate(var(--tool-angle));
     transition:
       opacity 220ms ease,
       transform 280ms ease;
@@ -3890,7 +3889,7 @@
   .icon-button {
     display: grid; width: var(--button-icon-size); height: var(--button-icon-size); place-items: center;
     padding: 0; color: var(--color-interactive-primary);
-    background: transparent; border: 0; cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+    background: transparent; border: 0; cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     transition: color 160ms ease, opacity 0.2s ease;
   }
 
@@ -4380,7 +4379,7 @@
     color: var(--color-surface-page);
     text-align: center;
     text-decoration: none;
-    cursor: url('/cursors/retrogusto-pointer-on-dark.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-dark.svg?v=3') 4 3, pointer;
     isolation: isolate;
     overflow: hidden;
   }
@@ -4481,7 +4480,7 @@
   }
 
   .about-gate-fork {
-    --about-utensil-length: clamp(532px, 57vw, 855px);
+    --about-utensil-length: clamp(420px, 44vw, 680px);
 
     top: clamp(50px, 8vh, 86px);
     left: 50%;
@@ -4500,7 +4499,7 @@
   }
 
   .about-gate-knife {
-    --about-utensil-length: clamp(532px, 57vw, 855px);
+    --about-utensil-length: clamp(460px, 46vw, 720px);
 
     left: 50%;
     bottom: clamp(52px, 8vh, 88px);
@@ -4778,7 +4777,7 @@
     color: inherit;
     font: inherit;
     text-decoration: none;
-    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     transform: translateZ(0);
     transition: transform 130ms ease;
   }
@@ -5612,7 +5611,7 @@
     background: var(--color-surface-page);
     color: var(--color-text-primary);
     appearance: none;
-    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     overflow: hidden;
     text-align: center;
   }
@@ -5744,7 +5743,7 @@
     transform: translate(-50%, var(--intro-scroll-cue-y, 0px));
     transition: opacity 120ms linear, transform 140ms ease-out;
     will-change: opacity, transform;
-  }/*a*/
+  }
 
   .intro-scroll-cue span {
     word-break: break-word;
@@ -5893,7 +5892,7 @@
 
   .floating-vector {
     position: absolute; z-index: 2; top: 0; left: 0;
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, grab;
+    cursor: url('/assets/ui/cursors/retrogusto-cursor.svg') 5 5, grab;
     opacity: var(--float-opacity, 1);
     transform:
       translate3d(var(--float-x, 84px), var(--float-y, 96px), var(--float-hover-z, 0px))
@@ -5910,7 +5909,7 @@
   }
 
   .floating-vector:hover {
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, grabbing;
+    cursor: url('/assets/ui/cursors/retrogusto-cursor.svg') 5 5, grabbing;
   }
 
   .floating-vector img {
@@ -6105,24 +6104,16 @@
   .role-grid {
     --role-card-aspect: 373.448 / 524;
     --role-grid-height: min(620px, calc(var(--app-viewport-height) - var(--layout-topbar-height) - 86px));
-    --role-grid-topbar-half: 52px;
-    --role-card-gap: var(--spacing-5);
-    --role-card-max-width: min(386px, calc(var(--role-grid-height) * 0.7127), calc((100vw - var(--layout-page-gutter) * 2 - var(--role-card-gap) * 2) / 3));
-    --role-grid-width: min(
-      calc(100vw - var(--layout-page-gutter) * 2),
-      calc(var(--role-card-max-width) * 3 + var(--role-card-gap) * 2)
-    );
+    --role-card-max-width: min(386px, calc(var(--role-grid-height) * 0.7127), calc((100vw - var(--layout-page-gutter) * 2 - var(--spacing-5) * 2) / 3));
 
     position: absolute; z-index: 2;
-    top: calc(50% + var(--role-grid-topbar-half)); left: 50%;
-    width: var(--role-grid-width);
+    top: calc(var(--layout-topbar-height) + 26px); left: var(--layout-page-gutter); right: var(--layout-page-gutter);
     height: var(--role-grid-height);
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, var(--role-card-max-width)));
-    justify-content: center;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-content: stretch;
     align-items: center;
-    column-gap: var(--role-card-gap);
-    transform: translate(-50%, -50%);
+    column-gap: var(--spacing-5);
     transform-style: flat;
   }
 
@@ -6147,7 +6138,7 @@
     border: 0;
     border-radius: var(--role-card-radius);
     background: transparent;
-    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     opacity: var(--role-card-opacity, 0);
     transform: translate3d(0, var(--role-card-y, 38vh), 0);
     transform-style: flat;
@@ -6163,10 +6154,16 @@
     backface-visibility: hidden;
   }
 
-  .role-card:nth-child(1),
-  .role-card:nth-child(2),
-  .role-card:nth-child(3) {
+  .role-card:nth-child(1) {
+    justify-self: start;
+  }
+
+  .role-card:nth-child(2) {
     justify-self: center;
+  }
+
+  .role-card:nth-child(3) {
+    justify-self: end;
   }
 
   .role-card::before {
@@ -6197,7 +6194,7 @@
   }
 
   .role-card.is-linked {
-    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
   }
 
   .roles-screen.is-card-entering .role-card {
@@ -6266,7 +6263,7 @@
 
   :global(.role-card.is-entering) {
     overflow: visible;
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, auto;
+    cursor: url('/assets/ui/cursors/retrogusto-cursor.svg') 5 5, auto;
     will-change: left, top, width, height, border-radius, box-shadow;
   }
 
@@ -6664,6 +6661,7 @@
       --role-card-gap: clamp(10px, 1.6vw, 18px);
       --role-card-max-width: min(368px, calc(var(--role-grid-height) * 0.7127), calc((100vw - var(--layout-page-gutter) * 2 - var(--role-card-gap) * 2) / 3));
 
+      top: calc(var(--layout-topbar-height) + 22px);
       column-gap: var(--role-card-gap);
     }
 
@@ -6759,7 +6757,7 @@
       font-size: 15px;
     }
     .about-gate-fork {
-      --about-utensil-length: clamp(322px, 91vw, 532px);
+      --about-utensil-length: clamp(288px, 82vw, 470px);
       top: clamp(20px, 4.5vh, 38px);
     }
     .about-gate-knife {
@@ -6926,12 +6924,11 @@
     .roles-top-bar { height: var(--layout-topbar-height-mobile); padding: var(--layout-topbar-padding-mobile); }
     .role-grid {
       --role-grid-height: calc(var(--app-viewport-height) - var(--layout-topbar-height-mobile) - 16px);
-      --role-grid-topbar-half: 44px;
       --role-card-gap: clamp(6px, 1vh, 8px);
       --role-card-mobile-row-height: calc((var(--role-grid-height) - var(--role-card-gap) * 2) / 3);
       --role-card-max-width: 100%;
 
-      top: calc(50% + var(--role-grid-topbar-half));
+      top: calc(var(--layout-topbar-height-mobile) + 8px);
       left: var(--layout-page-gutter-mobile);
       right: var(--layout-page-gutter-mobile);
       box-sizing: border-box;
@@ -6943,7 +6940,6 @@
       justify-content: center;
       align-content: center;
       align-items: center;
-      transform: translateY(-50%);
     }
     .role-card {
       --role-card-radius: clamp(34px, 12vw, 54px);
@@ -7224,10 +7220,9 @@
 
     .role-grid {
       --role-grid-height: calc(var(--app-viewport-height) - var(--layout-topbar-height-mobile) - 18px);
-      --role-grid-topbar-half: 42px;
       --role-card-gap: 8px;
 
-      top: calc(50% + var(--role-grid-topbar-half));
+      top: calc(var(--layout-topbar-height-mobile) + 8px);
       left: var(--layout-page-gutter-mobile);
       right: var(--layout-page-gutter-mobile);
     }

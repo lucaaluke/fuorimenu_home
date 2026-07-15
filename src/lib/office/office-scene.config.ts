@@ -40,7 +40,7 @@ function officeLayerAsset(
   return {
     id: name,
     kind: 'static',
-    src: `office-figma/${folder}/${name}.png`,
+    src: `office/figma/${folder}/${name}.png`,
     x: Number((x * officeExportScale).toFixed(2)),
     y: Number((y * officeExportScale).toFixed(2)),
     width: Number((width * officeExportScale).toFixed(2)),

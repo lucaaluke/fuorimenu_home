@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { KITCHEN_RETURN_CAMERA_STORAGE_KEY } from '$lib/scene/constants';
 
   const paganiniWrittenInterviewHref = '/interviste?chef=paganini&view=full';
   const paganiniKitchenDefaultCameraX = 8900;
-  const kitchenReturnCameraStorageKey = 'kitchen-return-camera-x';
   const paganiniYoutubeEmbedSrc = 'https://www.youtube.com/embed/lIS9D7-pVkU?rel=0';
 
   let viewportWidth = $state(1280);
@@ -27,7 +27,7 @@
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
     const isKitchenSource = params.get('source') === 'kitchen';
-    const storedCameraXValue = sessionStorage.getItem(kitchenReturnCameraStorageKey);
+    const storedCameraXValue = sessionStorage.getItem(KITCHEN_RETURN_CAMERA_STORAGE_KEY);
     const storedCameraX = storedCameraXValue === null ? undefined : Number(storedCameraXValue);
     const kitchenCameraX =
       typeof storedCameraX === 'number' && Number.isFinite(storedCameraX)
@@ -90,7 +90,7 @@
     padding: 0 var(--layout-page-gutter) var(--paganini-video-bottom-gap);
     background: var(--color-surface-page);
     color: var(--color-text-primary);
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, auto;
+    cursor: url('/assets/ui/cursors/retrogusto-cursor.svg') 5 5, auto;
   }
 
   .paganini-video-back {
@@ -103,7 +103,7 @@
     height: 44px;
     place-items: center;
     color: var(--color-text-primary);
-    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     text-decoration: none;
   }
 

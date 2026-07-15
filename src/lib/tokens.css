@@ -164,7 +164,7 @@ select {
   input[type='submit']:not(:disabled),
   input[type='reset']:not(:disabled)
 ) {
-  cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+  cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
 }
 
 canvas,

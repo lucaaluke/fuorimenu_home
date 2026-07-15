@@ -59,7 +59,7 @@
     font-weight: 400;
     line-height: 1;
     text-decoration: none;
-    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
   }
 
   .section-next-link.is-visible {

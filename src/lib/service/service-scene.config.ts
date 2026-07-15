@@ -44,7 +44,7 @@ function serviceLayerAsset(
   return {
     id: name,
     kind: 'static',
-    src: `servizio-figma/${folder}/${name}.png`,
+    src: `service/figma/${folder}/${name}.png`,
     x: Number((x * serviceExportScale).toFixed(2)),
     y: Number((y * serviceExportScale).toFixed(2)),
     width: Number((width * serviceExportScale).toFixed(2)),
@@ -117,7 +117,7 @@ export const serviceForegroundAssets: SceneAsset[] = [
   {
     id: 'easteregg',
     kind: 'static',
-    src: 'office-figma/primopiano/easteregg.png',
+    src: 'office/figma/primopiano/easteregg.png',
     x: Number((64376 * serviceExportScale).toFixed(2)),
     y: Number((-221 * serviceExportScale).toFixed(2)),
     width: Number((310 * serviceExportScale).toFixed(2)),

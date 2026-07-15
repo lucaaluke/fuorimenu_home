@@ -11,6 +11,13 @@
     kitchenSceneConfig
   } from './kitchen-scene.config';
   import { createSceneController } from '$lib/scene/controller';
+  import {
+    KITCHEN_RETURN_CAMERA_STORAGE_KEY,
+    SCENE_REVEAL_DELAY_MS,
+    TOUCH_SCROLL_DEAD_ZONE,
+    TOUCH_SCROLL_FACTOR,
+    TOUCH_SCROLL_INTERACTIVE_SELECTOR
+  } from '$lib/scene/constants';
   import { getCompatibleAudioContextConstructor } from '$lib/scene/browser-compat';
   import { loadGsap, type Gsap } from '$lib/scene/gsap-loader';
   import { triggerTapClickFeedback } from '$lib/scene/tap-click-feedback';
@@ -23,22 +30,18 @@
   import type {
     KitchenControllerEvents,
     KitchenControllerState
-	  } from '$lib/kitchen/kitchen-scroll-controller';
+  } from '$lib/kitchen/kitchen-scroll-controller';
   import type { KitchenPhaserGameHandle } from '$lib/kitchen/phaser/KitchenPhaserGame';
   import { screenToFigmaY, tailAwareFigmaX } from '$lib/kitchen/phaser/coordinate-utils';
 
   const {
-	    cursorCss,
-	    layerSpeed,
-	    pointerCursorCss,
-	    sceneHeight,
+    cursorCss,
+    layerSpeed,
+    pointerCursorCss,
+    sceneHeight,
     sceneWidth,
     title
   } = kitchenSceneConfig;
-  const touchScrollInteractiveSelector = 'a, button, input, textarea, select, video';
-  const kitchenReturnCameraStorageKey = 'kitchen-return-camera-x';
-  const touchScrollDeadZone = 3;
-  const touchScrollFactor = 1.54;
   const mouseWheelPixelThreshold = 40;
   const mouseWheelScrollFactor = 0.42;
   const showLegacyKitchenOverlays = false;
@@ -69,13 +72,13 @@
       'Si devono gestire bene i tempi di preparazione e i tempi del servizio per non accavallare le cose.'
   };
   const kitchenSTooltipSoundFileById = {
-    cone: '/sound/conook.mp3',
-    cleaningKit: '/sound/spruzzinook.mp3',
-    coffeeCup: '/sound/tazzinaok.mp3',
-    alarmClock: '/sound/svegliaok.mp3',
-    stove: '/sound/fornellook.mp3',
-    standMixer: '/sound/mixer.mp3',
-    toolbox: '/sound/toolbox.mp3'
+    cone: '/assets/audio/conook.mp3',
+    cleaningKit: '/assets/audio/spruzzinook.mp3',
+    coffeeCup: '/assets/audio/tazzinaok.mp3',
+    alarmClock: '/assets/audio/svegliaok.mp3',
+    stove: '/assets/audio/fornellook.mp3',
+    standMixer: '/assets/audio/mixer.mp3',
+    toolbox: '/assets/audio/toolbox.mp3'
   } as const;
   const kitchenSTooltipSoundById: Record<string, keyof typeof kitchenSTooltipSoundFileById> = {
     'S-cono': 'cone',
@@ -135,7 +138,7 @@
     y: 360,
     width: 1040,
     height: 585,
-    src: '/assets/kitchen/objects/video-paganini-trailer_v2.mp4'
+    src: '/assets/video/interviews/paganini-trailer_v2.mp4'
   } as const;
   const faustoSpeech =
     "Sei istituti alberghieri, tra cui l'Istituto di Busto Arsizio, l'Istituto Lagrange di Milano, l'Istituto di Bormio, l'Istituto di Cortina e l'Istituto di Brunico ci hanno aiutato per effettuare tutte le tipologie di servizi. Io avevo 8 chef, quindi uno per ogni sito, con cui avevo più contatti diretti. Ogni chef aveva questa sua brigata in base alla grandezza del luogo dove operava. Brunico aveva uno chef, due sous-chef e 15 ragazzi. La grande difficoltà che ho trovato io personalmente, è che, lavorando per un'azienda americana, loro hanno uno stile completamente diverso. Non posso dire che loro siano più bravi, non lo dirò mai. Posso dire che loro sono più pignoli? Sì. Per i primi 3-4 mesi entrare nella loro fase di lavoro non è stato semplice.";
@@ -170,13 +173,13 @@
     {
       id: 'carlo',
       ariaLabel: 'Testimonianza Carlo Zarri',
-      audioSrc: '/sound/carlo.mp3',
+      audioSrc: '/assets/audio/carlo.mp3',
       enterProgress: 0.02,
       exitProgress: 0.155,
       dialogueVisibleThreshold: 0.16,
       imageAspectRatio: 565 / 185,
       imageAlt: '',
-      imageSrc: '/assets/npc_CarloZarri_alt1.svg',
+      imageSrc: '/assets/kitchen/characters/carlo-zarri-alt.svg',
       metaLabel: 'Chief Executive Chef - Carlo Zarri',
       name: 'Carlo Zarri',
       rolePrefix: 'Chief Executive Chef - ',
@@ -190,13 +193,13 @@
     {
       id: 'paganini',
       ariaLabel: 'Testimonianza Stefano Paganini',
-      audioSrc: '/sound/stefano.mp3',
+      audioSrc: '/assets/audio/stefano.mp3',
       enterProgress: 0.168,
       exitProgress: 0.235,
       dialogueVisibleThreshold: 0.16,
       imageAspectRatio: 2960 / 1304,
       imageAlt: '',
-      imageSrc: '/assets/interviews-hover/nini.png',
+      imageSrc: '/assets/interviews/hover/nini.png',
       metaLabel: 'Executive Chef - Stefano Paganini',
       name: 'Stefano Paganini',
       rolePrefix: 'Executive Chef - ',
@@ -211,13 +214,13 @@
     {
       id: 'fausto',
       ariaLabel: 'Prima testimonianza Fausto Meli',
-      audioSrc: '/sound/faustocucina1.mp3',
+      audioSrc: '/assets/audio/faustocucina1.mp3',
       dialogueVisibleThreshold: 0.16,
       enterProgress: 0.248,
       exitProgress: 0.44,
       imageAspectRatio: 1394 / 574,
       imageAlt: '',
-      imageSrc: '/images/fausto.svg',
+      imageSrc: '/assets/interviews/portraits/fausto.svg',
       metaLabel: 'Executive Chef - Fausto Meli',
       name: 'Fausto Meli',
       rolePrefix: 'Executive Chef - ',
@@ -231,13 +234,13 @@
     {
       id: 'fausto2',
       ariaLabel: 'Seconda testimonianza Fausto Meli',
-      audioSrc: '/sound/fausto2ok.mp3',
+      audioSrc: '/assets/audio/fausto2ok.mp3',
       dialogueVisibleThreshold: 0.16,
       enterProgress: 0.47,
       exitProgress: 0.55,
       imageAspectRatio: 1394 / 574,
       imageAlt: '',
-      imageSrc: '/images/fausto.svg',
+      imageSrc: '/assets/interviews/portraits/fausto.svg',
       metaLabel: 'Executive Chef - Fausto Meli',
       name: 'Fausto Meli',
       rolePrefix: 'Executive Chef - ',
@@ -251,13 +254,13 @@
     {
       id: 'marco',
       ariaLabel: 'Testimonianza Marco Frassante',
-      audioSrc: '/sound/marcofrassantecucina.mp3',
+      audioSrc: '/assets/audio/marcofrassantecucina.mp3',
       dialogueVisibleThreshold: 0.16,
       enterProgress: 0.57,
       exitProgress: 1,
       imageAspectRatio: 2960 / 1276,
       imageAlt: '',
-      imageSrc: '/assets/interviews-hover/marco.png',
+      imageSrc: '/assets/interviews/hover/marco.png',
       metaLabel: 'Executive Chef - Marco Frassante',
       name: 'Marco Frassante',
       rolePrefix: 'Executive Chef - ',
@@ -323,9 +326,9 @@
     }
   };
 
-	  let stageEl: HTMLElement;
+  let stageEl: HTMLElement;
   let phaserContainerEl = $state<HTMLElement>();
-	  let viewportWidth = $state(0);
+  let viewportWidth = $state(0);
   let viewportHeight = $state(0);
   let cameraX = $state(0);
   let narrativeProgress = $state(0);
@@ -336,7 +339,7 @@
     onProgressChange?.(narrativeProgress);
   });
 
-	  let kitchenController:
+  let kitchenController:
     | {
         scrollBy: (delta: number) => void;
         beginDrag: (clientX: number) => void;
@@ -345,8 +348,8 @@
         resize: () => void;
         scrollTo: (cameraX: number) => void;
         destroy: () => void;
-	      }
-	    | undefined;
+      }
+    | undefined;
   let kitchenPhaserGame: KitchenPhaserGameHandle | undefined;
   let phaserResizeTimer: ReturnType<typeof setTimeout> | undefined;
   let phaserLoadingProgress = $state(0);
@@ -422,7 +425,6 @@
   let mobileLoadingIntroTimer: ReturnType<typeof setTimeout> | undefined;
   let sceneRevealTimer: ReturnType<typeof setTimeout> | undefined;
   const mobileLoadingIntroDurationMs = 1000;
-  const sceneRevealDelayMs = 560;
   const isSceneInteractive = $derived(isSceneRevealed);
   let hasPointerScenePosition = $state(false);
   let isPointerOverTestimonialHitbox = $state(false);
@@ -449,35 +451,35 @@
   const testimonialDialogueTopInset = $derived((viewportWidth <= 760 ? 88 : 104) + 40);
   const testimonialDialogueGap = 32;
 
-	  function updatePointerScenePosition(event: PointerEvent) {
-	    if (!stageEl || !sceneScale) return;
+  function updatePointerScenePosition(event: PointerEvent) {
+    if (!stageEl || !sceneScale) return;
 
     const rect = stageEl.getBoundingClientRect();
     const localX = clamp(event.clientX - rect.left, 0, rect.width);
-	    const localY = clamp(event.clientY - rect.top, 0, rect.height);
+    const localY = clamp(event.clientY - rect.top, 0, rect.height);
 
     pointerLocalX = localX;
     pointerLocalY = localY;
-	    hasPointerScenePosition = true;
+    hasPointerScenePosition = true;
     pointerSceneY = screenToFigmaY(localY, sceneScale, viewportHeight, kitchenConstructionFloorTopY);
-	    pointerSceneX = {
-	      background: (localX + cameraX * resolvedLayerSpeed.background) / sceneScale,
-	      middle: (localX + cameraX * resolvedLayerSpeed.middle) / sceneScale,
-	      foreground: (localX + cameraX * resolvedLayerSpeed.foreground) / sceneScale
+    pointerSceneX = {
+      background: (localX + cameraX * resolvedLayerSpeed.background) / sceneScale,
+      middle: (localX + cameraX * resolvedLayerSpeed.middle) / sceneScale,
+      foreground: (localX + cameraX * resolvedLayerSpeed.foreground) / sceneScale
     };
     isPointerOverTestimonialHitbox = isPointerInsideVisibleTestimonial(event);
     kitchenPhaserGame?.setObjectHoverSuppressed(isPointerOverTestimonialHitbox);
     setHoveredKitchenSTooltipId(getHoveredKitchenSTooltipId());
-	  }
+  }
 
-	  function syncViewport() {
-	    if (!stageEl) return;
-	    viewportWidth = stageEl.clientWidth;
-	    viewportHeight = stageEl.clientHeight;
-	    cameraX = clamp(cameraX, 0, maxScrollX);
-	    kitchenController?.resize();
+  function syncViewport() {
+    if (!stageEl) return;
+    viewportWidth = stageEl.clientWidth;
+    viewportHeight = stageEl.clientHeight;
+    cameraX = clamp(cameraX, 0, maxScrollX);
+    kitchenController?.resize();
     schedulePhaserResize();
-	  }
+  }
 
   function schedulePhaserResize() {
     if (!kitchenPhaserGame || !viewportWidth || !viewportHeight) return;
@@ -495,7 +497,7 @@
   }
 
   function isInteractiveSceneEventTarget(target: EventTarget | null) {
-    return target instanceof Element && target.closest(touchScrollInteractiveSelector) !== null;
+    return target instanceof Element && target.closest(TOUCH_SCROLL_INTERACTIVE_SELECTOR) !== null;
   }
 
   function isTextInputEventTarget(target: EventTarget | null) {
@@ -627,7 +629,7 @@
       .join(' ');
   }
 
-	  function getAssetStyle(asset: SceneAsset) {
+  function getAssetStyle(asset: SceneAsset) {
     const style = [
       getSceneAssetStyle(asset, cameraX, sceneHeight, sceneScale, resolvedLayerSpeed, tailStartX)
     ];
@@ -636,7 +638,7 @@
     if (asset.zOffset !== undefined) style.push(`--scene-z-offset: ${asset.zOffset}`);
 
     return style.join(';');
-	  }
+  }
 
   function getPhaserObjectScrollFactor(asset: SceneAsset) {
     if (asset.id.startsWith('2-')) return phaserObjectScrollFactor.middle;
@@ -730,7 +732,7 @@
 
   function saveKitchenReturnCameraX() {
     if (!browser) return;
-    sessionStorage.setItem(kitchenReturnCameraStorageKey, String(Math.round(cameraX)));
+    sessionStorage.setItem(KITCHEN_RETURN_CAMERA_STORAGE_KEY, String(Math.round(cameraX)));
   }
 
   function getHoveredKitchenSTooltipId() {
@@ -784,7 +786,7 @@
     );
   }
 
-	  function getInteractiveAssetStyle(asset: InteractiveSceneAsset) {
+  function getInteractiveAssetStyle(asset: InteractiveSceneAsset) {
     const style = [getAssetStyle(asset)];
     const placement = asset.hoverDialoguePlacement;
     if (!placement) return style.join(';');
@@ -1346,7 +1348,7 @@
   }
 
   function canStartTouchScroll(target: EventTarget | null) {
-    return target instanceof Element && !target.closest(touchScrollInteractiveSelector);
+    return target instanceof Element && !target.closest(TOUCH_SCROLL_INTERACTIVE_SELECTOR);
   }
 
   function onTouchStart(event: TouchEvent) {
@@ -1388,10 +1390,10 @@
     touchLastY = touch.clientY;
 
     const dominantDelta = Math.abs(deltaY) > Math.abs(deltaX) ? -deltaY : -deltaX;
-    if (Math.abs(dominantDelta) < touchScrollDeadZone) return;
+    if (Math.abs(dominantDelta) < TOUCH_SCROLL_DEAD_ZONE) return;
 
     event.preventDefault();
-    scrollBy(dominantDelta * touchScrollFactor);
+    scrollBy(dominantDelta * TOUCH_SCROLL_FACTOR);
     unlockRelevantTestimonialAudio();
   }
 
@@ -2113,13 +2115,13 @@
     syncReducedMotion();
     reducedMotionQuery.addEventListener('change', syncReducedMotion);
     resources.add(() => reducedMotionQuery.removeEventListener('change', syncReducedMotion));
-	    resources.add(bridge.subscribe((state) => {
-	      cameraX = state.cameraX;
-	      narrativeProgress = state.progress;
-	      activeChefId = state.activeChefId;
+    resources.add(bridge.subscribe((state) => {
+      cameraX = state.cameraX;
+      narrativeProgress = state.progress;
+      activeChefId = state.activeChefId;
       kitchenPhaserGame?.setCameraX(state.cameraX);
-	    }));
-	    resources.add(createViewportObserver(stageEl, syncViewport));
+    }));
+    resources.add(createViewportObserver(stageEl, syncViewport));
     resources.addEventListener(stageEl, 'wheel', onWheel as EventListener, { passive: false });
 
     if (browser && phaserContainerEl) {
@@ -2205,7 +2207,7 @@
     resources.addEventListener(stageEl, 'touchend', onTouchEnd as EventListener, true);
     resources.addEventListener(stageEl, 'touchcancel', onTouchEnd as EventListener, true);
     resources.addEventListener(window, 'keydown', onKeydown as EventListener);
-	    return () => {
+    return () => {
       stageEl?.removeEventListener('click', triggerTapClickFeedback, true);
       if (sceneRevealTimer) clearTimeout(sceneRevealTimer);
       if (phaserResizeTimer) clearTimeout(phaserResizeTimer);
@@ -2213,7 +2215,7 @@
       cancelFallbackAudioFade(constructionAudioEl);
       cancelFallbackAudioFade(kitchenAmbientAudioEl);
       pauseAllKitchenHoverSounds();
-	      constructionAudioEl?.pause();
+      constructionAudioEl?.pause();
       kitchenAmbientAudioEl?.pause();
       stopAllTestimonialAudio({ duration: 0, resetReplay: false });
       void toolShedAudioContext?.close();
@@ -2228,7 +2230,7 @@
         sceneRevealTimer = setTimeout(() => {
           isSceneRevealed = true;
           sceneRevealTimer = undefined;
-        }, sceneRevealDelayMs);
+        }, SCENE_REVEAL_DELAY_MS);
       }
       return;
     }
@@ -2301,7 +2303,7 @@
       >
         <track
           kind="captions"
-          src="/assets/kitchen/objects/video-paganini-trailer_v2.vtt"
+          src="/assets/video/interviews/paganini-trailer_v2.vtt"
           srclang="it"
           label="Italiano"
           default
@@ -2404,45 +2406,45 @@
   {#if isSceneRevealed}
     <h1 class="scene-title" style={getTitleStyle()} aria-label="Cucina">Cucina</h1>
   {/if}
-		
+
   {#if showLegacyKitchenOverlays}
-	  {#each kitchenAssets as asset (asset.id)}
-	    {#if asset.kind === 'interactive'}
-      <button
-        class={getAssetClass(asset)}
-        data-node-id={asset.nodeId}
-        style={getInteractiveAssetStyle(asset)}
-        type="button"
-        tabindex={asset.ariaLabel ? 0 : -1}
-        aria-label={asset.ariaLabel}
-        aria-hidden={asset.ariaLabel ? undefined : 'true'}
-        onpointerenter={() => playInteractiveHoverSound(asset)}
-        onpointerleave={() => resetInteractiveHoverSound(asset)}
-        onpointerdown={(event) => event.stopPropagation()}
-      >
-        <img src={kitchenAsset(asset.src)} alt="" width="100%" height="100%" draggable="false" />
-        {#if asset.shineEffect}
-          <span
-            class="object-shine"
-            style={`--shine-mask: url('${kitchenAsset(asset.src)}')`}
-            aria-hidden="true"
-          ></span>
-        {/if}
-        {#if asset.hoverDialogue}
-          <span
-            class={getInteractivePartClass(asset, 'dialogue')}
-            aria-hidden="true"
-            data-node-id={asset.hoverDialogueNodeId}
-          >
-            <span class={getInteractivePartClass(asset, 'arrow')} aria-hidden="true"></span>
-            <span class={getInteractivePartClass(asset, 'panel')}>
-              <span class={getInteractivePartClass(asset, 'copy')}>{asset.hoverDialogue}</span>
+    {#each kitchenAssets as asset (asset.id)}
+      {#if asset.kind === 'interactive'}
+        <button
+          class={getAssetClass(asset)}
+          data-node-id={asset.nodeId}
+          style={getInteractiveAssetStyle(asset)}
+          type="button"
+          tabindex={asset.ariaLabel ? 0 : -1}
+          aria-label={asset.ariaLabel}
+          aria-hidden={asset.ariaLabel ? undefined : 'true'}
+          onpointerenter={() => playInteractiveHoverSound(asset)}
+          onpointerleave={() => resetInteractiveHoverSound(asset)}
+          onpointerdown={(event) => event.stopPropagation()}
+        >
+          <img src={kitchenAsset(asset.src)} alt="" width="100%" height="100%" draggable="false" />
+          {#if asset.shineEffect}
+            <span
+              class="object-shine"
+              style={`--shine-mask: url('${kitchenAsset(asset.src)}')`}
+              aria-hidden="true"
+            ></span>
+          {/if}
+          {#if asset.hoverDialogue}
+            <span
+              class={getInteractivePartClass(asset, 'dialogue')}
+              aria-hidden="true"
+              data-node-id={asset.hoverDialogueNodeId}
+            >
+              <span class={getInteractivePartClass(asset, 'arrow')} aria-hidden="true"></span>
+              <span class={getInteractivePartClass(asset, 'panel')}>
+                <span class={getInteractivePartClass(asset, 'copy')}>{asset.hoverDialogue}</span>
+              </span>
             </span>
-          </span>
-        {/if}
-      </button>
-	    {/if}
-	  {/each}
+          {/if}
+        </button>
+      {/if}
+    {/each}
   {/if}
 
   {#each kitchenTestimonials as testimonial (testimonial.id)}
@@ -2547,18 +2549,18 @@
   {/each}
 </section>
 
-<audio bind:this={toolShedAudioEl} src="/sound/toolbox.mp3" preload="auto"></audio>
-<audio bind:this={standMixerAudioEl} src="/sound/mixer.mp3" preload="auto"></audio>
-<audio bind:this={coneHoverAudioEl} src="/sound/conook.mp3" preload="auto"></audio>
-<audio bind:this={cleaningKitHoverAudioEl} src="/sound/spruzzinook.mp3" preload="auto"></audio>
-<audio bind:this={coffeeCupHoverAudioEl} src="/sound/tazzinaok.mp3" preload="auto"></audio>
-<audio bind:this={alarmClockHoverAudioEl} src="/sound/svegliaok.mp3" preload="auto"></audio>
-<audio bind:this={stoveHoverAudioEl} src="/sound/fornellook.mp3" preload="auto"></audio>
-<audio bind:this={constructionAudioEl} src="/sound/cantiere.mp3" preload="auto"></audio>
-<audio bind:this={kitchenAmbientAudioEl} src="/sound/kitchen_backgroundok.mp3" preload="auto"></audio>
+<audio bind:this={toolShedAudioEl} src="/assets/audio/toolbox.mp3" preload="auto"></audio>
+<audio bind:this={standMixerAudioEl} src="/assets/audio/mixer.mp3" preload="auto"></audio>
+<audio bind:this={coneHoverAudioEl} src="/assets/audio/conook.mp3" preload="auto"></audio>
+<audio bind:this={cleaningKitHoverAudioEl} src="/assets/audio/spruzzinook.mp3" preload="auto"></audio>
+<audio bind:this={coffeeCupHoverAudioEl} src="/assets/audio/tazzinaok.mp3" preload="auto"></audio>
+<audio bind:this={alarmClockHoverAudioEl} src="/assets/audio/svegliaok.mp3" preload="auto"></audio>
+<audio bind:this={stoveHoverAudioEl} src="/assets/audio/fornellook.mp3" preload="auto"></audio>
+<audio bind:this={constructionAudioEl} src="/assets/audio/cantiere.mp3" preload="auto"></audio>
+<audio bind:this={kitchenAmbientAudioEl} src="/assets/audio/kitchen_backgroundok.mp3" preload="auto"></audio>
 <audio
   bind:this={carloAudioEl}
-  src="/sound/carlo.mp3"
+  src="/assets/audio/carlo.mp3"
   preload="auto"
   onplay={() => {
     if (!carloAudioEl?.muted) activeTestimonialAudioId = 'carlo';
@@ -2573,7 +2575,7 @@
 ></audio>
 <audio
   bind:this={paganiniAudioEl}
-  src="/sound/stefano.mp3"
+  src="/assets/audio/stefano.mp3"
   preload="auto"
   onplay={() => {
     if (!paganiniAudioEl?.muted) activeTestimonialAudioId = 'paganini';
@@ -2588,7 +2590,7 @@
 ></audio>
 <audio
   bind:this={faustoAudioEl}
-  src="/sound/faustocucina1.mp3"
+  src="/assets/audio/faustocucina1.mp3"
   preload="auto"
   onplay={() => {
     if (!faustoAudioEl?.muted) activeTestimonialAudioId = 'fausto';
@@ -2603,7 +2605,7 @@
 ></audio>
 <audio
   bind:this={fausto2AudioEl}
-  src="/sound/fausto2ok.mp3"
+  src="/assets/audio/fausto2ok.mp3"
   preload="auto"
   onplay={() => {
     if (!fausto2AudioEl?.muted) activeTestimonialAudioId = 'fausto2';
@@ -2618,7 +2620,7 @@
 ></audio>
 <audio
   bind:this={marcoAudioEl}
-  src="/sound/marcofrassantecucina.mp3"
+  src="/assets/audio/marcofrassantecucina.mp3"
   preload="auto"
   onplay={() => {
     if (!marcoAudioEl?.muted) activeTestimonialAudioId = 'marco';
@@ -2649,9 +2651,9 @@
     outline: none;
   }
 
-	  .kitchen-stage.is-dragging {
-	    cursor: var(--kitchen-cursor);
-	  }
+  .kitchen-stage.is-dragging {
+    cursor: var(--kitchen-cursor);
+  }
 
   .kitchen-stage.is-s-object-hovered:not(.is-dragging) {
     cursor: var(--kitchen-pointer-cursor);
@@ -3060,7 +3062,7 @@
     z-index: 2;
     right: 0;
     bottom: 0;
-    background-image: url('/assets/pavimento_tile.svg');
+    background-image: url('/assets/kitchen/floor/pavimento-tile.svg');
     background-repeat: repeat-x;
     transform-origin: 50% 50%;
     pointer-events: none;

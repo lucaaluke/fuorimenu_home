@@ -1,4 +1,5 @@
 import type Phaser from 'phaser';
+import { resolveSoundAssetPath, resolveVersionedAssetPath } from '$lib/scene/asset-paths';
 import type { SceneAsset, SceneChunk, SceneLayer } from '$lib/scene/scene-asset.types';
 
 export type PhaserModule = typeof import('phaser');
@@ -58,18 +59,6 @@ const defaultLayerBaseDepth = {
   foreground: 600
 } satisfies Record<SceneLayer, number>;
 
-function resolveVersionedPath(src: string, version: string) {
-  const normalized = src.startsWith('/') ? src : `/assets/${src}`;
-  const separator = normalized.includes('?') ? '&' : '?';
-
-  return `${normalized}${separator}v=${version}`;
-}
-
-function resolveSoundPath(src: string) {
-  if (src.startsWith('/')) return src;
-  return `/sound/${src}`;
-}
-
 function isRenderableAsset(asset: SceneAsset) {
   if (asset.interactive || asset.kind === 'interactive') return false;
   if (asset.id.startsWith('layer-')) return false;
@@ -82,6 +71,7 @@ function isFloorAsset(asset: SceneAsset) {
 }
 
 function shouldRenderAssetShine(asset: SceneAsset) {
+  if (asset.id === 'easteregg') return false;
   return Boolean(asset.hoverAnimation || asset.hoverSoundSrc || asset.idleAnimation);
 }
 
@@ -131,7 +121,7 @@ export function createParallaxMainSceneClass(
         loadedChunkKeys.add(chunk.assetKey);
         this.load.image(
           chunk.assetKey,
-          resolveVersionedPath(dependencies.getChunkPath(chunk), dependencies.assetVersion)
+          resolveVersionedAssetPath(dependencies.getChunkPath(chunk), dependencies.assetVersion)
         );
       }
 
@@ -290,7 +280,7 @@ export function createParallaxMainSceneClass(
 
     private loadSceneAsset(asset: SceneAsset) {
       const key = this.getAssetKey(asset);
-      const path = resolveVersionedPath(asset.src, dependencies.assetVersion);
+      const path = resolveVersionedAssetPath(asset.src, dependencies.assetVersion);
 
       if (asset.src.toLowerCase().endsWith('.svg')) {
         this.load.svg(key, path, {
@@ -305,7 +295,7 @@ export function createParallaxMainSceneClass(
 
     private loadAssetHoverSound(asset: SceneAsset) {
       if (!asset.hoverSoundSrc) return;
-      this.load.audio(this.getAssetHoverSoundKey(asset), resolveSoundPath(asset.hoverSoundSrc));
+      this.load.audio(this.getAssetHoverSoundKey(asset), resolveSoundAssetPath(asset.hoverSoundSrc));
     }
 
     private playAssetHoverSound(asset: SceneAsset) {

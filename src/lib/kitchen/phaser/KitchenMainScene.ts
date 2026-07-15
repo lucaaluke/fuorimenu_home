@@ -1,4 +1,5 @@
 import type Phaser from 'phaser';
+import { resolveVersionedAssetPath } from '$lib/scene/asset-paths';
 import type { SceneAsset, SceneChunk, SceneLayer } from '$lib/scene/scene-asset.types';
 import {
   FLOOR_TOP_Y_FIGMA,
@@ -66,13 +67,6 @@ const BACKGROUND_TILE_SCROLL_FACTOR = 1;
 const FLOOR_SCROLL_FACTOR = 1;
 const MIDDLEGROUND_OBJECT_SCROLL_FACTOR = 1.25;
 const FOREGROUND_OBJECT_SCROLL_FACTOR = 1.5;
-
-function resolveAssetPath(src: string, version: string) {
-  const normalized = src.startsWith('/') ? src : `/assets/${src}`;
-  const separator = normalized.includes('?') ? '&' : '?';
-
-  return `${normalized}${separator}v=${version}`;
-}
 
 function resolveChunkPath(chunk: SceneChunk, version: string) {
   const prefix = chunkPathPrefix[chunk.layer as keyof typeof chunkPathPrefix];
@@ -255,7 +249,7 @@ export function createKitchenMainSceneClass(Phaser: PhaserModule, dependencies: 
 
     private loadSceneAsset(asset: SceneAsset) {
       const key = this.getAssetKey(asset);
-      const path = resolveAssetPath(asset.src, dependencies.assetVersion);
+      const path = resolveVersionedAssetPath(asset.src, dependencies.assetVersion);
 
       if (asset.src.toLowerCase().endsWith('.svg')) {
         this.load.svg(key, path, {

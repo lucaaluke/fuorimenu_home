@@ -5,6 +5,7 @@ import {
   type ParallaxMainSceneApi,
   type ParallaxSceneViewport
 } from './ParallaxMainScene';
+import { getDevicePixelRatio, setCanvasCssSize } from './game-utils';
 
 export type ParallaxPhaserGameOptions = {
   assetVersion: string;
@@ -34,22 +35,6 @@ export type ParallaxPhaserGameHandle = {
   setHoveredAssetId: (assetId?: string) => void;
 };
 
-function getPixelRatio() {
-  return Math.max(1, window.devicePixelRatio ?? 1);
-}
-
-function setCanvasCssSize(game: Phaser.Game | undefined, width: number, height: number) {
-  const canvas = game?.canvas;
-  if (!canvas) return;
-
-  canvas.style.position = 'absolute';
-  canvas.style.top = '0';
-  canvas.style.left = '0';
-  canvas.style.display = 'block';
-  canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
-}
-
 export async function createParallaxPhaserGame(
   options: ParallaxPhaserGameOptions
 ): Promise<ParallaxPhaserGameHandle | undefined> {
@@ -57,7 +42,7 @@ export async function createParallaxPhaserGame(
 
   const Phaser = await import('phaser');
   const viewport = options.getViewport();
-  const initialPixelRatio = getPixelRatio();
+  const initialPixelRatio = getDevicePixelRatio();
   let game: Phaser.Game | undefined;
   let sceneApi: ParallaxMainSceneApi | undefined;
   let latestAudioMuted = options.isAudioMuted?.() ?? false;
@@ -121,7 +106,7 @@ export async function createParallaxPhaserGame(
       sceneApi = undefined;
     },
     resize(width: number, height: number) {
-      const pixelRatio = getPixelRatio();
+      const pixelRatio = getDevicePixelRatio();
       game?.scale.resize(Math.round(width * pixelRatio), Math.round(height * pixelRatio));
       setCanvasCssSize(game, width, height);
       sceneApi?.resize(width, height, pixelRatio);

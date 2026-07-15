@@ -4,6 +4,7 @@ import {
   type KitchenSceneConfig
 } from '$lib/kitchen/kitchen-scene.config';
 import { setupSceneBridge, type SceneBridge } from '$lib/scene/bridge';
+import { DRAG_SCROLL_FACTOR, SCENE_CAMERA_EASING } from '$lib/scene/constants';
 import { loadGsapWithScrollTrigger } from '$lib/scene/gsap-loader';
 import { clamp } from '$lib/scene/math';
 import { createTriggerRegistry } from '$lib/scene/triggers';
@@ -42,13 +43,6 @@ type KitchenTriggerContext = {
   cameraX: number;
   config: KitchenSceneConfig;
   metrics: HorizontalSceneMetrics;
-};
-
-const easing = {
-  frameDuration: 16.667,
-  idle: 0.14,
-  maxFrameScale: 2.4,
-  snapDistance: 0.08
 };
 
 export const initialKitchenControllerState: KitchenControllerState = {
@@ -131,7 +125,7 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
     setScrollFromController(getScrollForCameraX(targetCameraX));
   }
 
-  function evaluateScene(delta: number, now: number) {
+  function evaluateScene(delta: number) {
     const metrics = getMetrics();
     if (!isScrollEnabled()) {
       cameraX = 0;
@@ -157,10 +151,13 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
       cameraX = targetCameraX;
     } else {
       const distance = targetCameraX - cameraX;
-      const frameScale = Math.min(delta / easing.frameDuration, easing.maxFrameScale);
-      const stepAmount = 1 - Math.pow(1 - easing.idle, frameScale);
+      const frameScale = Math.min(
+        delta / SCENE_CAMERA_EASING.frameDuration,
+        SCENE_CAMERA_EASING.maxFrameScale
+      );
+      const stepAmount = 1 - Math.pow(1 - SCENE_CAMERA_EASING.idleAmount, frameScale);
 
-      if (Math.abs(distance) < easing.snapDistance) {
+      if (Math.abs(distance) < SCENE_CAMERA_EASING.snapDistance) {
         cameraX = targetCameraX;
       } else {
         cameraX += distance * stepAmount;
@@ -249,7 +246,7 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
 
   const tick = (_time: number, delta: number) => {
     if (killed) return;
-    evaluateScene(delta, performance.now());
+    evaluateScene(delta);
   };
 
   gsap.ticker.add(tick);
@@ -272,7 +269,9 @@ export async function mountKitchenScrollController(options: KitchenScrollControl
     },
     dragTo(clientPosition: number) {
       if (!dragging || !isScrollEnabled()) return;
-      setScrollFromController(dragScrollStart + (dragStartPosition - clientPosition) * 1.54);
+      setScrollFromController(
+        dragScrollStart + (dragStartPosition - clientPosition) * DRAG_SCROLL_FACTOR
+      );
     },
     endDrag() {
       dragging = false;

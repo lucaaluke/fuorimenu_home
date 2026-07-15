@@ -9,6 +9,14 @@
     officeSceneConfig
   } from './office-scene.config';
   import { clamp, ease, px } from '$lib/scene/math';
+  import {
+    DRAG_SCROLL_FACTOR,
+    SCENE_CAMERA_EASING,
+    SCENE_REVEAL_DELAY_MS,
+    TOUCH_SCROLL_DEAD_ZONE,
+    TOUCH_SCROLL_FACTOR,
+    TOUCH_SCROLL_INTERACTIVE_SELECTOR
+  } from '$lib/scene/constants';
   import { loadGsapWithScrollTrigger, type Gsap } from '$lib/scene/gsap-loader';
   import type { InteractiveSceneAsset, SceneAsset, SceneChunk } from '$lib/scene/scene-asset.types';
   import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
@@ -25,9 +33,6 @@
   }>();
 
   const { assetVersion, layerSpeed, sceneHeight, sceneWidth } = officeSceneConfig;
-  const touchScrollInteractiveSelector = 'a, button, input, textarea, select, video';
-  const touchScrollDeadZone = 3;
-  const touchScrollFactor = 1.54;
 
   let stageEl: HTMLElement;
   let viewportWidth = $state(0);
@@ -93,7 +98,6 @@
   let officePhaserGame: ParallaxPhaserGameHandle | undefined;
   let officePhaserResizeTimer: number | undefined;
   let sceneRevealTimer: ReturnType<typeof setTimeout> | undefined;
-  const sceneRevealDelayMs = 560;
   let dragStartX = 0;
   let dragStartY = 0;
   let dragScrollStart = 0;
@@ -217,7 +221,7 @@
   }
 
   function officeChunkPath(chunk: SceneChunk) {
-    return `office-figma/background/Slice ${chunk.frameIndex + 1}.png`;
+    return `office/figma/background/Slice ${chunk.frameIndex + 1}.png`;
   }
 
   function getCarloOfficeEnterCameraX() {
@@ -494,11 +498,21 @@
     }
 
     const distance = targetCameraX - cameraX;
-    const frameScale = Math.min(delta / 16.667, 2.4);
-    const amount = prefersReducedMotion ? 1 : isDragging ? 0.28 : 0.14;
+    const frameScale = Math.min(
+      delta / SCENE_CAMERA_EASING.frameDuration,
+      SCENE_CAMERA_EASING.maxFrameScale
+    );
+    const amount = prefersReducedMotion
+      ? 1
+      : isDragging
+        ? SCENE_CAMERA_EASING.dragAmount
+        : SCENE_CAMERA_EASING.idleAmount;
     const stepAmount = 1 - Math.pow(1 - amount, frameScale);
 
-    cameraX = Math.abs(distance) < 0.08 ? targetCameraX : cameraX + distance * stepAmount;
+    cameraX =
+      Math.abs(distance) < SCENE_CAMERA_EASING.snapDistance
+        ? targetCameraX
+        : cameraX + distance * stepAmount;
     cameraX = clamp(cameraX, 0, maxScrollX);
     targetCameraX = clamp(targetCameraX, 0, maxScrollX);
     officePhaserGame?.setCameraX(cameraX);
@@ -513,7 +527,7 @@
   }
 
   function canStartTouchScroll(target: EventTarget | null) {
-    return target instanceof Element && !target.closest(touchScrollInteractiveSelector);
+    return target instanceof Element && !target.closest(TOUCH_SCROLL_INTERACTIVE_SELECTOR);
   }
 
   function onTouchStart(event: TouchEvent) {
@@ -551,10 +565,10 @@
     touchLastY = touch.clientY;
 
     const dominantDelta = Math.abs(deltaY) > Math.abs(deltaX) ? -deltaY : -deltaX;
-    if (Math.abs(dominantDelta) < touchScrollDeadZone) return;
+    if (Math.abs(dominantDelta) < TOUCH_SCROLL_DEAD_ZONE) return;
 
     event.preventDefault();
-    scrollBy(dominantDelta * touchScrollFactor);
+    scrollBy(dominantDelta * TOUCH_SCROLL_FACTOR);
   }
 
   function onTouchEnd() {
@@ -585,7 +599,7 @@
     const dragDeltaX = dragStartX - event.clientX;
     const dragDeltaY = dragStartY - event.clientY;
     const dominantDelta = Math.abs(dragDeltaY) > Math.abs(dragDeltaX) ? dragDeltaY : dragDeltaX;
-    scrollTrigger?.scroll(dragScrollStart + dominantDelta * 1.54);
+    scrollTrigger?.scroll(dragScrollStart + dominantDelta * DRAG_SCROLL_FACTOR);
   }
 
   function onPointerLeave() {
@@ -2069,7 +2083,7 @@
         sceneRevealTimer = window.setTimeout(() => {
           isSceneRevealed = true;
           sceneRevealTimer = undefined;
-        }, sceneRevealDelayMs);
+        }, SCENE_REVEAL_DELAY_MS);
       }
       return;
     }
@@ -2332,7 +2346,7 @@
         </span>
         <img
           class="scene-chef-image"
-          src="/assets/interviews-hover/zarri.png"
+          src="/assets/interviews/hover/zarri.png"
           alt="Carlo Zarri"
           draggable="false"
         />
@@ -2442,7 +2456,7 @@
         </span>
         <img
           class="scene-chef-image"
-          src="/assets/interviews-hover/zarri.png"
+          src="/assets/interviews/hover/zarri.png"
           alt="Carlo Zarri"
           draggable="false"
         />
@@ -2552,7 +2566,7 @@
         </span>
         <img
           class="scene-chef-image"
-          src="/assets/interviews-hover/eli.png"
+          src="/assets/interviews/hover/eli.png"
           alt="Elisabetta Salvadori"
           draggable="false"
         />
@@ -2662,7 +2676,7 @@
         </span>
         <img
           class="scene-chef-image"
-          src="/assets/interviews-hover/fausto.png"
+          src="/assets/interviews/hover/fausto.png"
           alt="Fausto Meli"
           draggable="false"
         />
@@ -2671,14 +2685,14 @@
   </div>
 </section>
 
-<audio bind:this={officeAmbientAudioEl} src="/sound/office_background.wav" preload="auto"></audio>
-<audio bind:this={keysHoverAudioEl} src="/sound/chiavi.mp3" preload="auto"></audio>
-<audio bind:this={clickHoverAudioEl} src="/sound/click.mp3" preload="auto"></audio>
-<audio bind:this={cioHoverAudioEl} src="/sound/ciook.mp3" preload="auto"></audio>
-<audio bind:this={mapHoverAudioEl} src="/sound/mappa.mp3" preload="auto"></audio>
+<audio bind:this={officeAmbientAudioEl} src="/assets/audio/office_background.wav" preload="auto"></audio>
+<audio bind:this={keysHoverAudioEl} src="/assets/audio/chiavi.mp3" preload="auto"></audio>
+<audio bind:this={clickHoverAudioEl} src="/assets/audio/click.mp3" preload="auto"></audio>
+<audio bind:this={cioHoverAudioEl} src="/assets/audio/ciook.mp3" preload="auto"></audio>
+<audio bind:this={mapHoverAudioEl} src="/assets/audio/mappa.mp3" preload="auto"></audio>
 <audio
   bind:this={carloOfficeAudioEl}
-  src="/sound/carlozarriufficio1.mp3"
+  src="/assets/audio/carlozarriufficio1.mp3"
   preload="auto"
   onplay={() => {
     isCarloOfficeAudioActive = true;
@@ -2694,7 +2708,7 @@
 ></audio>
 <audio
   bind:this={carloOffice2AudioEl}
-  src="/sound/carlozarri2ufficio.mp3"
+  src="/assets/audio/carlozarri2ufficio.mp3"
   preload="auto"
   onplay={() => {
     isCarloOffice2AudioActive = true;
@@ -2710,7 +2724,7 @@
 ></audio>
 <audio
   bind:this={elisabettaOfficeAudioEl}
-  src="/sound/elisabettaufficio.mp3"
+  src="/assets/audio/elisabettaufficio.mp3"
   preload="auto"
   onplay={() => {
     isElisabettaOfficeAudioActive = true;
@@ -2726,7 +2740,7 @@
 ></audio>
 <audio
   bind:this={faustoOfficeAudioEl}
-  src="/sound/fausto_ufficio.mp3"
+  src="/assets/audio/fausto_ufficio.mp3"
   preload="auto"
   onplay={() => {
     isFaustoOfficeAudioActive = true;
@@ -2749,7 +2763,7 @@
     min-height: var(--app-viewport-height);
     overflow: hidden;
     background: var(--color-surface-page);
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, auto;
+    cursor: url('/assets/ui/cursors/retrogusto-cursor.svg') 5 5, auto;
     scrollbar-width: none;
     user-select: none;
     overscroll-behavior: contain;
@@ -2801,7 +2815,7 @@
   }
 
   .office-stage.is-dragging {
-    cursor: url('/cursors/retrogusto-cursor.svg') 5 5, auto;
+    cursor: url('/assets/ui/cursors/retrogusto-cursor.svg') 5 5, auto;
   }
 
   .office-asset {
@@ -2820,7 +2834,7 @@
     padding: 0;
     border: 0;
     background: transparent;
-    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     pointer-events: auto;
     touch-action: none;
     z-index: 7;
@@ -3079,7 +3093,7 @@
     border: 0;
     background: transparent;
     color: inherit;
-    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     opacity: var(--chef-entry-opacity, 0);
     pointer-events: auto;
     transform: translate3d(0, var(--chef-entry-y, 420px), 0);
@@ -3275,7 +3289,7 @@
     border-radius: 0;
     background: transparent;
     color: currentColor;
-    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     transition:
       opacity 140ms ease,
       transform 120ms ease;

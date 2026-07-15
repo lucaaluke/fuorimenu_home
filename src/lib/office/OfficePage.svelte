@@ -4,6 +4,7 @@
   import VolumeMaxIcon from '$lib/VolumeMaxIcon.svelte';
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
   import { animateCompat, waitForAnimationCompat } from '$lib/scene/browser-compat';
+  import { SECTION_AUDIO_FADE_OUT_MS } from '$lib/scene/constants';
   import { readAudioMutedPreference, writeAudioMutedPreference } from '$lib/scene/audio-preference';
   import SectionNextLink from '$lib/scene/SectionNextLink.svelte';
   import OfficeScene from './OfficeScene.svelte';
@@ -12,7 +13,6 @@
   let sceneProgress = $state(0);
   let isSceneRevealed = $state(false);
   let isLeavingSection = false;
-  const sectionAudioFadeOutMs = 460;
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
   const showNextSectionLink = $derived(sceneProgress >= 0.96);
 
@@ -35,7 +35,7 @@
 
     window.setTimeout(() => {
       void goto(href);
-    }, sectionAudioFadeOutMs);
+    }, SECTION_AUDIO_FADE_OUT_MS);
   }
 
   onMount(() => {
@@ -227,7 +227,7 @@
     border-radius: var(--radius-full);
     background: transparent;
     color: var(--topbar-control-fg);
-    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     isolation: isolate;
     transform: scale(var(--button-hover-scale));
     transition:

@@ -4,6 +4,7 @@
   import VolumeMaxIcon from '$lib/VolumeMaxIcon.svelte';
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
   import { animateCompat, waitForAnimationCompat } from '$lib/scene/browser-compat';
+  import { KITCHEN_RETURN_CAMERA_STORAGE_KEY, SECTION_AUDIO_FADE_OUT_MS } from '$lib/scene/constants';
   import { readAudioMutedPreference, writeAudioMutedPreference } from '$lib/scene/audio-preference';
   import SectionNextLink from '$lib/scene/SectionNextLink.svelte';
   import KitchenScene from './KitchenScene.svelte';
@@ -13,8 +14,6 @@
   let isSceneRevealed = $state(false);
   let initialCameraX = $state<number>();
   let isLeavingSection = false;
-  const sectionAudioFadeOutMs = 460;
-  const kitchenReturnCameraStorageKey = 'kitchen-return-camera-x';
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
   const showNextSectionLink = $derived(sceneProgress >= 0.96);
 
@@ -37,19 +36,19 @@
 
     window.setTimeout(() => {
       void goto(href);
-    }, sectionAudioFadeOutMs);
+    }, SECTION_AUDIO_FADE_OUT_MS);
   }
 
   onMount(() => {
     isAudioMuted = readAudioMutedPreference(false);
     const cameraXParam = new URLSearchParams(window.location.search).get('cameraX');
-    const storedCameraX = sessionStorage.getItem(kitchenReturnCameraStorageKey);
+    const storedCameraX = sessionStorage.getItem(KITCHEN_RETURN_CAMERA_STORAGE_KEY);
     const parsedCameraX = cameraXParam ? Number(cameraXParam) : storedCameraX ? Number(storedCameraX) : undefined;
     if (typeof parsedCameraX === 'number' && Number.isFinite(parsedCameraX)) {
       initialCameraX = parsedCameraX;
       window.history.replaceState(window.history.state, document.title, window.location.pathname);
     }
-    if (storedCameraX !== null) sessionStorage.removeItem(kitchenReturnCameraStorageKey);
+    if (storedCameraX !== null) sessionStorage.removeItem(KITCHEN_RETURN_CAMERA_STORAGE_KEY);
 
     if (sessionStorage.getItem('kitchen-card-transition') !== '1') return;
     sessionStorage.removeItem('kitchen-card-transition');
@@ -237,7 +236,7 @@
     border-radius: var(--radius-full);
     background: transparent;
     color: var(--topbar-control-fg);
-    cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+    cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
     isolation: isolate;
     transform: scale(var(--button-hover-scale));
     transition:

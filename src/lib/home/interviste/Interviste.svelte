@@ -2,6 +2,7 @@
   import VolumeMaxIcon from '$lib/VolumeMaxIcon.svelte';
   import VolumeOffIcon from '$lib/VolumeOffIcon.svelte';
   import { readAudioMutedPreference, writeAudioMutedPreference } from '$lib/scene/audio-preference';
+  import { clamp } from '$lib/scene/math';
   import { onMount } from 'svelte';
 
   type Props = {
@@ -76,7 +77,7 @@
     quote: string;
     transcript: InterviewTranscriptSection[];
   };
-  
+
   const interviewChefs: InterviewChef[] = [
     {
       number: '01',
@@ -84,12 +85,12 @@
       nameHeight: 231,
       faceWidth: 85,
       faceHeight: 85,
-      portraitSrc: '/assets/interviews/nini.png',
+      portraitSrc: '/assets/interviews/portraits/nini.png',
       featuredHover: {
         role: 'Executive Chef',
         description:
           'Lo chef piemontese ha fatto parte del team incaricato della ristorazione olimpica internazionale a Livigno.',
-        bodySrc: '/assets/interviews-hover/stefano-paganini-figma.svg'
+        bodySrc: '/assets/interviews/hover/stefano-paganini-figma.svg'
       },
       pieces: [
         { src: 'stefano-ring.svg', x: -1.31, y: -1.31, width: 87.62, height: 87.62 },
@@ -103,7 +104,7 @@
       nameHeight: 231,
       faceWidth: 86,
       faceHeight: 87,
-      portraitSrc: '/assets/interviews/zarri.png',
+      portraitSrc: '/assets/interviews/portraits/zarri.png',
       portraitY: 8,
       portraitScale: 1.15,
       pieces: [
@@ -120,7 +121,7 @@
       faceHeight: 86,
       portraitY: 14,
       portraitScale: 1.14,
-      portraitSrc: '/assets/interviews/eli.png',
+      portraitSrc: '/assets/interviews/portraits/eli.png',
       pieces: [
         { src: 'salvadori-ring.svg', x: -1.31, y: -0.31, width: 87.62, height: 87.62 },
         { src: 'salvadori-layer-1.svg', x: -5.0, y: 7.0, width: 100.93, height: 389.82, maskSrc: 'salvadori-mask.svg', maskX: 3.69, maskY: -8.31, maskSize: 87.62 },
@@ -136,7 +137,7 @@
       faceWidth: 85,
       faceHeight: 87,
       portraitY: 6,
-      portraitSrc: '/assets/interviews/fausto.png',
+      portraitSrc: '/assets/interviews/portraits/fausto.png',
       pieces: [
         { src: 'meli-ring.svg', x: -1.31, y: 0.69, width: 87.62, height: 87.62 },
         { src: 'meli-layer-1.svg', x: -14.0, y: 6.0, width: 113.98, height: 365.62, maskSrc: 'meli-mask.svg', maskX: 12.69, maskY: -7.31, maskSize: 87.62 },
@@ -149,7 +150,7 @@
       nameHeight: 288,
       faceWidth: 85,
       faceHeight: 85,
-      portraitSrc: '/assets/interviews/marco.png',
+      portraitSrc: '/assets/interviews/portraits/marco.png',
       portraitScale: 1.38,
       portraitY: 0,
       pieces: [{ src: 'frassante-face.svg', x: -1.31, y: -1.41, width: 87.62, height: 87.62 }]
@@ -160,7 +161,7 @@
       nameHeight: 288,
       faceWidth: 85,
       faceHeight: 87,
-      portraitSrc: '/assets/interviews/cracco.png',
+      portraitSrc: '/assets/interviews/portraits/cracco.png',
       portraitY: 14,
       portraitScale: 1.28,
       pieces: [{ src: 'cracco-face.svg', x: -1.31, y: 0, width: 87.62, height: 88.31 }]
@@ -171,7 +172,7 @@
       nameHeight: 288,
       faceWidth: 85,
       faceHeight: 85,
-      portraitSrc: '/assets/interviews/ken.png',
+      portraitSrc: '/assets/interviews/portraits/ken.png',
       portraitY: 22,
       portraitScale: 1.2,
       pieces: [
@@ -190,7 +191,7 @@
       role: 'Executive Chef',
       description:
         'Lo chef piemontese ha fatto parte del team incaricato della ristorazione olimpica internazionale a Livigno.',
-      portraitSrc: '/assets/interviews-hover/nini.png'
+      portraitSrc: '/assets/interviews/hover/nini.png'
     },
     'Carlo Zarri': {
       name: 'Carlo Zarri',
@@ -199,7 +200,7 @@
       role: 'Chief Executive Chef',
       description:
         "Architetto iniziale del progetto gastronomico di Milano-Cortina 2026 ha gestito la ristorazione all'Arena di Santa Giulia.",
-      portraitSrc: '/assets/interviews-hover/zarri.png',
+      portraitSrc: '/assets/interviews/hover/zarri.png',
       portraitX: 0,
       portraitY: 0,
       portraitHeight: 614
@@ -211,7 +212,7 @@
       role: 'Head Food and Beverage',
       description:
         "coordinatrice generale di tutta la strategia di ristorazione dell'evento, dalle Olimpiadi alle Paralimpiadi.",
-      portraitSrc: '/assets/interviews-hover/eli.png',
+      portraitSrc: '/assets/interviews/hover/eli.png',
       portraitX: 0,
       portraitY: 0,
       portraitHeight: 614,
@@ -225,7 +226,7 @@
       role: 'Executive Chef',
       description:
         'Chef di grande esperienza ha fatto da ponte tra il mondo della scuola e la grande macchina olimpica.',
-      portraitSrc: '/assets/interviews-hover/fausto.png',
+      portraitSrc: '/assets/interviews/hover/fausto.png',
       portraitX: 0,
       portraitY: 0,
       portraitHeight: 614,
@@ -239,7 +240,7 @@
       role: 'Executive Chef',
       description:
         "ha ricoperto un ruolo di coordinamento e leadership all'interno del Villaggio Olimpico di Livigno.",
-      portraitSrc: '/assets/interviews-hover/marco.png',
+      portraitSrc: '/assets/interviews/hover/marco.png',
       portraitX: 0,
       portraitY: 0,
       portraitHeight: 614,
@@ -253,7 +254,7 @@
       role: 'Chef Ambassador',
       description:
         "Ambasciatore dell'eccellenza italiana, firmando un piatto iconico che è diventato uno dei simboli virali di questa edizione dei Giochi.",
-      portraitSrc: '/assets/interviews-hover/cracco.png',
+      portraitSrc: '/assets/interviews/hover/cracco.png',
       portraitX: 0,
       portraitY: 0,
       portraitHeight: 614,
@@ -267,7 +268,7 @@
       role: 'Guest Chef International',
       description:
         'chef americano, ha avuto un ruolo speciale come chef internazionale nelle cucine di Milano-Cortina 2026',
-      portraitSrc: '/assets/interviews-hover/ken.png',
+      portraitSrc: '/assets/interviews/hover/ken.png',
       portraitX: 0,
       portraitY: 0,
       portraitHeight: 614,
@@ -630,10 +631,6 @@
   };
   let activeInterviewDetail = $derived(activeInterviewName ? interviewDetails[activeInterviewName] : undefined);
   let activeFullInterviewContent = $derived(activeInterviewName ? fullInterviewContent[activeInterviewName] : undefined);
-  
-  function clamp(value: number, min: number, max: number) {
-    return Math.min(max, Math.max(min, value));
-  }
 
   function openInterviewDetail(chef: InterviewChef) {
     if (!interviewDetails[chef.name]) return;
@@ -1079,7 +1076,7 @@
   border: 0;
   background: transparent;
   color: var(--color-text-primary);
-  cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+  cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
   appearance: none;
 }
 
@@ -2240,7 +2237,7 @@
   background: var(--color-surface-page);
   color: var(--color-text-primary);
   appearance: none;
-  cursor: url('/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
+  cursor: url('/assets/ui/cursors/retrogusto-pointer-on-cream.svg?v=3') 4 3, pointer;
   overflow: hidden;
   text-align: center;
 }
