@@ -1085,7 +1085,7 @@
       hoverAction: 'seguimi in cucina',
       hoverClosing: 'ed esplora l’ambiente',
       backgroundSrc: '/assets/home/cards/sfondocucina.png',
-      personSrc: '/assets/interviews/hover/stefano-paganini-figma.svg',
+      personSrc: '/assets/interviews/hover/nini.png',
       href: '/phaser'
     },
     {
@@ -2953,12 +2953,12 @@
         onclick={handleAboutCloseClick}
       >
         <span class="topbar-control-content" aria-hidden="true">
-          <span
-            class:menu-icon={aboutView === 'gate' || aboutView === 'interview'}
-            class:close-icon={aboutView !== 'gate' && aboutView !== 'interview'}
-          ></span>
-        </span>
-      </button>
+							<span
+								class:menu-icon={aboutView === 'interview'}
+								class:close-icon={aboutView !== 'interview'}
+							></span>
+						</span>
+					</button>
     </header>
 
     <h2 id="about-title" class="visually-hidden">About Fuorimenù</h2>
@@ -3272,7 +3272,9 @@
 
   .audio-gate {
     --audio-gate-orbit-size: min(calc(100vw - 48px), calc(var(--app-viewport-height) - 48px), 634px);
-    --audio-gate-utensil-offset: clamp(300px, calc(var(--audio-gate-orbit-size) * 0.74), 470px);
+    --audio-gate-dot-edge-inset: calc(var(--audio-gate-orbit-size) * 0.01);
+    --audio-gate-side-space: calc((100vw - var(--audio-gate-orbit-size)) / 2 + var(--audio-gate-dot-edge-inset));
+    --audio-gate-utensil-center-x: calc(var(--audio-gate-side-space) / 2);
 
     position: fixed;
     z-index: 100;
@@ -3316,7 +3318,7 @@
 
     position: absolute;
     top: 50%;
-    left: calc(50% - var(--audio-gate-utensil-offset));
+    left: var(--audio-gate-utensil-center-x);
     width: clamp(86px, 12vw, 174px);
     height: min(149svh, 890px);
     transform: translate3d(-50%, calc(-50% + 118svh), 0) rotate(var(--tool-start-angle));
@@ -3353,7 +3355,7 @@
     --tool-idle-angle: -1.3deg;
 
     top: 50%;
-    left: calc(50% + var(--audio-gate-utensil-offset));
+    left: calc(100% - var(--audio-gate-utensil-center-x));
     width: clamp(68px, 9.4vw, 134px);
     height: min(178svh, 1068px);
     animation-delay: calc(var(--utensil-rise-delay, 0ms) + 80ms);
@@ -3422,7 +3424,7 @@
     display: block;
     width: 100%;
     height: 100%;
-    overflow: visible;
+    overflow: hidden;
     transform: rotate(0deg);
     transform-origin: center;
     animation: audioGateOrbitSpin 56s linear 1.15s infinite;
@@ -6533,18 +6535,22 @@
 
   .role-card.is-cucina {
     --role-person-base-x: 0px;
-    --role-person-base-y: 28px;
-    --role-person-height: min(66%, 720px);
+    --role-person-base-y: 300px;
+    --role-person-height: min(142%, 1240px);
+  }
+
+  .role-card.is-cucina .role-person {
+    bottom: -88px;
   }
 
   .role-card.is-ufficio {
     --role-person-base-x: 0px;
-    --role-person-base-y: 240px;
-    --role-person-height: min(124%, 1120px);
+    --role-person-base-y: 257px;
+    --role-person-height: min(127%, 1140px);
   }
 
   .role-card.is-ufficio .role-person {
-    bottom: -56px;
+    bottom: -58px;
   }
 
   .role-card.is-servizio .role-person {
@@ -6994,11 +7000,18 @@
       height: var(--role-person-mobile-height, min(98%, 400px));
     }
     .role-card.is-ufficio {
-      --role-person-base-y: 78px;
-      --role-person-mobile-height: min(126%, 500px);
+      --role-person-base-y: 82px;
+      --role-person-mobile-height: min(128%, 510px);
     }
     .role-card.is-ufficio .role-person {
-      bottom: -126px;
+      bottom: -128px;
+    }
+    .role-card.is-cucina {
+      --role-person-base-y: 96px;
+      --role-person-mobile-height: min(142%, 580px);
+    }
+    .role-card.is-cucina .role-person {
+      bottom: -150px;
     }
     .role-card.is-servizio {
       --role-person-base-y: 116px;

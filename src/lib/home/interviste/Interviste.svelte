@@ -15,6 +15,7 @@
   let activeInterviewName = $state<string>();
   let isFullInterview = $state(false);
   let isAudioMuted = $state(true);
+  let fullPortraitScale = $state(1);
   let miniPortraitImages: HTMLImageElement[] = [];
   const audioLabel = $derived(isAudioMuted ? 'Audio disattivato' : 'Audio attivo');
 
@@ -226,10 +227,10 @@
       role: 'Executive Chef',
       description:
         'Chef di grande esperienza ha fatto da ponte tra il mondo della scuola e la grande macchina olimpica.',
-      portraitSrc: '/assets/interviews/hover/fausto.png',
+      portraitSrc: '/assets/interviews/hover/hover%20giusti/meli.png',
       portraitX: 0,
-      portraitY: 0,
-      portraitHeight: 614,
+      portraitY: 51,
+      portraitHeight: 511,
       firstNameX: 63,
       lastNameX: 0
     },
@@ -240,10 +241,10 @@
       role: 'Executive Chef',
       description:
         "ha ricoperto un ruolo di coordinamento e leadership all'interno del Villaggio Olimpico di Livigno.",
-      portraitSrc: '/assets/interviews/hover/marco.png',
+      portraitSrc: '/assets/interviews/hover/hover%20giusti/marco.png',
       portraitX: 0,
-      portraitY: 0,
-      portraitHeight: 614,
+      portraitY: 51,
+      portraitHeight: 511,
       firstNameX: 74,
       lastNameX: 5
     },
@@ -254,10 +255,10 @@
       role: 'Chef Ambassador',
       description:
         "Ambasciatore dell'eccellenza italiana, firmando un piatto iconico che è diventato uno dei simboli virali di questa edizione dei Giochi.",
-      portraitSrc: '/assets/interviews/hover/cracco.png',
+      portraitSrc: '/assets/interviews/hover/hover%20giusti/cracco.png',
       portraitX: 0,
-      portraitY: 0,
-      portraitHeight: 614,
+      portraitY: 51,
+      portraitHeight: 511,
       firstNameX: 92,
       lastNameX: 5
     },
@@ -268,10 +269,10 @@
       role: 'Guest Chef International',
       description:
         'chef americano, ha avuto un ruolo speciale come chef internazionale nelle cucine di Milano-Cortina 2026',
-      portraitSrc: '/assets/interviews/hover/ken.png',
+      portraitSrc: '/assets/interviews/hover/hover%20giusti/ken.png',
       portraitX: 0,
-      portraitY: 0,
-      portraitHeight: 614,
+      portraitY: 51,
+      portraitHeight: 511,
       firstNameX: 78,
       lastNameX: 5
     }
@@ -751,9 +752,13 @@
     const x = (fittedFrameWidth - visibleWidth) / 2 - bounds.left * scale;
     const y = topPadding - bounds.top * scale;
 
-    image.style.width = `${bounds.naturalWidth * scale}px`;
-    image.style.height = `${bounds.naturalHeight * scale}px`;
-    image.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    frame.style.setProperty('--mini-portrait-render-width', `${bounds.naturalWidth * scale}px`);
+    frame.style.setProperty('--mini-portrait-render-height', `${bounds.naturalHeight * scale}px`);
+    frame.style.setProperty('--mini-portrait-x', `${x}px`);
+    frame.style.setProperty('--mini-portrait-y', `${y}px`);
+    image.style.width = '';
+    image.style.height = '';
+    image.style.transform = '';
   }
 
   function fitAllMiniPortraits() {
@@ -765,6 +770,15 @@
   function fitMiniPortraitAt(index: number) {
     const image = miniPortraitImages[index];
     if (image) fitMiniPortrait(image);
+  }
+
+  function syncFullPortraitScale() {
+    fullPortraitScale = clamp(1 + ((window.innerWidth - 1512) / 688) * 0.18, 1, 1.18);
+  }
+
+  function handleViewportResize() {
+    fitAllMiniPortraits();
+    syncFullPortraitScale();
   }
 
   function reloadHome(event: MouseEvent) {
@@ -781,10 +795,11 @@
     openPaganiniWrittenInterviewFromUrl();
     isAudioMuted = readAudioMutedPreference(isAudioMuted);
     fitAllMiniPortraits();
-    window.addEventListener('resize', fitAllMiniPortraits);
+    syncFullPortraitScale();
+    window.addEventListener('resize', handleViewportResize);
 
     return () => {
-      window.removeEventListener('resize', fitAllMiniPortraits);
+      window.removeEventListener('resize', handleViewportResize);
     };
   });
 </script>
@@ -795,7 +810,7 @@
   <section
     class="about-full-interview"
     class:is-standalone={standalone}
-    style={`--interviste-top-offset:${standaloneTopOffset};`}
+    style={`--interviste-top-offset:${standaloneTopOffset};--about-full-portrait-scale:${fullPortraitScale};`}
     aria-labelledby="about-full-interview-title"
     data-node-id="495:1374"
   >
@@ -812,7 +827,12 @@
       </span>
     </button>
     <div class="about-full-interview-portrait" aria-hidden="true">
-      <img src={activeInterviewDetail.portraitSrc} alt="" draggable="false" />
+      <img
+        src={activeInterviewDetail.portraitSrc}
+        alt=""
+        draggable="false"
+        style={`--full-portrait-x:${activeInterviewDetail.portraitX ?? 0}px;--full-portrait-y:${activeInterviewDetail.portraitY ?? 0}px;--full-portrait-height:${activeInterviewDetail.portraitHeight ?? 614}px;`}
+      />
     </div>
     <article class="about-full-interview-copy">
       <header
@@ -878,7 +898,16 @@
           onclick={() => openInterviewDetail(chef)}
         >
           <span class="interview-face" aria-hidden="true">
+            <img class="interview-face-stroke stroke-n" src={chef.portraitSrc} alt="" draggable="false" />
+            <img class="interview-face-stroke stroke-e" src={chef.portraitSrc} alt="" draggable="false" />
+            <img class="interview-face-stroke stroke-s" src={chef.portraitSrc} alt="" draggable="false" />
+            <img class="interview-face-stroke stroke-w" src={chef.portraitSrc} alt="" draggable="false" />
+            <img class="interview-face-stroke stroke-ne" src={chef.portraitSrc} alt="" draggable="false" />
+            <img class="interview-face-stroke stroke-se" src={chef.portraitSrc} alt="" draggable="false" />
+            <img class="interview-face-stroke stroke-sw" src={chef.portraitSrc} alt="" draggable="false" />
+            <img class="interview-face-stroke stroke-nw" src={chef.portraitSrc} alt="" draggable="false" />
             <img
+              class="interview-face-image"
               bind:this={miniPortraitImages[index]}
               src={chef.portraitSrc}
               alt=""
@@ -903,7 +932,7 @@
               src={activeInterviewDetail.portraitSrc}
               alt=""
               draggable="false"
-              style={`--detail-portrait-x:${activeInterviewDetail.portraitX ?? 0}px;--detail-portrait-y:${activeInterviewDetail.portraitY ?? 0}px;--detail-portrait-height:${activeInterviewDetail.portraitHeight ?? 614}px;`}
+              style={`--detail-portrait-x:${activeInterviewDetail.portraitX ?? 0}px;--detail-portrait-y:${activeInterviewDetail.portraitY ?? 0}px;--detail-portrait-height:${activeInterviewDetail.portraitHeight ?? 614}px;--detail-portrait-scale:${fullPortraitScale};`}
             />
           </div>
           <div class="about-interview-detail-content" data-node-id="428:17268">
@@ -1251,39 +1280,38 @@
 
 @media (min-width: 1061px) {
   .about-full-interview.is-standalone {
-    display: grid;
-    grid-template-columns: minmax(150px, clamp(190px, 24vw, calc(var(--about-full-portrait-width) * 1.2))) minmax(0, 641px);
-    column-gap: clamp(40px, 7vw, 96px);
-    align-items: center;
-    justify-content: center;
-    padding: clamp(22px, 3.4vh, 37px) clamp(40px, 5vw, 80px) clamp(24px, 4vh, 56px);
+    --about-full-text-left: clamp(420px, 39.68vw, 720px);
+
+    display: block;
+    padding: clamp(22px, 3.4vh, 37px) 0 clamp(24px, 4vh, 56px);
   }
 
   .about-full-interview.is-standalone .about-full-interview-portrait {
-    position: relative;
-    top: auto;
-    left: auto;
-    width: 100%;
-    height: min(614px, calc(var(--app-viewport-height) - var(--interviste-top-offset, 0px) - clamp(52px, 8vh, 92px)));
+    position: absolute;
+    top: 1px;
+    left: 0;
+    width: var(--about-full-text-left);
+    height: 737px;
   }
 
   .about-full-interview.is-standalone .about-full-interview-portrait img {
-    top: 0;
-    left: 50%;
-    max-width: 100%;
-    height: 100%;
-    transform: translateX(-50%);
+    top: var(--full-portrait-y, 0px);
+    left: calc(50% + var(--full-portrait-x, 0px));
+    max-width: none;
+    height: var(--full-portrait-height, 614px);
+    transform: translateX(-50%) scale(var(--about-full-portrait-scale));
+    transform-origin: top center;
     object-fit: contain;
   }
 
   .about-full-interview.is-standalone .about-full-interview-copy {
     display: flex;
     flex-direction: column;
-    width: 100%;
+    width: min(641px, calc(100vw - var(--about-full-text-left) - clamp(40px, 5vw, 80px)));
     min-width: 0;
     height: 100%;
     min-height: 0;
-    margin-left: 0;
+    margin-left: var(--about-full-text-left);
     padding: 0;
   }
 
@@ -1829,6 +1857,7 @@
   display: block;
   width: auto;
   height: var(--detail-portrait-height, 614px);
+  transform-origin: top center;
   user-select: none;
 }
 
@@ -1998,6 +2027,7 @@
     width: 100%;
     height: 100%;
     min-height: 0;
+    overflow: visible;
   }
 
   .about-interviews.is-standalone .about-interview-detail-portrait img {
@@ -2005,7 +2035,7 @@
     left: calc(50% + var(--detail-portrait-x, 0px));
     max-width: 100%;
     height: min(var(--detail-portrait-height, 614px), calc(100% - 24px));
-    transform: translateX(-50%);
+    transform: translateX(-50%) scale(var(--detail-portrait-scale, 1));
     object-fit: contain;
   }
 
@@ -2020,7 +2050,7 @@
     width: 100%;
     min-width: 0;
     height: 100%;
-    padding-top: clamp(12px, 2.8vh, 32px);
+    padding-top: clamp(44px, 5.2vh, 56px);
   }
 
   .about-interviews.is-standalone .about-interview-detail-name {
@@ -2111,6 +2141,7 @@
     top: auto;
     bottom: 0;
     height: min(var(--detail-portrait-height, 614px), 100%);
+    transform: translateX(-50%);
   }
 }
 
@@ -2330,7 +2361,8 @@
   max-width: min(var(--mini-portrait-wide-width, 104px), 36vw);
   height: 100%;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
+  isolation: isolate;
 }
 
 .about-interviews.is-standalone .interview-face {
@@ -2340,24 +2372,54 @@
   height: 100%;
 }
 
-.interview-face img {
+.interview-face-image,
+.interview-face-stroke {
   position: absolute;
   top: 0;
   left: 0;
   display: block;
-  width: auto;
-  height: auto;
+  width: var(--mini-portrait-render-width, auto);
+  height: var(--mini-portrait-render-height, auto);
   max-width: none;
   max-height: none;
   transform-origin: 0 0;
+  transform:
+    translate3d(
+      calc(var(--mini-portrait-x, 0px) + var(--stroke-x, 0px)),
+      calc(var(--mini-portrait-y, 0px) + var(--stroke-y, 0px)),
+      0
+    );
   user-select: none;
   pointer-events: none;
   will-change: transform;
 }
 
-.interview-mini-card[aria-current='true'] .interview-face img {
-  filter: url('#interview-selected-chef-outline');
+.interview-face-image {
+  z-index: 2;
 }
+
+.interview-face-stroke {
+  z-index: 1;
+  opacity: 0;
+  filter: brightness(0) saturate(100%) invert(96%) sepia(12%) saturate(443%) hue-rotate(324deg) brightness(102%) contrast(95%);
+}
+
+.interview-mini-card[aria-current='true'] {
+  z-index: 4;
+}
+
+.interview-mini-card[aria-current='true'] .interview-face-stroke {
+  opacity: 1;
+}
+
+.interview-face-stroke.stroke-n { --stroke-y: -4px; }
+.interview-face-stroke.stroke-e { --stroke-x: 4px; }
+.interview-face-stroke.stroke-s { --stroke-y: 4px; }
+.interview-face-stroke.stroke-w { --stroke-x: -4px; }
+.interview-face-stroke.stroke-ne { --stroke-x: 3px; --stroke-y: -3px; }
+.interview-face-stroke.stroke-se { --stroke-x: 3px; --stroke-y: 3px; }
+.interview-face-stroke.stroke-sw { --stroke-x: -3px; --stroke-y: 3px; }
+.interview-face-stroke.stroke-nw { --stroke-x: -3px; --stroke-y: -3px; }
 
 @media (max-height: 760px) and (min-width: 701px) {
   .about-interviews.is-standalone .interview-face {
