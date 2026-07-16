@@ -2148,6 +2148,16 @@
 }
 
 @media (min-width: 1061px) {
+  .about-interviews.is-standalone .about-interview-detail-portrait {
+    align-self: center;
+  }
+
+  .about-interviews.is-standalone .about-interview-detail-portrait img {
+    top: calc(50% + var(--detail-portrait-y, 0px));
+    transform: translate(-50%, -50%) scale(var(--detail-portrait-scale, 1));
+    transform-origin: center center;
+  }
+
   .about-interviews.is-standalone .about-interview-detail-content {
     align-self: center;
     height: auto;
