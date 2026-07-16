@@ -3034,12 +3034,12 @@
 
 <audio
   bind:this={serviceAmbientAudioEl}
-  src="/assets/audio/serviziobackground.mp3"
+  src="/assets/audio/background/serviziobackground.mp3"
   preload="auto"
 ></audio>
 <audio
   bind:this={carloServiceAudioEl}
-  src="/assets/audio/carlozarriservizio.mp3"
+  src="/assets/audio/testimonials/carlozarriservizio.mp3"
   preload="auto"
   onplay={() => {
     isCarloServiceAudioActive = true;
@@ -3054,7 +3054,7 @@
 ></audio>
 <audio
   bind:this={elisabettaServiceAudioEl}
-  src="/assets/audio/elisabettaservizio.mp3"
+  src="/assets/audio/testimonials/elisabettaservizio.mp3"
   preload="auto"
   onplay={() => {
     isElisabettaServiceAudioActive = true;
@@ -3069,7 +3069,7 @@
 ></audio>
 <audio
   bind:this={marcoServiceAudioEl}
-  src="/assets/audio/marcoservizio.wav"
+  src="/assets/audio/testimonials/marcoservizio.wav"
   preload="auto"
   onplay={() => {
     isMarcoServiceAudioActive = true;
@@ -3084,7 +3084,7 @@
 ></audio>
 <audio
   bind:this={faustoServiceAudioEl}
-  src="/assets/audio/faustomeliservizio.mp3"
+  src="/assets/audio/testimonials/faustomeliservizio.mp3"
   preload="auto"
   onplay={() => {
     isFaustoServiceAudioActive = true;
@@ -3099,7 +3099,7 @@
 ></audio>
 <audio
   bind:this={niniServiceAudioEl}
-  src="/assets/audio/niniservizio.mp3"
+  src="/assets/audio/testimonials/niniservizio.mp3"
   preload="auto"
   onplay={() => {
     isNiniServiceAudioActive = true;

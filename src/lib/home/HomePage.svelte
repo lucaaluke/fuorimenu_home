@@ -150,21 +150,21 @@
 
   const roleAudio: Record<AudioRole, AudioCueConfig> = {
     ufficio: {
-      src: '/assets/audio/office.mp3',
+      src: '/assets/audio/cards/office.mp3',
       startTime: 0.5,
       maxTime: 0,
       targetVolume: 0.62,
       fadeInDuration: 0.05
     },
     cucina: {
-      src: '/assets/audio/kitchen.mp3',
+      src: '/assets/audio/cards/kitchen.mp3',
       startTime: 0,
       maxTime: 0,
       targetVolume: 0.42,
       fadeInDuration: 0.12
     },
     servizio: {
-      src: '/assets/audio/restaurant.mp3',
+      src: '/assets/audio/cards/restaurant.mp3',
       startTime: 0,
       maxTime: 0,
       targetVolume: 1,
@@ -173,7 +173,7 @@
     }
   };
   const backgroundAudio: AudioCueConfig = {
-    src: '/assets/audio/home_backgroundok.mp3',
+    src: '/assets/audio/background/home_backgroundok.mp3',
     startTime: 0,
     targetVolume: 0.88,
     fadeInDuration: 1.2,
@@ -6103,15 +6103,17 @@
 
   .role-grid {
     --role-card-aspect: 373.448 / 524;
-    --role-grid-height: min(620px, calc(var(--app-viewport-height) - var(--layout-topbar-height) - 86px));
+    --role-grid-available-height: calc(var(--app-viewport-height) - var(--layout-topbar-height));
+    --role-grid-height: min(620px, max(1px, calc(var(--role-grid-available-height) - 52px)));
     --role-card-max-width: min(386px, calc(var(--role-grid-height) * 0.7127), calc((100vw - var(--layout-page-gutter) * 2 - var(--spacing-5) * 2) / 3));
 
     position: absolute; z-index: 2;
-    top: calc(var(--layout-topbar-height) + 26px); left: var(--layout-page-gutter); right: var(--layout-page-gutter);
-    height: var(--role-grid-height);
+    top: var(--layout-topbar-height); bottom: 0; left: var(--layout-page-gutter); right: var(--layout-page-gutter);
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: minmax(0, var(--role-grid-height));
     justify-content: stretch;
+    align-content: center;
     align-items: center;
     column-gap: var(--spacing-5);
     transform-style: flat;
@@ -6657,11 +6659,10 @@
 
   @media (min-width: 701px) and (max-width: 1180px) {
     .role-grid {
-      --role-grid-height: min(590px, calc(var(--app-viewport-height) - var(--layout-topbar-height) - 72px));
+      --role-grid-height: min(590px, max(1px, calc(var(--role-grid-available-height) - 44px)));
       --role-card-gap: clamp(10px, 1.6vw, 18px);
       --role-card-max-width: min(368px, calc(var(--role-grid-height) * 0.7127), calc((100vw - var(--layout-page-gutter) * 2 - var(--role-card-gap) * 2) / 3));
 
-      top: calc(var(--layout-topbar-height) + 22px);
       column-gap: var(--role-card-gap);
     }
 
@@ -6923,17 +6924,18 @@
     .floating-fusillo { width: clamp(82px, 26vw, 118px); }
     .roles-top-bar { height: var(--layout-topbar-height-mobile); padding: var(--layout-topbar-padding-mobile); }
     .role-grid {
-      --role-grid-height: calc(var(--app-viewport-height) - var(--layout-topbar-height-mobile) - 16px);
+      --role-grid-available-height: calc(var(--app-viewport-height) - var(--layout-topbar-height-mobile));
+      --role-grid-height: max(1px, calc(var(--role-grid-available-height) - 16px));
       --role-card-gap: clamp(6px, 1vh, 8px);
       --role-card-mobile-row-height: calc((var(--role-grid-height) - var(--role-card-gap) * 2) / 3);
       --role-card-max-width: 100%;
 
-      top: calc(var(--layout-topbar-height-mobile) + 8px);
+      top: var(--layout-topbar-height-mobile);
+      bottom: 0;
       left: var(--layout-page-gutter-mobile);
       right: var(--layout-page-gutter-mobile);
       box-sizing: border-box;
       width: auto;
-      height: var(--role-grid-height);
       grid-template-columns: var(--role-card-max-width);
       grid-template-rows: repeat(3, minmax(0, var(--role-card-mobile-row-height)));
       gap: var(--role-card-gap);
@@ -7219,10 +7221,11 @@
     }
 
     .role-grid {
-      --role-grid-height: calc(var(--app-viewport-height) - var(--layout-topbar-height-mobile) - 18px);
+      --role-grid-height: max(1px, calc(var(--role-grid-available-height) - 18px));
       --role-card-gap: 8px;
 
-      top: calc(var(--layout-topbar-height-mobile) + 8px);
+      top: var(--layout-topbar-height-mobile);
+      bottom: 0;
       left: var(--layout-page-gutter-mobile);
       right: var(--layout-page-gutter-mobile);
     }

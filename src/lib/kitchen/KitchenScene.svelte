@@ -3,7 +3,6 @@
   import { onMount } from 'svelte';
   import {
     kitchenAssetVersion,
-    kitchenAssets,
     kitchenConstructionChunks,
     kitchenConstructionFloorTopY,
     kitchenConstructionObjectAssets,
@@ -24,8 +23,7 @@
   import { clamp, px } from '$lib/scene/math';
   import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
   import SceneProgressBar from '$lib/scene/SceneProgressBar.svelte';
-  import { getSceneAssetStyle } from '$lib/scene/scene-utils';
-  import type { InteractiveSceneAsset, SceneAsset } from '$lib/scene/scene-asset.types';
+  import type { SceneAsset } from '$lib/scene/scene-asset.types';
   import { createViewportObserver } from '$lib/scene/viewport';
   import type {
     KitchenControllerEvents,
@@ -44,7 +42,6 @@
   } = kitchenSceneConfig;
   const mouseWheelPixelThreshold = 40;
   const mouseWheelScrollFactor = 0.42;
-  const showLegacyKitchenOverlays = false;
   const phaserObjectScrollFactor = {
     middle: 1.25,
     foreground: 1.5
@@ -72,13 +69,13 @@
       'Si devono gestire bene i tempi di preparazione e i tempi del servizio per non accavallare le cose.'
   };
   const kitchenSTooltipSoundFileById = {
-    cone: '/assets/audio/conook.mp3',
-    cleaningKit: '/assets/audio/spruzzinook.mp3',
-    coffeeCup: '/assets/audio/tazzinaok.mp3',
-    alarmClock: '/assets/audio/svegliaok.mp3',
-    stove: '/assets/audio/fornellook.mp3',
-    standMixer: '/assets/audio/mixer.mp3',
-    toolbox: '/assets/audio/toolbox.mp3'
+    cone: '/assets/audio/interactive-objects/conook.mp3',
+    cleaningKit: '/assets/audio/interactive-objects/spruzzinook.mp3',
+    coffeeCup: '/assets/audio/interactive-objects/tazzinaok.mp3',
+    alarmClock: '/assets/audio/interactive-objects/svegliaok.mp3',
+    stove: '/assets/audio/interactive-objects/fornellook.mp3',
+    standMixer: '/assets/audio/interactive-objects/mixer.mp3',
+    toolbox: '/assets/audio/interactive-objects/toolbox.mp3'
   } as const;
   const kitchenSTooltipSoundById: Record<string, keyof typeof kitchenSTooltipSoundFileById> = {
     'S-cono': 'cone',
@@ -105,7 +102,6 @@
     onSceneRevealedChange?: (isRevealed: boolean) => void;
   }>();
   const { bridge } = sceneController;
-  const kitchenAsset = (name: string) => `/assets/${name}?v=${kitchenAssetVersion}`;
   let gsap: Gsap | undefined;
   const testimonialHandoffSticky = {
     maxFactor: 0.92,
@@ -173,7 +169,7 @@
     {
       id: 'carlo',
       ariaLabel: 'Testimonianza Carlo Zarri',
-      audioSrc: '/assets/audio/carlo.mp3',
+      audioSrc: '/assets/audio/testimonials/carlo.mp3',
       enterProgress: 0.02,
       exitProgress: 0.155,
       dialogueVisibleThreshold: 0.16,
@@ -193,7 +189,7 @@
     {
       id: 'paganini',
       ariaLabel: 'Testimonianza Stefano Paganini',
-      audioSrc: '/assets/audio/stefano.mp3',
+      audioSrc: '/assets/audio/testimonials/stefano.mp3',
       enterProgress: 0.168,
       exitProgress: 0.235,
       dialogueVisibleThreshold: 0.16,
@@ -214,7 +210,7 @@
     {
       id: 'fausto',
       ariaLabel: 'Prima testimonianza Fausto Meli',
-      audioSrc: '/assets/audio/faustocucina1.mp3',
+      audioSrc: '/assets/audio/testimonials/faustocucina1.mp3',
       dialogueVisibleThreshold: 0.16,
       enterProgress: 0.248,
       exitProgress: 0.44,
@@ -234,7 +230,7 @@
     {
       id: 'fausto2',
       ariaLabel: 'Seconda testimonianza Fausto Meli',
-      audioSrc: '/assets/audio/fausto2ok.mp3',
+      audioSrc: '/assets/audio/testimonials/fausto2ok.mp3',
       dialogueVisibleThreshold: 0.16,
       enterProgress: 0.47,
       exitProgress: 0.55,
@@ -254,7 +250,7 @@
     {
       id: 'marco',
       ariaLabel: 'Testimonianza Marco Frassante',
-      audioSrc: '/assets/audio/marcofrassantecucina.mp3',
+      audioSrc: '/assets/audio/testimonials/marcofrassantecucina.mp3',
       dialogueVisibleThreshold: 0.16,
       enterProgress: 0.57,
       exitProgress: 1,
@@ -614,32 +610,6 @@
     ].join(';');
   }
 
-  function getAssetClass(asset: SceneAsset) {
-    return [
-      'parallax-layer',
-      'scene-asset',
-      'reveal-layer',
-      `${asset.layer}-layer`,
-      `layer-${asset.layer}`,
-      asset.isTail ? 'tail-layer' : '',
-      asset.kind === 'interactive' ? 'interactive-asset' : '',
-      asset.kind === 'interactive' ? `${asset.id}-layer` : ''
-    ]
-      .filter(Boolean)
-      .join(' ');
-  }
-
-  function getAssetStyle(asset: SceneAsset) {
-    const style = [
-      getSceneAssetStyle(asset, cameraX, sceneHeight, sceneScale, resolvedLayerSpeed, tailStartX)
-    ];
-
-    if (asset.opacity !== undefined) style.push(`opacity: ${asset.opacity}`);
-    if (asset.zOffset !== undefined) style.push(`--scene-z-offset: ${asset.zOffset}`);
-
-    return style.join(';');
-  }
-
   function getPhaserObjectScrollFactor(asset: SceneAsset) {
     if (asset.id.startsWith('2-')) return phaserObjectScrollFactor.middle;
     if (asset.layer === 'foreground') return phaserObjectScrollFactor.foreground;
@@ -784,36 +754,6 @@
         pointerY >= rect.top - hitboxPadding &&
         pointerY <= rect.bottom + hitboxPadding
     );
-  }
-
-  function getInteractiveAssetStyle(asset: InteractiveSceneAsset) {
-    const style = [getAssetStyle(asset)];
-    const placement = asset.hoverDialoguePlacement;
-    if (!placement) return style.join(';');
-
-    const prefix = asset.id;
-    style.push(
-      `--interactive-message-width: ${scenePx(placement.width * sceneScale)}`,
-      `--interactive-message-padding: ${scenePx(placement.padding * sceneScale)}`,
-      `--interactive-message-font-size: ${scenePx(placement.fontSize * sceneScale)}`,
-      `--interactive-arrow-size: ${scenePx(placement.arrowSize * sceneScale)}`,
-      `--interactive-message-gap: ${scenePx(34 * sceneScale)}`,
-      `--${prefix}-message-left: ${scenePx(placement.left * sceneScale)}`,
-      `--${prefix}-message-top: ${scenePx(placement.top * sceneScale)}`,
-      `--${prefix}-message-width: ${scenePx(placement.width * sceneScale)}`,
-      `--${prefix}-message-padding: ${scenePx(placement.padding * sceneScale)}`,
-      `--${prefix}-message-font-size: ${scenePx(placement.fontSize * sceneScale)}`,
-      `--${prefix}-arrow-left: ${scenePx((placement.arrowLeft ?? asset.width / 2) * sceneScale)}`,
-      `--${prefix}-arrow-top: ${scenePx(placement.arrowTop * sceneScale)}`,
-      `--${prefix}-arrow-size: ${scenePx(placement.arrowSize * sceneScale)}`,
-      `--${prefix}-message-gap: ${scenePx(34 * sceneScale)}`
-    );
-
-    return style.join(';');
-  }
-
-  function getInteractivePartClass(asset: InteractiveSceneAsset, part: 'dialogue' | 'arrow' | 'panel' | 'copy') {
-    return `${asset.id}-hover-${part} hover-${part}`;
   }
 
   function smoothProgress(value: number) {
@@ -1831,22 +1771,6 @@
     hasPlayedStandMixerHover = false;
   }
 
-  function playInteractiveHoverSound(asset: InteractiveSceneAsset) {
-    if (asset.hoverSound === 'toolbox') {
-      playToolShedHoverSound();
-      return;
-    }
-    if (asset.hoverSound === 'mixer') playStandMixerHoverSound();
-  }
-
-  function resetInteractiveHoverSound(asset: InteractiveSceneAsset) {
-    if (asset.hoverSound === 'toolbox') {
-      resetToolShedHoverSound();
-      return;
-    }
-    if (asset.hoverSound === 'mixer') resetStandMixerHoverSound();
-  }
-
   function getTestimonialAudioEl(testimonial: KitchenTestimonial) {
     if (testimonial.id === 'carlo') return carloAudioEl;
     if (testimonial.id === 'paganini') return paganiniAudioEl;
@@ -2407,46 +2331,6 @@
     <h1 class="scene-title" style={getTitleStyle()} aria-label="Cucina">Cucina</h1>
   {/if}
 
-  {#if showLegacyKitchenOverlays}
-    {#each kitchenAssets as asset (asset.id)}
-      {#if asset.kind === 'interactive'}
-        <button
-          class={getAssetClass(asset)}
-          data-node-id={asset.nodeId}
-          style={getInteractiveAssetStyle(asset)}
-          type="button"
-          tabindex={asset.ariaLabel ? 0 : -1}
-          aria-label={asset.ariaLabel}
-          aria-hidden={asset.ariaLabel ? undefined : 'true'}
-          onpointerenter={() => playInteractiveHoverSound(asset)}
-          onpointerleave={() => resetInteractiveHoverSound(asset)}
-          onpointerdown={(event) => event.stopPropagation()}
-        >
-          <img src={kitchenAsset(asset.src)} alt="" width="100%" height="100%" draggable="false" />
-          {#if asset.shineEffect}
-            <span
-              class="object-shine"
-              style={`--shine-mask: url('${kitchenAsset(asset.src)}')`}
-              aria-hidden="true"
-            ></span>
-          {/if}
-          {#if asset.hoverDialogue}
-            <span
-              class={getInteractivePartClass(asset, 'dialogue')}
-              aria-hidden="true"
-              data-node-id={asset.hoverDialogueNodeId}
-            >
-              <span class={getInteractivePartClass(asset, 'arrow')} aria-hidden="true"></span>
-              <span class={getInteractivePartClass(asset, 'panel')}>
-                <span class={getInteractivePartClass(asset, 'copy')}>{asset.hoverDialogue}</span>
-              </span>
-            </span>
-          {/if}
-        </button>
-      {/if}
-    {/each}
-  {/if}
-
   {#each kitchenTestimonials as testimonial (testimonial.id)}
     {@const isDialogueVisible = isTestimonialDialogueVisible(testimonial)}
     <div
@@ -2549,18 +2433,50 @@
   {/each}
 </section>
 
-<audio bind:this={toolShedAudioEl} src="/assets/audio/toolbox.mp3" preload="auto"></audio>
-<audio bind:this={standMixerAudioEl} src="/assets/audio/mixer.mp3" preload="auto"></audio>
-<audio bind:this={coneHoverAudioEl} src="/assets/audio/conook.mp3" preload="auto"></audio>
-<audio bind:this={cleaningKitHoverAudioEl} src="/assets/audio/spruzzinook.mp3" preload="auto"></audio>
-<audio bind:this={coffeeCupHoverAudioEl} src="/assets/audio/tazzinaok.mp3" preload="auto"></audio>
-<audio bind:this={alarmClockHoverAudioEl} src="/assets/audio/svegliaok.mp3" preload="auto"></audio>
-<audio bind:this={stoveHoverAudioEl} src="/assets/audio/fornellook.mp3" preload="auto"></audio>
-<audio bind:this={constructionAudioEl} src="/assets/audio/cantiere.mp3" preload="auto"></audio>
-<audio bind:this={kitchenAmbientAudioEl} src="/assets/audio/kitchen_backgroundok.mp3" preload="auto"></audio>
+<audio
+  bind:this={toolShedAudioEl}
+  src="/assets/audio/interactive-objects/toolbox.mp3"
+  preload="auto"
+></audio>
+<audio
+  bind:this={standMixerAudioEl}
+  src="/assets/audio/interactive-objects/mixer.mp3"
+  preload="auto"
+></audio>
+<audio
+  bind:this={coneHoverAudioEl}
+  src="/assets/audio/interactive-objects/conook.mp3"
+  preload="auto"
+></audio>
+<audio
+  bind:this={cleaningKitHoverAudioEl}
+  src="/assets/audio/interactive-objects/spruzzinook.mp3"
+  preload="auto"
+></audio>
+<audio
+  bind:this={coffeeCupHoverAudioEl}
+  src="/assets/audio/interactive-objects/tazzinaok.mp3"
+  preload="auto"
+></audio>
+<audio
+  bind:this={alarmClockHoverAudioEl}
+  src="/assets/audio/interactive-objects/svegliaok.mp3"
+  preload="auto"
+></audio>
+<audio
+  bind:this={stoveHoverAudioEl}
+  src="/assets/audio/interactive-objects/fornellook.mp3"
+  preload="auto"
+></audio>
+<audio bind:this={constructionAudioEl} src="/assets/audio/background/cantiere.mp3" preload="auto"></audio>
+<audio
+  bind:this={kitchenAmbientAudioEl}
+  src="/assets/audio/background/kitchen_backgroundok.mp3"
+  preload="auto"
+></audio>
 <audio
   bind:this={carloAudioEl}
-  src="/assets/audio/carlo.mp3"
+  src="/assets/audio/testimonials/carlo.mp3"
   preload="auto"
   onplay={() => {
     if (!carloAudioEl?.muted) activeTestimonialAudioId = 'carlo';
@@ -2575,7 +2491,7 @@
 ></audio>
 <audio
   bind:this={paganiniAudioEl}
-  src="/assets/audio/stefano.mp3"
+  src="/assets/audio/testimonials/stefano.mp3"
   preload="auto"
   onplay={() => {
     if (!paganiniAudioEl?.muted) activeTestimonialAudioId = 'paganini';
@@ -2590,7 +2506,7 @@
 ></audio>
 <audio
   bind:this={faustoAudioEl}
-  src="/assets/audio/faustocucina1.mp3"
+  src="/assets/audio/testimonials/faustocucina1.mp3"
   preload="auto"
   onplay={() => {
     if (!faustoAudioEl?.muted) activeTestimonialAudioId = 'fausto';
@@ -2605,7 +2521,7 @@
 ></audio>
 <audio
   bind:this={fausto2AudioEl}
-  src="/assets/audio/fausto2ok.mp3"
+  src="/assets/audio/testimonials/fausto2ok.mp3"
   preload="auto"
   onplay={() => {
     if (!fausto2AudioEl?.muted) activeTestimonialAudioId = 'fausto2';
@@ -2620,7 +2536,7 @@
 ></audio>
 <audio
   bind:this={marcoAudioEl}
-  src="/assets/audio/marcofrassantecucina.mp3"
+  src="/assets/audio/testimonials/marcofrassantecucina.mp3"
   preload="auto"
   onplay={() => {
     if (!marcoAudioEl?.muted) activeTestimonialAudioId = 'marco';
@@ -3005,72 +2921,11 @@
     transition-delay: 240ms, 240ms, 0s;
   }
 
-  .parallax-layer,
-  .floor-layer,
   .scene-title,
   .chef-button {
     position: absolute;
     left: 0;
     will-change: transform;
-  }
-
-  .parallax-layer {
-    pointer-events: none;
-    z-index: calc(var(--scene-layer-z, 0) + var(--scene-z-offset, 0));
-    transform-origin: center center;
-  }
-
-  .scene-asset {
-    display: block;
-    object-fit: fill;
-    user-select: none;
-  }
-
-  .reveal-layer {
-    opacity: 0;
-    transform-origin: 50% 50%;
-    will-change: opacity;
-  }
-
-  .kitchen-stage.is-loaded .reveal-layer {
-    animation: layerPopIn 1ms step-end var(--reveal-delay, 0ms) forwards;
-  }
-
-  .parallax-layer img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: fill;
-    user-select: none;
-  }
-
-  .tail-layer {
-    object-fit: fill;
-  }
-
-  .tail-layer img {
-    height: 100%;
-    object-fit: fill;
-  }
-
-  .background-layer {
-    --reveal-delay: 40ms;
-    --scene-layer-z: 1;
-  }
-
-  .floor-layer {
-    z-index: 2;
-    right: 0;
-    bottom: 0;
-    background-image: url('/assets/kitchen/floor/pavimento-tile.svg');
-    background-repeat: repeat-x;
-    transform-origin: 50% 50%;
-    pointer-events: none;
-  }
-
-  .middle-layer {
-    --reveal-delay: 280ms;
-    --scene-layer-z: 3;
   }
 
   .scene-title {
@@ -3385,589 +3240,6 @@
     animation: dialogueRevealY 240ms cubic-bezier(0.16, 1, 0.3, 1) 260ms both;
   }
 
-  .foreground-layer {
-    --reveal-delay: 470ms;
-    --scene-layer-z: 6;
-  }
-
-  .interactive-asset {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    overflow: visible;
-    pointer-events: auto;
-    z-index: 9;
-  }
-
-  .tool-shed-layer {
-    overflow: visible;
-    pointer-events: auto;
-  }
-
-  .stand-mixer-layer {
-    pointer-events: auto;
-  }
-
-  .coffee-machine-layer,
-  .orange-detail-machine-layer,
-  .alarm-clock-layer,
-  .stove-top-layer {
-    pointer-events: auto;
-  }
-
-  .stand-mixer-layer img {
-    position: relative;
-    z-index: 1;
-    display: block;
-    width: 100%;
-    height: auto;
-    transform-origin: 56% 100%;
-    animation: standMixerIdle 2.4s cubic-bezier(0.45, 0, 0.2, 1) infinite;
-    will-change: transform;
-  }
-
-  .coffee-machine-layer img,
-  .orange-detail-machine-layer img,
-  .alarm-clock-layer img,
-  .stove-top-layer img {
-    position: relative;
-    z-index: 1;
-    display: block;
-    width: 100%;
-    height: auto;
-    transform-origin: 52% 100%;
-    animation: coffeeMachineIdle 1.65s cubic-bezier(0.45, 0, 0.2, 1) infinite;
-    will-change: transform;
-  }
-
-  .stand-mixer-layer:hover img,
-  .stand-mixer-layer:focus-visible img {
-    animation: standMixerHoverLanding 760ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  .coffee-machine-layer:hover img,
-  .coffee-machine-layer:focus-visible img,
-  .orange-detail-machine-layer:hover img,
-  .orange-detail-machine-layer:focus-visible img,
-  .alarm-clock-layer:hover img,
-  .alarm-clock-layer:focus-visible img,
-  .stove-top-layer:hover img,
-  .stove-top-layer:focus-visible img {
-    animation: coffeeMachineHoverLanding 860ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  .stand-mixer-hover-dialogue {
-    position: absolute;
-    inset: 0;
-    z-index: 3;
-    opacity: 0;
-    transition: opacity 120ms ease;
-    pointer-events: none;
-  }
-
-  .coffee-machine-hover-dialogue,
-  .orange-detail-machine-hover-dialogue,
-  .alarm-clock-hover-dialogue,
-  .stove-top-hover-dialogue {
-    position: absolute;
-    inset: 0;
-    z-index: 3;
-    opacity: 0;
-    transition: opacity 120ms ease;
-    pointer-events: none;
-  }
-
-  .stand-mixer-hover-panel {
-    position: absolute;
-    z-index: 2;
-    left: var(--stand-mixer-message-left);
-    top: var(--stand-mixer-message-top);
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--stand-mixer-message-width);
-    padding: var(--stand-mixer-message-padding);
-    border: 2px solid var(--color-interactive-hover);
-    border-radius: var(--radius-s);
-    background: #f7f3ea;
-    color: var(--color-text-primary);
-    -webkit-clip-path: inset(0 0 0 0);
-    clip-path: inset(0 0 0 0);
-    will-change: clip-path;
-  }
-
-  .coffee-machine-hover-panel {
-    position: absolute;
-    z-index: 2;
-    left: var(--coffee-machine-message-left);
-    top: var(--coffee-machine-message-top);
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--coffee-machine-message-width);
-    padding: var(--coffee-machine-message-padding);
-    border: 2px solid var(--color-interactive-hover);
-    border-radius: var(--radius-s);
-    background: #f7f3ea;
-    color: var(--color-text-primary);
-    -webkit-clip-path: inset(0 0 0 0);
-    clip-path: inset(0 0 0 0);
-    will-change: clip-path;
-  }
-
-  .orange-detail-machine-hover-panel {
-    position: absolute;
-    z-index: 2;
-    left: var(--orange-detail-machine-message-left);
-    top: var(--orange-detail-machine-message-top);
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--orange-detail-machine-message-width);
-    padding: var(--orange-detail-machine-message-padding);
-    border: 2px solid var(--color-interactive-hover);
-    border-radius: var(--radius-s);
-    background: #f7f3ea;
-    color: var(--color-text-primary);
-    -webkit-clip-path: inset(0 0 0 0);
-    clip-path: inset(0 0 0 0);
-    will-change: clip-path;
-  }
-
-  .alarm-clock-hover-panel {
-    position: absolute;
-    z-index: 2;
-    left: var(--alarm-clock-message-left);
-    top: var(--alarm-clock-message-top);
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--alarm-clock-message-width);
-    padding: var(--alarm-clock-message-padding);
-    border: 2px solid var(--color-interactive-hover);
-    border-radius: var(--radius-s);
-    background: #f7f3ea;
-    color: var(--color-text-primary);
-    -webkit-clip-path: inset(0 0 0 0);
-    clip-path: inset(0 0 0 0);
-    will-change: clip-path;
-  }
-
-  .stove-top-hover-panel {
-    position: absolute;
-    z-index: 2;
-    left: var(--stove-top-message-left);
-    top: var(--stove-top-message-top);
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--stove-top-message-width);
-    padding: var(--stove-top-message-padding);
-    border: 2px solid var(--color-interactive-hover);
-    border-radius: var(--radius-s);
-    background: #f7f3ea;
-    color: var(--color-text-primary);
-    -webkit-clip-path: inset(0 0 0 0);
-    clip-path: inset(0 0 0 0);
-    will-change: clip-path;
-  }
-
-  .stand-mixer-hover-arrow {
-    position: absolute;
-    z-index: 1;
-    left: var(--stand-mixer-arrow-left);
-    top: var(--stand-mixer-arrow-top);
-    width: var(--stand-mixer-arrow-size);
-    height: var(--stand-mixer-arrow-size);
-    background: var(--color-interactive-hover);
-    transform: translate(-50%, -50%) rotate(45deg);
-  }
-
-  .coffee-machine-hover-arrow {
-    position: absolute;
-    z-index: 1;
-    left: var(--coffee-machine-arrow-left);
-    top: var(--coffee-machine-arrow-top);
-    width: var(--coffee-machine-arrow-size);
-    height: var(--coffee-machine-arrow-size);
-    background: var(--color-interactive-hover);
-    transform: translate(-50%, -50%) rotate(45deg);
-  }
-
-  .orange-detail-machine-hover-arrow {
-    position: absolute;
-    z-index: 1;
-    left: var(--orange-detail-machine-arrow-left);
-    top: var(--orange-detail-machine-arrow-top);
-    width: var(--orange-detail-machine-arrow-size);
-    height: var(--orange-detail-machine-arrow-size);
-    background: var(--color-interactive-hover);
-    transform: translate(-50%, -50%) rotate(45deg);
-  }
-
-  .alarm-clock-hover-arrow {
-    position: absolute;
-    z-index: 1;
-    left: var(--alarm-clock-arrow-left);
-    top: var(--alarm-clock-arrow-top);
-    width: var(--alarm-clock-arrow-size);
-    height: var(--alarm-clock-arrow-size);
-    background: var(--color-interactive-hover);
-    transform: translate(-50%, -50%) rotate(45deg);
-  }
-
-  .stove-top-hover-arrow {
-    position: absolute;
-    z-index: 1;
-    left: var(--stove-top-arrow-left);
-    top: var(--stove-top-arrow-top);
-    width: var(--stove-top-arrow-size);
-    height: var(--stove-top-arrow-size);
-    background: var(--color-interactive-hover);
-    transform: translate(-50%, -50%) rotate(45deg);
-  }
-
-  .stand-mixer-hover-copy {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    font-family: "JetBrains Mono", var(--font-text);
-    font-size: var(--stand-mixer-message-font-size);
-    font-style: italic;
-    font-weight: 300;
-    line-height: normal;
-    letter-spacing: 0;
-    text-align: left;
-    word-break: break-word;
-  }
-
-  .coffee-machine-hover-copy {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    font-family: "JetBrains Mono", var(--font-text);
-    font-size: var(--coffee-machine-message-font-size);
-    font-style: italic;
-    font-weight: 300;
-    line-height: normal;
-    letter-spacing: 0;
-    text-align: left;
-    word-break: break-word;
-  }
-
-  .orange-detail-machine-hover-copy {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    font-family: "JetBrains Mono", var(--font-text);
-    font-size: var(--orange-detail-machine-message-font-size);
-    font-style: italic;
-    font-weight: 300;
-    line-height: normal;
-    letter-spacing: 0;
-    text-align: left;
-    word-break: break-word;
-  }
-
-  .alarm-clock-hover-copy {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    font-family: "JetBrains Mono", var(--font-text);
-    font-size: var(--alarm-clock-message-font-size);
-    font-style: italic;
-    font-weight: 300;
-    line-height: normal;
-    letter-spacing: 0;
-    text-align: left;
-    word-break: break-word;
-  }
-
-  .stove-top-hover-copy {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    font-family: "JetBrains Mono", var(--font-text);
-    font-size: var(--stove-top-message-font-size);
-    font-style: italic;
-    font-weight: 300;
-    line-height: normal;
-    letter-spacing: 0;
-    text-align: left;
-    word-break: break-word;
-  }
-
-  .stand-mixer-layer:hover .stand-mixer-hover-dialogue,
-  .stand-mixer-layer:focus-visible .stand-mixer-hover-dialogue {
-    opacity: 1;
-  }
-
-  .coffee-machine-layer:hover .coffee-machine-hover-dialogue,
-  .coffee-machine-layer:focus-visible .coffee-machine-hover-dialogue,
-  .orange-detail-machine-layer:hover .orange-detail-machine-hover-dialogue,
-  .orange-detail-machine-layer:focus-visible .orange-detail-machine-hover-dialogue,
-  .alarm-clock-layer:hover .alarm-clock-hover-dialogue,
-  .alarm-clock-layer:focus-visible .alarm-clock-hover-dialogue,
-  .stove-top-layer:hover .stove-top-hover-dialogue,
-  .stove-top-layer:focus-visible .stove-top-hover-dialogue {
-    opacity: 1;
-  }
-
-  .stand-mixer-layer:hover .stand-mixer-hover-panel,
-  .stand-mixer-layer:focus-visible .stand-mixer-hover-panel {
-    animation: dialogueRevealX 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  .coffee-machine-layer:hover .coffee-machine-hover-panel,
-  .coffee-machine-layer:focus-visible .coffee-machine-hover-panel,
-  .orange-detail-machine-layer:hover .orange-detail-machine-hover-panel,
-  .orange-detail-machine-layer:focus-visible .orange-detail-machine-hover-panel,
-  .alarm-clock-layer:hover .alarm-clock-hover-panel,
-  .alarm-clock-layer:focus-visible .alarm-clock-hover-panel,
-  .stove-top-layer:hover .stove-top-hover-panel,
-  .stove-top-layer:focus-visible .stove-top-hover-panel {
-    animation: dialogueRevealX 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  .tool-shed-layer:focus-visible,
-  .stand-mixer-layer:focus-visible,
-  .coffee-machine-layer:focus-visible,
-  .orange-detail-machine-layer:focus-visible,
-  .alarm-clock-layer:focus-visible,
-  .stove-top-layer:focus-visible {
-    outline: none;
-  }
-
-  .tool-shed-layer img {
-    position: relative;
-    z-index: 1;
-    transform-origin: 50% 100%;
-    will-change: transform;
-  }
-
-  .object-shine {
-    position: absolute;
-    z-index: 2;
-    inset: 0;
-    overflow: hidden;
-    opacity: 0;
-    pointer-events: none;
-    -webkit-mask-image: var(--shine-mask);
-    mask-image: var(--shine-mask);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    transform-origin: 50% 50%;
-    animation: objectLightSweepOpacityTool 1.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-    will-change: opacity;
-  }
-
-  .stand-mixer-layer .object-shine {
-    animation-name: objectLightSweepOpacityMixer;
-    animation-duration: 2.4s;
-  }
-
-  .coffee-machine-layer .object-shine,
-  .orange-detail-machine-layer .object-shine,
-  .alarm-clock-layer .object-shine,
-  .stove-top-layer .object-shine {
-    animation-name: objectLightSweepOpacityCoffee;
-    animation-duration: 2.7s;
-  }
-
-  .object-shine::before {
-    position: absolute;
-    top: -34%;
-    left: 46%;
-    width: 18%;
-    height: 168%;
-    background:
-      linear-gradient(
-        90deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.18),
-        #ffffff,
-        rgba(255, 255, 255, 0.24),
-        transparent 50%
-      );
-    content: '';
-    transform: translate3d(-430%, -34%, 0) rotate(35deg);
-    transform-origin: 50% 50%;
-    animation: objectLightSweepBeamTool 1.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-    will-change: transform;
-  }
-
-  .stand-mixer-layer .object-shine::before {
-    animation-name: objectLightSweepBeamMixer;
-    animation-duration: 2.4s;
-  }
-
-  .coffee-machine-layer .object-shine::before,
-  .orange-detail-machine-layer .object-shine::before,
-  .alarm-clock-layer .object-shine::before,
-  .stove-top-layer .object-shine::before {
-    left: 38%;
-    width: 24%;
-    animation-name: objectLightSweepBeamCoffee;
-    animation-duration: 2.7s;
-  }
-
-  .tool-shed-layer:hover img,
-  .tool-shed-layer:focus-visible img {
-    animation: toolShedHeavyLanding 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  .tool-shed-hover-dialogue {
-    position: absolute;
-    inset: 0;
-    z-index: 3;
-    opacity: 0;
-    transition: opacity 120ms ease;
-    pointer-events: none;
-  }
-
-  .tool-shed-hover-panel {
-    position: absolute;
-    z-index: 2;
-    left: var(--tool-shed-message-left);
-    top: var(--tool-shed-message-top);
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--tool-shed-message-width);
-    padding: var(--tool-shed-message-padding);
-    border: 2px solid var(--color-interactive-hover);
-    border-radius: var(--radius-s);
-    background: #f7f3ea;
-    color: var(--color-text-primary);
-    -webkit-clip-path: inset(0 0 0 0);
-    clip-path: inset(0 0 0 0);
-    will-change: clip-path;
-  }
-
-  .tool-shed-hover-arrow {
-    position: absolute;
-    z-index: 1;
-    left: var(--tool-shed-message-left);
-    top: var(--tool-shed-arrow-top);
-    width: var(--tool-shed-arrow-size);
-    height: var(--tool-shed-arrow-size);
-    background: var(--color-interactive-hover);
-    transform: translate(-50%, -50%) rotate(45deg);
-  }
-
-  .tool-shed-hover-copy {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    font-family: "JetBrains Mono", var(--font-text);
-    font-size: var(--tool-shed-message-font-size);
-    font-style: italic;
-    font-weight: 300;
-    line-height: normal;
-    letter-spacing: 0;
-    text-align: left;
-    word-break: break-word;
-  }
-
-  .hover-dialogue {
-    opacity: 0;
-    transform: translate3d(0, 18px, 0);
-    transition:
-      opacity 120ms ease,
-      transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
-    will-change: opacity, transform;
-  }
-
-  .hover-panel {
-    left: 50%;
-    top: auto;
-    bottom: calc(100% + var(--interactive-message-gap, 34px));
-    width: var(--interactive-message-width);
-    padding: var(--interactive-message-padding);
-    transform: translateX(-50%);
-    -webkit-clip-path: inset(100% 0 0 0);
-    clip-path: inset(100% 0 0 0);
-  }
-
-  .hover-arrow {
-    left: 50%;
-    top: auto;
-    bottom: calc(100% + var(--interactive-message-gap, 34px) - var(--interactive-arrow-size, 18px));
-    width: calc(var(--interactive-arrow-size, 18px) * 1.45);
-    height: var(--interactive-arrow-size, 18px);
-    clip-path: polygon(50% 100%, 0 0, 100% 0);
-    opacity: 0;
-    scale: 0.72;
-    transform: translateX(-50%);
-    transform-origin: 50% 50%;
-    transition:
-      opacity 1ms linear 80ms,
-      scale 220ms cubic-bezier(0.22, 1, 0.36, 1) 80ms;
-    will-change: opacity, scale;
-  }
-
-  .hover-copy {
-    font-size: var(--interactive-message-font-size);
-  }
-
-  .tool-shed-layer:hover .tool-shed-hover-dialogue,
-  .tool-shed-layer:focus-visible .tool-shed-hover-dialogue {
-    opacity: 1;
-  }
-
-  .tool-shed-layer:hover .tool-shed-hover-panel,
-  .tool-shed-layer:focus-visible .tool-shed-hover-panel {
-    animation: dialogueRevealX 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  .interactive-asset:hover .hover-dialogue,
-  .interactive-asset:focus-visible .hover-dialogue {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-
-  .interactive-asset:hover .hover-arrow,
-  .interactive-asset:focus-visible .hover-arrow {
-    opacity: 1;
-    scale: 1;
-  }
-
-  .interactive-asset:hover .hover-panel,
-  .interactive-asset:focus-visible .hover-panel {
-    animation: dialogueRevealY 320ms cubic-bezier(0.16, 1, 0.3, 1) 20ms both;
-  }
-
-  @keyframes layerPopIn {
-    0% {
-      opacity: 0;
-    }
-
-    100% {
-      opacity: 1;
-    }
-  }
-
-  @keyframes dialogueRevealX {
-    from {
-      -webkit-clip-path: inset(0 100% 0 0);
-      clip-path: inset(0 100% 0 0);
-    }
-
-    to {
-      -webkit-clip-path: inset(0 0 0 0);
-      clip-path: inset(0 0 0 0);
-    }
-  }
-
   @keyframes dialogueRevealY {
     from {
       -webkit-clip-path: inset(100% 0 0 0);
@@ -3977,264 +3249,6 @@
     to {
       -webkit-clip-path: inset(0 0 0 0);
       clip-path: inset(0 0 0 0);
-    }
-  }
-
-  @keyframes objectLightSweepOpacityTool {
-    0%,
-    52% {
-      opacity: 0;
-    }
-
-    63% {
-      opacity: 0.8;
-    }
-
-    90% {
-      opacity: 0;
-    }
-
-    100% {
-      opacity: 0;
-    }
-  }
-
-  @keyframes objectLightSweepBeamTool {
-    0%,
-    52% {
-      transform: translate3d(-430%, -34%, 0) rotate(35deg);
-    }
-
-    90%,
-    100% {
-      transform: translate3d(430%, 34%, 0) rotate(35deg);
-    }
-  }
-
-  @keyframes objectLightSweepOpacityMixer {
-    0%,
-    58% {
-      opacity: 0;
-    }
-
-    66% {
-      opacity: 0.8;
-    }
-
-    78% {
-      opacity: 0;
-    }
-
-    100% {
-      opacity: 0;
-    }
-  }
-
-  @keyframes objectLightSweepBeamMixer {
-    0%,
-    58% {
-      transform: translate3d(-430%, -34%, 0) rotate(35deg);
-    }
-
-    78%,
-    100% {
-      transform: translate3d(430%, 34%, 0) rotate(35deg);
-    }
-  }
-
-  @keyframes objectLightSweepOpacityCoffee {
-    0%,
-    54% {
-      opacity: 0;
-    }
-
-    64% {
-      opacity: 0.78;
-    }
-
-    82% {
-      opacity: 0;
-    }
-
-    100% {
-      opacity: 0;
-    }
-  }
-
-  @keyframes objectLightSweepBeamCoffee {
-    0%,
-    54% {
-      transform: translate3d(-430%, -34%, 0) rotate(35deg);
-    }
-
-    82%,
-    100% {
-      transform: translate3d(430%, 34%, 0) rotate(35deg);
-    }
-  }
-
-  @keyframes toolShedHeavyLanding {
-    0% {
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-
-    10% {
-      transform: translate3d(0, 0, 0) scale(1.035, 0.965);
-    }
-
-    24% {
-      transform: translate3d(0, -18px, 0) scale(0.975, 1.025);
-    }
-
-    42% {
-      transform: translate3d(1px, -34px, 0) scale(0.985, 1.015);
-    }
-
-    56% {
-      transform: translate3d(-1px, -14px, 0) scale(1);
-    }
-
-    66% {
-      transform: translate3d(0, 0, 0) scale(1.11, 0.86);
-    }
-
-    73% {
-      transform: translate3d(0, -7px, 0) scale(0.965, 1.045);
-    }
-
-    81% {
-      transform: translate3d(0, 0, 0) scale(1.055, 0.935);
-    }
-
-    89% {
-      transform: translate3d(0, -2px, 0) scale(0.99, 1.01);
-    }
-
-    100% {
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-  }
-
-  @keyframes standMixerIdle {
-    0%,
-    42%,
-    100% {
-      transform: translate3d(0, 0, 0) rotate(0deg);
-    }
-
-    52% {
-      transform: translate3d(0, -3px, 0) rotate(-1.6deg);
-    }
-
-    64% {
-      transform: translate3d(0, 0, 0) rotate(0.9deg);
-    }
-
-    78% {
-      transform: translate3d(0, -0.8px, 0) rotate(-0.5deg);
-    }
-  }
-
-  @keyframes coffeeMachineIdle {
-    0%,
-    100% {
-      transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
-    }
-
-    28% {
-      transform: translate3d(0, -13px, 0) rotate(-3.6deg) scale(1.018);
-    }
-
-    46% {
-      transform: translate3d(0, 2px, 0) rotate(1.5deg) scale(1.012, 0.985);
-    }
-
-    62% {
-      transform: translate3d(0, -6px, 0) rotate(-1.9deg) scale(1.008);
-    }
-
-    78% {
-      transform: translate3d(0, 0, 0) rotate(0.9deg) scale(1);
-    }
-  }
-
-  @keyframes coffeeMachineHoverLanding {
-    0% {
-      transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
-    }
-
-    12% {
-      transform: translate3d(0, 0, 0) rotate(5deg) scale(1.08, 0.88);
-    }
-
-    28% {
-      transform: translate3d(0, -38px, 0) rotate(-12deg) scale(0.94, 1.12);
-    }
-
-    44% {
-      transform: translate3d(4px, -54px, 0) rotate(-16deg) scale(0.96, 1.08);
-    }
-
-    58% {
-      transform: translate3d(-2px, -18px, 0) rotate(-7deg) scale(1);
-    }
-
-    68% {
-      transform: translate3d(0, 0, 0) rotate(4deg) scale(1.18, 0.78);
-    }
-
-    78% {
-      transform: translate3d(0, -14px, 0) rotate(-5deg) scale(0.96, 1.1);
-    }
-
-    88% {
-      transform: translate3d(0, 0, 0) rotate(2deg) scale(1.08, 0.88);
-    }
-
-    100% {
-      transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
-    }
-  }
-
-  @keyframes standMixerHoverLanding {
-    0% {
-      transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
-    }
-
-    12% {
-      transform: translate3d(0, 0, 0) rotate(2.5deg) scale(1.025, 0.975);
-    }
-
-    28% {
-      transform: translate3d(0, -14px, 0) rotate(-6deg) scale(0.985, 1.018);
-    }
-
-    43% {
-      transform: translate3d(1px, -24px, 0) rotate(-9deg) scale(0.99, 1.012);
-    }
-
-    57% {
-      transform: translate3d(0, -9px, 0) rotate(-4deg) scale(1);
-    }
-
-    67% {
-      transform: translate3d(0, 0, 0) rotate(1.8deg) scale(1.075, 0.91);
-    }
-
-    76% {
-      transform: translate3d(0, -5px, 0) rotate(-2.2deg) scale(0.985, 1.025);
-    }
-
-    84% {
-      transform: translate3d(0, 0, 0) rotate(0.9deg) scale(1.035, 0.955);
-    }
-
-    92% {
-      transform: translate3d(0, -1.5px, 0) rotate(-0.45deg) scale(0.996, 1.006);
-    }
-
-    100% {
-      transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
     }
   }
 
@@ -4338,28 +3352,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .reveal-layer {
-      opacity: 1;
-      animation: none;
-    }
-
-    .tool-shed-layer:hover img,
-    .tool-shed-layer:focus-visible img,
-    .stand-mixer-layer img,
-    .stand-mixer-layer:hover img,
-    .stand-mixer-layer:focus-visible img,
-    .coffee-machine-layer img,
-    .coffee-machine-layer:hover img,
-    .coffee-machine-layer:focus-visible img,
-    .orange-detail-machine-layer img,
-    .orange-detail-machine-layer:hover img,
-    .orange-detail-machine-layer:focus-visible img,
-    .alarm-clock-layer img,
-    .alarm-clock-layer:hover img,
-    .alarm-clock-layer:focus-visible img,
-    .stove-top-layer img,
-    .stove-top-layer:hover img,
-    .stove-top-layer:focus-visible img,
     .scene-title {
       opacity: 1;
       transform: translate3d(0, -50%, 0);
@@ -4370,44 +3362,13 @@
     .speech-bubble::before,
     .speech-bubble-copy,
     .speech-bubble-meta,
-    .chef-button,
-    .object-shine,
-    .tool-shed-hover-dialogue,
-    .tool-shed-hover-panel,
-    .tool-shed-hover-arrow,
-    .stand-mixer-hover-dialogue,
-    .stand-mixer-hover-panel,
-    .stand-mixer-hover-arrow,
-    .coffee-machine-hover-dialogue,
-    .coffee-machine-hover-panel,
-    .coffee-machine-hover-arrow,
-    .orange-detail-machine-hover-dialogue,
-    .orange-detail-machine-hover-panel,
-    .orange-detail-machine-hover-arrow,
-    .alarm-clock-hover-dialogue,
-    .alarm-clock-hover-panel,
-    .alarm-clock-hover-arrow,
-    .stove-top-hover-dialogue,
-    .stove-top-hover-panel,
-    .stove-top-hover-arrow {
+    .chef-button {
       transition: none;
       animation: none;
     }
 
     .chef-button.is-dialogue-visible .speech-bubble-copy,
-    .chef-button.is-dialogue-visible .speech-bubble-meta,
-    .tool-shed-layer:hover .tool-shed-hover-panel,
-    .tool-shed-layer:focus-visible .tool-shed-hover-panel,
-    .stand-mixer-layer:hover .stand-mixer-hover-panel,
-    .stand-mixer-layer:focus-visible .stand-mixer-hover-panel,
-    .coffee-machine-layer:hover .coffee-machine-hover-panel,
-    .coffee-machine-layer:focus-visible .coffee-machine-hover-panel,
-    .orange-detail-machine-layer:hover .orange-detail-machine-hover-panel,
-    .orange-detail-machine-layer:focus-visible .orange-detail-machine-hover-panel,
-    .alarm-clock-layer:hover .alarm-clock-hover-panel,
-    .alarm-clock-layer:focus-visible .alarm-clock-hover-panel,
-    .stove-top-layer:hover .stove-top-hover-panel,
-    .stove-top-layer:focus-visible .stove-top-hover-panel {
+    .chef-button.is-dialogue-visible .speech-bubble-meta {
       -webkit-clip-path: inset(0 0 0 0);
       clip-path: inset(0 0 0 0);
     }

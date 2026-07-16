@@ -2685,14 +2685,34 @@
   </div>
 </section>
 
-<audio bind:this={officeAmbientAudioEl} src="/assets/audio/office_background.wav" preload="auto"></audio>
-<audio bind:this={keysHoverAudioEl} src="/assets/audio/chiavi.mp3" preload="auto"></audio>
-<audio bind:this={clickHoverAudioEl} src="/assets/audio/click.mp3" preload="auto"></audio>
-<audio bind:this={cioHoverAudioEl} src="/assets/audio/ciook.mp3" preload="auto"></audio>
-<audio bind:this={mapHoverAudioEl} src="/assets/audio/mappa.mp3" preload="auto"></audio>
+<audio
+  bind:this={officeAmbientAudioEl}
+  src="/assets/audio/background/office_background.wav"
+  preload="auto"
+></audio>
+<audio
+  bind:this={keysHoverAudioEl}
+  src="/assets/audio/interactive-objects/chiavi.mp3"
+  preload="auto"
+></audio>
+<audio
+  bind:this={clickHoverAudioEl}
+  src="/assets/audio/interactive-objects/click.mp3"
+  preload="auto"
+></audio>
+<audio
+  bind:this={cioHoverAudioEl}
+  src="/assets/audio/interactive-objects/ciook.mp3"
+  preload="auto"
+></audio>
+<audio
+  bind:this={mapHoverAudioEl}
+  src="/assets/audio/interactive-objects/mappa.mp3"
+  preload="auto"
+></audio>
 <audio
   bind:this={carloOfficeAudioEl}
-  src="/assets/audio/carlozarriufficio1.mp3"
+  src="/assets/audio/testimonials/carlozarriufficio1.mp3"
   preload="auto"
   onplay={() => {
     isCarloOfficeAudioActive = true;
@@ -2708,7 +2728,7 @@
 ></audio>
 <audio
   bind:this={carloOffice2AudioEl}
-  src="/assets/audio/carlozarri2ufficio.mp3"
+  src="/assets/audio/testimonials/carlozarri2ufficio.mp3"
   preload="auto"
   onplay={() => {
     isCarloOffice2AudioActive = true;
@@ -2724,7 +2744,7 @@
 ></audio>
 <audio
   bind:this={elisabettaOfficeAudioEl}
-  src="/assets/audio/elisabettaufficio.mp3"
+  src="/assets/audio/testimonials/elisabettaufficio.mp3"
   preload="auto"
   onplay={() => {
     isElisabettaOfficeAudioActive = true;
@@ -2740,7 +2760,7 @@
 ></audio>
 <audio
   bind:this={faustoOfficeAudioEl}
-  src="/assets/audio/fausto_ufficio.mp3"
+  src="/assets/audio/testimonials/fausto_ufficio.mp3"
   preload="auto"
   onplay={() => {
     isFaustoOfficeAudioActive = true;
