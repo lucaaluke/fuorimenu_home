@@ -71,7 +71,10 @@ const FOREGROUND_OBJECT_SCROLL_FACTOR = 1.5;
 function resolveChunkPath(chunk: SceneChunk, version: string) {
   const prefix = chunkPathPrefix[chunk.layer as keyof typeof chunkPathPrefix];
 
-  return `/assets/kitchen/${prefix}/frame-${chunk.frameIndex.toString().padStart(2, '0')}.png?v=${version}`;
+  return resolveVersionedAssetPath(
+    `kitchen/${prefix}/frame-${chunk.frameIndex.toString().padStart(2, '0')}.png`,
+    version
+  );
 }
 
 function isPhaserObjectAsset(asset: SceneAsset) {

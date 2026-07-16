@@ -58,7 +58,7 @@ export async function createKitchenPhaserGame(
   });
 
   const config: Phaser.Types.Core.GameConfig = {
-    type: Phaser.WEBGL,
+    type: Phaser.AUTO,
     parent: options.container,
     width: Math.round(viewport.width * initialPixelRatio),
     height: Math.round(viewport.height * initialPixelRatio),

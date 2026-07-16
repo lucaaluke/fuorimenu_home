@@ -1,4 +1,5 @@
 import type { SceneChunk, SceneLayer } from '$lib/scene/scene-asset.types';
+import { resolvePublicAssetPath, resolveVersionedAssetPath } from '$lib/scene/asset-paths';
 
 export const SCENE_WIDTH_FIGMA = 46600;
 export const SCENE_HEIGHT_FIGMA = 1330;
@@ -98,9 +99,9 @@ export function getChunkAssetKey(layer: ChunkedSceneLayer, frameIndex: number): 
 
 export function getChunkAssetPath(chunk: SceneChunk, version?: string): string {
   const prefix = CHUNK_LAYER_PREFIX[chunk.layer as ChunkedSceneLayer];
-  const path = `/assets/kitchen/${prefix}/frame-${chunk.frameIndex.toString().padStart(2, '0')}.png`;
+  const path = `kitchen/${prefix}/frame-${chunk.frameIndex.toString().padStart(2, '0')}.png`;
 
-  return version ? `${path}?v=${version}` : path;
+  return version ? resolveVersionedAssetPath(path, version) : resolvePublicAssetPath(path);
 }
 
 export function generateSceneChunks(options: GenerateSceneChunksOptions): SceneChunk[] {

@@ -1,7 +1,8 @@
 import type Phaser from 'phaser';
 
 export function getDevicePixelRatio() {
-  return Math.max(1, window.devicePixelRatio ?? 1);
+  const maxPixelRatio = window.matchMedia('(pointer: coarse)').matches ? 1.5 : 2;
+  return Math.max(1, Math.min(window.devicePixelRatio ?? 1, maxPixelRatio));
 }
 
 export function setCanvasCssSize(game: Phaser.Game | undefined, width: number, height: number) {

@@ -22,6 +22,7 @@
   import SceneLoadingProgress from '$lib/scene/SceneLoadingProgress.svelte';
   import SceneProgressBar from '$lib/scene/SceneProgressBar.svelte';
   import { getSceneAssetStyle } from '$lib/scene/scene-utils';
+  import { resolveVersionedAssetPath } from '$lib/scene/asset-paths';
   import { createViewportObserver } from '$lib/scene/viewport';
   import { triggerTapClickFeedback } from '$lib/scene/tap-click-feedback';
   import type { ParallaxPhaserGameHandle } from '$lib/scene/phaser/ParallaxPhaserGame';
@@ -214,11 +215,7 @@
   const faustoOfficeVisiblePageIndex = $derived(getFaustoOfficeVisiblePageIndex());
   const faustoOfficeSpeechInfo = $derived(getFaustoOfficeCurrentSpeechPageInfo());
 
-  function versionedAsset(path: string) {
-    const normalized = path.startsWith('/') ? path : `/assets/${path}`;
-    const separator = normalized.includes('?') ? '&' : '?';
-    return `${normalized}${separator}v=${assetVersion}`;
-  }
+  const versionedAsset = (path: string) => resolveVersionedAssetPath(path, assetVersion);
 
   function officeChunkPath(chunk: SceneChunk) {
     return `office/figma/background/Slice ${chunk.frameIndex + 1}.png`;
