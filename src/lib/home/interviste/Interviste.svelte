@@ -773,7 +773,7 @@
   }
 
   function syncFullPortraitScale() {
-    fullPortraitScale = clamp(1 + ((window.innerWidth - 1512) / 688) * 0.18, 1, 1.18);
+    fullPortraitScale = clamp(1 + ((window.innerWidth - 1512) / 688) * 0.24, 1, 1.24);
   }
 
   function handleViewportResize() {
@@ -1288,19 +1288,20 @@
 
   .about-full-interview.is-standalone .about-full-interview-portrait {
     position: absolute;
-    top: 1px;
+    top: 0;
     left: 0;
     width: var(--about-full-text-left);
-    height: 737px;
+    height: 100%;
+    overflow: visible;
   }
 
   .about-full-interview.is-standalone .about-full-interview-portrait img {
-    top: var(--full-portrait-y, 0px);
+    top: 50%;
     left: calc(50% + var(--full-portrait-x, 0px));
     max-width: none;
     height: var(--full-portrait-height, 614px);
-    transform: translateX(-50%) scale(var(--about-full-portrait-scale));
-    transform-origin: top center;
+    transform: translate(-50%, -50%) scale(var(--about-full-portrait-scale));
+    transform-origin: center center;
     object-fit: contain;
   }
 
@@ -1318,7 +1319,7 @@
   .about-full-interview.is-standalone .about-full-interview-scroll {
     flex: 1 1 auto;
     min-height: 0;
-    max-height: min(520px, calc(var(--app-viewport-height) - 278px));
+    max-height: none;
   }
 }
 
@@ -1770,7 +1771,8 @@
 
 .about-interviews.is-standalone .about-interviews-copy {
   min-width: 0;
-  padding: 0 clamp(28px, 5.3vw, 80px);
+  justify-content: flex-end;
+  padding: 0 var(--interviste-navbar-padding-x) 0 clamp(28px, 5.3vw, 80px);
 }
 
 .about-interviews-copy-inner {
@@ -2017,7 +2019,7 @@
     grid-template-columns: minmax(120px, clamp(148px, 19vw, 271px)) minmax(0, 1fr);
     column-gap: clamp(18px, 2.6vw, 40px);
     align-items: stretch;
-    padding-right: clamp(24px, 3.4vw, 56px);
+    padding-right: var(--interviste-navbar-padding-x);
   }
 
   .about-interviews.is-standalone .about-interview-detail-portrait {
@@ -2112,7 +2114,7 @@
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
     row-gap: clamp(16px, 2.6vh, 28px);
-    padding: clamp(18px, 2.8vw, 32px) clamp(24px, 4vw, 44px) 0;
+    padding: clamp(18px, 2.8vw, 32px) var(--interviste-navbar-padding-x) 0 clamp(24px, 4vw, 44px);
   }
 
   .about-interviews.is-standalone .about-interview-detail-content {
