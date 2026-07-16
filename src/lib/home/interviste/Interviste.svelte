@@ -2149,7 +2149,9 @@
 
 @media (min-width: 1061px) {
   .about-interviews.is-standalone .about-interview-detail-content {
-    justify-content: center;
+    align-self: center;
+    height: auto;
+    justify-content: flex-start;
     padding-top: 0;
   }
 }
