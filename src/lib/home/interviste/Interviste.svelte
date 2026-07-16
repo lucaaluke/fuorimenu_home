@@ -2147,6 +2147,13 @@
   }
 }
 
+@media (min-width: 1061px) {
+  .about-interviews.is-standalone .about-interview-detail-content {
+    justify-content: center;
+    padding-top: 0;
+  }
+}
+
 .about-interview-detail-cta {
   --interview-cta-front-y: 0px;
   --interview-cta-depth-y: 4px;
